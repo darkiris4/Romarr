@@ -6,6 +6,7 @@ are used as a fallback so existing .env configurations keep working.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -186,7 +187,12 @@ def _run_tiered_search(title: str, igdb_platform_id: int | None) -> tuple[list, 
     if not token:
         return [], []
 
-    fields = "fields id, name, first_release_date, cover.image_id;"
+    fields = (
+        "fields id, name, first_release_date, cover.image_id,"
+        " summary, rating, aggregated_rating, total_rating,"
+        " game_modes.name, themes.name,"
+        " similar_games.name, similar_games.cover.image_id;"
+    )
     plat = f"& platforms = ({igdb_platform_id})" if igdb_platform_id else ""
     plat_clause = f"where platforms = ({igdb_platform_id});" if igdb_platform_id else ""
 
@@ -219,16 +225,56 @@ def _build_metadata(results: list) -> dict | None:
     if not results:
         return None
     game = results[0]
+
     cover_url = None
     if cover := game.get("cover"):
         if isinstance(cover, dict):
             if image_id := cover.get("image_id"):
                 cover_url = f"https://images.igdb.com/igdb/image/upload/t_cover_big/{image_id}.jpg"
+
     release_year = None
     if ts := game.get("first_release_date"):
         from datetime import datetime, timezone
         release_year = datetime.fromtimestamp(ts, tz=timezone.utc).year
-    return {"igdb_id": game["id"], "cover_url": cover_url, "release_year": release_year}
+
+    raw_rating = (
+        game.get("total_rating")
+        or game.get("aggregated_rating")
+        or game.get("rating")
+    )
+    rating = round(raw_rating, 1) if raw_rating is not None else None
+
+    game_modes = [
+        gm["name"] for gm in game.get("game_modes") or []
+        if isinstance(gm, dict) and "name" in gm
+    ]
+    themes = [
+        t["name"] for t in game.get("themes") or []
+        if isinstance(t, dict) and "name" in t
+    ]
+
+    similar: list[dict] = []
+    for sg in game.get("similar_games") or []:
+        if not isinstance(sg, dict):
+            continue
+        sg_cover_url = None
+        if sg_cover := sg.get("cover"):
+            if isinstance(sg_cover, dict) and (img_id := sg_cover.get("image_id")):
+                sg_cover_url = (
+                    f"https://images.igdb.com/igdb/image/upload/t_cover_small/{img_id}.jpg"
+                )
+        similar.append({"name": sg.get("name"), "cover_url": sg_cover_url})
+
+    return {
+        "igdb_id": game["id"],
+        "cover_url": cover_url,
+        "release_year": release_year,
+        "summary": game.get("summary"),
+        "rating": rating,
+        "game_modes": json.dumps(game_modes) if game_modes else None,
+        "themes": json.dumps(themes) if themes else None,
+        "similar_games": json.dumps(similar) if similar else None,
+    }
 
 
 def fetch_game_metadata(title: str, igdb_platform_id: int | None = None) -> dict | None:
@@ -243,3 +289,20 @@ def fetch_game_metadata_debug(
     """Like fetch_game_metadata but also returns the full query log for debugging."""
     results, query_log = _run_tiered_search(title, igdb_platform_id)
     return _build_metadata(results), query_log
+
+
+def fetch_enrichment_by_id(igdb_id: int) -> dict | None:
+    """Fetch extended metadata (summary, rating, modes, themes, similar) for a known IGDB ID."""
+    client_id, _ = _credentials()
+    token = _get_token()
+    if not token:
+        return None
+    fields = (
+        "fields id, name, first_release_date, cover.image_id,"
+        " summary, rating, aggregated_rating, total_rating,"
+        " game_modes.name, themes.name,"
+        " similar_games.name, similar_games.cover.image_id;"
+    )
+    body = f"{fields} where id = {igdb_id}; limit 1;"
+    results = _igdb_query(client_id, token, body)
+    return _build_metadata(results)

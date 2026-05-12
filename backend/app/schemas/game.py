@@ -38,6 +38,11 @@ class GameOut(GameBase):
     checksum_crc32: str | None
     file_size: int | None = None
     relative_rom_path: str | None = None
+    summary: str | None = None
+    rating: float | None = None
+    game_modes: str | None = None
+    themes: str | None = None
+    similar_games: str | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

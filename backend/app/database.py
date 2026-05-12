@@ -71,6 +71,11 @@ _IGDB_PLATFORM_IDS: dict[str, int] = {
 def _migrate():
     """Apply lightweight schema additions that create_all can't handle."""
     _add_column_if_missing("platforms", "igdb_platform_id", "INTEGER")
+    _add_column_if_missing("games", "summary", "TEXT")
+    _add_column_if_missing("games", "rating", "REAL")
+    _add_column_if_missing("games", "game_modes", "TEXT")
+    _add_column_if_missing("games", "themes", "TEXT")
+    _add_column_if_missing("games", "similar_games", "TEXT")
     _seed_igdb_platform_ids()
 
 

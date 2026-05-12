@@ -85,6 +85,14 @@ export default function GameDetailPage() {
         )}
         <div className="detail-backdrop-overlay" />
 
+        {/* Rating badge — top right */}
+        {game.rating != null && (
+          <div className={`detail-rating-badge ${ratingClass(game.rating)}`}>
+            <span className="detail-rating-score">{Math.round(game.rating)}</span>
+            <span className="detail-rating-label">rating</span>
+          </div>
+        )}
+
         <div className="detail-hero-content">
           {/* Poster */}
           <div className="detail-poster-wrap">
@@ -153,6 +161,23 @@ export default function GameDetailPage() {
               </button>
             </div>
 
+            {/* Summary */}
+            {game.summary && (
+              <p className="detail-summary">{game.summary}</p>
+            )}
+
+            {/* Tags: game modes, themes */}
+            {(game.game_modes || game.themes) && (
+              <div className="detail-tags">
+                {parseTags(game.game_modes).map(m => (
+                  <span key={m} className="detail-tag detail-tag--mode">{m}</span>
+                ))}
+                {parseTags(game.themes).map(t => (
+                  <span key={t} className="detail-tag detail-tag--theme">{t}</span>
+                ))}
+              </div>
+            )}
+
             {/* Details grid — embedded in hero */}
             <div className="detail-hero-grid">
               <HeroItem label="Platform"     value={game.platform?.name ?? '—'} />
@@ -219,6 +244,31 @@ export default function GameDetailPage() {
         </div>
       )}
 
+      {/* ── Similar Games ── */}
+      {parseSimilarGames(game.similar_games).length > 0 && (
+        <div className="detail-body">
+          <div className="card" style={{ padding: 0 }}>
+            <div className="card-header" style={{ padding: '12px 16px' }}>
+              <span className="card-title">Similar Games</span>
+            </div>
+            <div className="detail-similar-row">
+              {parseSimilarGames(game.similar_games).map((sg, i) => (
+                <div key={i} className="detail-similar-card">
+                  {sg.cover_url ? (
+                    <img src={sg.cover_url} alt={sg.name ?? ''} className="detail-similar-cover" />
+                  ) : (
+                    <div className="detail-similar-cover detail-similar-cover--empty">
+                      <ImageOff size={20} />
+                    </div>
+                  )}
+                  <div className="detail-similar-name">{sg.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDelete && (
         <ConfirmModal
           title="Delete Game"
@@ -231,6 +281,22 @@ export default function GameDetailPage() {
       )}
     </div>
   )
+}
+
+function ratingClass(score: number): string {
+  if (score >= 75) return 'detail-rating-badge--good'
+  if (score >= 50) return 'detail-rating-badge--ok'
+  return 'detail-rating-badge--bad'
+}
+
+function parseTags(json: string | undefined): string[] {
+  if (!json) return []
+  try { return JSON.parse(json) } catch { return [] }
+}
+
+function parseSimilarGames(json: string | undefined): { name?: string; cover_url?: string }[] {
+  if (!json) return []
+  try { return JSON.parse(json) } catch { return [] }
 }
 
 function HeroItem({ label, value }: { label: string; value: string }) {

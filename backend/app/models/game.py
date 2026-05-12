@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
@@ -31,6 +31,11 @@ class Game(Base):
     checksum_sha1: Mapped[str | None] = mapped_column(String, nullable=True)
     checksum_md5: Mapped[str | None] = mapped_column(String, nullable=True)
     checksum_crc32: Mapped[str | None] = mapped_column(String, nullable=True)
+    summary: Mapped[str | None] = mapped_column(String, nullable=True)
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    game_modes: Mapped[str | None] = mapped_column(String, nullable=True)
+    themes: Mapped[str | None] = mapped_column(String, nullable=True)
+    similar_games: Mapped[str | None] = mapped_column(String, nullable=True)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

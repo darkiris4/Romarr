@@ -20,7 +20,7 @@ from typing import TypedDict
 from ..config import settings
 from ..database import SessionLocal
 from ..models.game import Game
-from .igdb_service import fetch_game_metadata_debug
+from .igdb_service import fetch_game_metadata_debug, fetch_enrichment_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,16 @@ def scrape_pending() -> dict:
                     game.cover_url = meta["cover_url"]
                     if meta["release_year"]:
                         game.release_year = meta["release_year"]
+                    if meta.get("summary"):
+                        game.summary = meta["summary"]
+                    if meta.get("rating") is not None:
+                        game.rating = meta["rating"]
+                    if meta.get("game_modes"):
+                        game.game_modes = meta["game_modes"]
+                    if meta.get("themes"):
+                        game.themes = meta["themes"]
+                    if meta.get("similar_games"):
+                        game.similar_games = meta["similar_games"]
                     entry["result"] = "matched"
                     entry["igdb_id"] = meta["igdb_id"]
                     entry["cover_url"] = meta["cover_url"]
@@ -156,9 +166,42 @@ def scrape_pending() -> dict:
                 db.commit()
 
         db.commit()
+
+        # ── Enrichment pass: fill new fields for already-matched games ──
+        from sqlalchemy import or_
+        to_enrich = (
+            db.query(Game)
+            .filter(
+                Game.igdb_id.isnot(None),
+                or_(Game.summary.is_(None), Game.rating.is_(None)),
+            )
+            .all()
+        )
+        enriched = 0
+        _log_entry({"event": "enrich_start", "total": len(to_enrich)})
+        for game in to_enrich:
+            try:
+                meta = fetch_enrichment_by_id(game.igdb_id)
+                if meta:
+                    if meta.get("summary"):
+                        game.summary = meta["summary"]
+                    if meta.get("rating") is not None:
+                        game.rating = meta["rating"]
+                    if meta.get("game_modes"):
+                        game.game_modes = meta["game_modes"]
+                    if meta.get("themes"):
+                        game.themes = meta["themes"]
+                    if meta.get("similar_games"):
+                        game.similar_games = meta["similar_games"]
+                    enriched += 1
+            except Exception as exc:
+                logger.warning("Enrich failed for igdb_id=%s: %s", game.igdb_id, exc)
+        db.commit()
+        _log_entry({"event": "enrich_end", "enriched": enriched})
+
         _log_entry({"event": "run_end", "updated": updated, "failed": failed,
                     "time": datetime.now(timezone.utc).isoformat()})
-        logger.info("Scrape complete — updated: %d, not found: %d", updated, failed)
+        logger.info("Scrape complete — updated: %d, not found: %d, enriched: %d", updated, failed, enriched)
         return {"updated": updated, "failed": failed}
 
     except Exception as exc:

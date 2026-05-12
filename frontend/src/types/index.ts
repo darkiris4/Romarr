@@ -28,6 +28,11 @@ export interface Game {
   checksum_md5?: string
   checksum_crc32?: string
   file_size?: number
+  summary?: string
+  rating?: number
+  game_modes?: string
+  themes?: string
+  similar_games?: string
   added_at: string
   updated_at: string
 }
