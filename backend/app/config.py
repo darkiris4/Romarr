@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     igdb_client_id: str = ""
     igdb_client_secret: str = ""
 
+    @property
+    def dat_dir(self) -> Path:
+        return Path(self.data_dir) / "dats"
+
     class Config:
         env_file = ".env"
 
