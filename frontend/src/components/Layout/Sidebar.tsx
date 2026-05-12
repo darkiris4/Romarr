@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
-  Gamepad2, Calendar, Clock, BookX, Settings,
+  Gamepad2, Clock, BookX, Settings,
   Server, List, Wifi, HardDrive, MonitorPlay, FileText,
 } from 'lucide-react'
 
@@ -29,14 +29,12 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <Gamepad2 size={24} />
+        <img src="/favicon.png" alt="Romarr" style={{ width: 36, height: 36 }} />
         Romarr
       </div>
 
       <nav className="sidebar-nav">
         <NavItem to="/games" icon={<Gamepad2 size={16} />} label="Games" end />
-        <NavItem to="/calendar" icon={<Calendar size={16} />} label="Calendar" />
-
         <div className="nav-section-label">Activity</div>
         <NavItem to="/activity/queue" icon={<Clock size={16} />} label="Queue" />
         <NavItem to="/activity/history" icon={<List size={16} />} label="History" />
