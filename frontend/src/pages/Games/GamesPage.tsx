@@ -1,30 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, Trash2, RotateCcw, Gamepad2 } from 'lucide-react'
+import { Plus, Search, Gamepad2, FolderInput, Table2, LayoutGrid, AlignJustify, X } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { platformsApi } from '../../api/platforms'
-import StatusBadge from '../../components/StatusBadge'
 import ConfirmModal from '../../components/ConfirmModal'
 import AddGameModal from './AddGameModal'
+import ImportModal from './ImportModal'
+import GamesTable from './GamesTable'
+import GamesPosters from './GamesPosters'
+import GamesOverview from './GamesOverview'
 import type { Game } from '../../types'
 
-function formatBytes(bytes: number) {
-  if (!bytes) return '—'
-  const mb = bytes / 1024 / 1024
-  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`
+type View = 'table' | 'posters' | 'overview'
+
+function getSavedView(): View {
+  const v = localStorage.getItem('games-view')
+  return (v === 'table' || v === 'posters' || v === 'overview') ? v : 'table'
 }
 
 export default function GamesPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const [inputValue, setInputValue] = useState('')
+  const [search, setSearch] = useState('')
+  const [platformFilter, setPlatformFilter] = useState<number | undefined>(undefined)
+  const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const qc = useQueryClient()
 
+  // Debounce: only fire a search 300 ms after the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(inputValue), 300)
+    return () => clearTimeout(t)
+  }, [inputValue])
+
   const { data: games = [], isLoading } = useQuery({
-    queryKey: ['games', search],
-    queryFn: () => gamesApi.list({ search: search || undefined }),
+    queryKey: ['games', search, platformFilter],
+    queryFn: () => gamesApi.list({ search: search || undefined, platform_id: platformFilter }),
   })
 
   const { data: platforms = [] } = useQuery({
@@ -39,26 +51,63 @@ export default function GamesPage() {
 
   const platformMap = Object.fromEntries(platforms.map(p => [p.id, p.name]))
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    setSearchParams(search ? { search } : {})
+  function changeView(v: View) {
+    setView(v)
+    localStorage.setItem('games-view', v)
   }
+
+  const viewProps = { games, platformMap, onDelete: setDeleteTarget }
 
   return (
     <div>
       <div className="page-toolbar">
-        <form onSubmit={handleSearch} className="flex-center gap-2">
-          <div className="search-wrapper">
-            <Search size={14} className="search-icon" />
-            <input
-              className="topbar-search"
-              placeholder="Filter games…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-        </form>
+        <div className="search-wrapper">
+          <Search size={14} className="search-icon" />
+          <input
+            className="topbar-search"
+            placeholder="Filter games…"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+          />
+          {inputValue && (
+            <button
+              className="search-clear"
+              onClick={() => setInputValue('')}
+              tabIndex={-1}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <select
+          className="form-control"
+          style={{ maxWidth: 180, height: 32, padding: '0 8px', fontSize: 13 }}
+          value={platformFilter ?? ''}
+          onChange={e => setPlatformFilter(e.target.value ? Number(e.target.value) : undefined)}
+        >
+          <option value="">All Consoles</option>
+          {platforms.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
+        <div className="view-switcher">
+          <button className={`view-btn${view === 'table'    ? ' active' : ''}`} title="Table"    onClick={() => changeView('table')}>
+            <Table2 size={15} />
+          </button>
+          <button className={`view-btn${view === 'posters'  ? ' active' : ''}`} title="Posters"  onClick={() => changeView('posters')}>
+            <LayoutGrid size={15} />
+          </button>
+          <button className={`view-btn${view === 'overview' ? ' active' : ''}`} title="Overview" onClick={() => changeView('overview')}>
+            <AlignJustify size={15} />
+          </button>
+        </div>
+
         <div className="spacer" />
+        <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+          <FolderInput size={15} /> Import Library
+        </button>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
           <Plus size={15} /> Add Game
         </button>
@@ -72,63 +121,12 @@ export default function GamesPage() {
           <p>No games yet</p>
           <small>Add games manually or configure a List plugin to populate your Wanted list.</small>
         </div>
+      ) : view === 'table' ? (
+        <GamesTable {...viewProps} />
+      ) : view === 'posters' ? (
+        <GamesPosters {...viewProps} />
       ) : (
-        <div className="card" style={{ padding: 0 }}>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th className="col-cover" />
-                  <th>Title</th>
-                  <th>Platform</th>
-                  <th>Region</th>
-                  <th>Year</th>
-                  <th className="col-status">Status</th>
-                  <th className="col-actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {games.map(game => (
-                  <tr key={game.id}>
-                    <td>
-                      {game.cover_url ? (
-                        <img src={game.cover_url} alt="" className="cover-thumb" />
-                      ) : (
-                        <div className="cover-placeholder"><Gamepad2 size={14} /></div>
-                      )}
-                    </td>
-                    <td style={{ fontWeight: 500, color: 'var(--text-white)' }}>
-                      {game.title}
-                      {!game.monitored && <span className="text-muted text-sm"> (unmonitored)</span>}
-                    </td>
-                    <td className="text-muted">{game.platform?.name ?? platformMap[game.platform_id] ?? '—'}</td>
-                    <td className="text-muted">{game.region}</td>
-                    <td className="text-muted">{game.release_year ?? '—'}</td>
-                    <td><StatusBadge status={game.status} /></td>
-                    <td>
-                      <div className="flex-center gap-2" style={{ justifyContent: 'flex-end' }}>
-                        <button
-                          className="btn-icon"
-                          title="Re-search"
-                          onClick={() => gamesApi.search(game.id)}
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                        <button
-                          className="btn-icon"
-                          title="Delete"
-                          onClick={() => setDeleteTarget(game)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <GamesOverview {...viewProps} />
       )}
 
       {showAdd && (
@@ -136,6 +134,13 @@ export default function GamesPage() {
           platforms={platforms}
           onClose={() => setShowAdd(false)}
           onAdded={() => { qc.invalidateQueries({ queryKey: ['games'] }); setShowAdd(false) }}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { qc.invalidateQueries({ queryKey: ['games'] }) }}
         />
       )}
 

@@ -8,16 +8,19 @@ interface NavItemProps {
   to: string
   icon: React.ReactNode
   label: string
+  end?: boolean
 }
 
-function NavItem({ to, icon, label }: NavItemProps) {
+function NavItem({ to, icon, label, end }: NavItemProps) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
     >
-      {icon}
-      <span>{label}</span>
+      {/* exact *arr icon container: 18px wide, 7px margin-right */}
+      <span className="nav-icon">{icon}</span>
+      {label}
     </NavLink>
   )
 }
@@ -26,12 +29,12 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <Gamepad2 size={22} />
+        <Gamepad2 size={24} />
         Romarr
       </div>
 
       <nav className="sidebar-nav">
-        <NavItem to="/games" icon={<Gamepad2 size={16} />} label="Games" />
+        <NavItem to="/games" icon={<Gamepad2 size={16} />} label="Games" end />
         <NavItem to="/calendar" icon={<Calendar size={16} />} label="Calendar" />
 
         <div className="nav-section-label">Activity</div>

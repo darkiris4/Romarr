@@ -23,9 +23,11 @@ export interface Game {
   region: string
   monitored: boolean
   rom_path?: string
+  relative_rom_path?: string
   checksum_sha1?: string
   checksum_md5?: string
   checksum_crc32?: string
+  file_size?: number
   added_at: string
   updated_at: string
 }
