@@ -44,7 +44,11 @@ Romarr automates the acquisition, organisation, and metadata enrichment of ROM f
 
 ## Screenshots
 
-> Screenshots coming soon.
+![Home / Games List](docs/screenshots/home.png)
+
+![Game Detail](docs/screenshots/game-detail.png)
+
+![Platforms](docs/screenshots/platform.png)
 
 ---
 
