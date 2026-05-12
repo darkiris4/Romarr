@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
-import StatusBadge from '../../components/StatusBadge'
 import type { Game } from '../../types'
 
 interface Props {
@@ -29,10 +28,6 @@ export default function GamesPosters({ games, platformMap, onDelete }: Props) {
               <Gamepad2 size={32} />
             </div>
           )}
-
-          <div className="poster-status-badge">
-            <StatusBadge status={game.status} />
-          </div>
 
           <div className="poster-hover-actions" onClick={e => e.stopPropagation()}>
             <button className="btn-icon" title="Re-search" onClick={() => gamesApi.search(game.id)}>
