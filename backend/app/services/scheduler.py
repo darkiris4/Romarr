@@ -30,6 +30,7 @@ def stop():
 def _register_jobs():
     from .download_poll import poll_downloads
     from .rss_search import search_wanted
+    from .metadata_scraper import scrape_pending
 
     scheduler.add_job(
         poll_downloads,
@@ -42,6 +43,13 @@ def _register_jobs():
         search_wanted,
         trigger=IntervalTrigger(minutes=15),
         id="search_wanted",
+        replace_existing=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        scrape_pending,
+        trigger=IntervalTrigger(hours=6),
+        id="scrape_metadata",
         replace_existing=True,
         max_instances=1,
     )

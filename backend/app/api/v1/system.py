@@ -2,7 +2,8 @@ import platform
 import sys
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
+from pydantic import BaseModel
 
 from ...config import settings
 
@@ -54,6 +55,61 @@ def trigger_task(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
     job.modify(next_run_time=datetime.now(job.next_run_time.tzinfo if job.next_run_time else None))
     return {"message": f"Task '{task_id}' triggered"}
+
+
+class IgdbConfig(BaseModel):
+    igdb_client_id: str = ""
+    igdb_client_secret: str = ""
+
+
+@router.get("/config/igdb")
+def get_igdb_config():
+    from ...services.config_service import get_many
+    cfg = get_many(["igdb_client_id", "igdb_client_secret"])
+    return {
+        "igdb_client_id": cfg["igdb_client_id"],
+        "igdb_client_secret": "•" * 8 if cfg["igdb_client_secret"] else "",
+        "configured": bool(cfg["igdb_client_id"] and cfg["igdb_client_secret"]),
+    }
+
+
+@router.put("/config/igdb")
+def save_igdb_config(payload: IgdbConfig):
+    from ...services.config_service import set_config
+    if payload.igdb_client_id:
+        set_config("igdb_client_id", payload.igdb_client_id)
+    # Only update secret if a real value (not the masked placeholder) was sent
+    if payload.igdb_client_secret and not payload.igdb_client_secret.startswith("•"):
+        set_config("igdb_client_secret", payload.igdb_client_secret)
+    return {"message": "Saved"}
+
+
+@router.post("/config/igdb/test")
+def test_igdb():
+    from ...services.igdb_service import test_credentials
+    ok, message = test_credentials()
+    return {"ok": ok, "message": message}
+
+
+@router.post("/scrape")
+def run_scrape():
+    """Start the metadata scraper in a background thread."""
+    from ...services.metadata_scraper import scrape_start
+    return scrape_start()
+
+
+@router.get("/scrape/status")
+def scrape_status():
+    """Current scraper progress — safe to poll."""
+    from ...services.metadata_scraper import scrape_status as _status
+    return _status()
+
+
+@router.get("/scrape/log")
+def scrape_log(limit: int = 500):
+    """Debug log from the most recent scrape run."""
+    from ...services.metadata_scraper import scrape_log as _log
+    return {"entries": _log(limit)}
 
 
 @router.get("/logs")

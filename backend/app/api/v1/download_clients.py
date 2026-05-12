@@ -14,12 +14,12 @@ from ...services.download_service import get_client
 router = APIRouter()
 
 
-@router.get("/", response_model=list[DownloadClientOut])
+@router.get("", response_model=list[DownloadClientOut])
 def list_clients(db: Session = Depends(get_db)):
     return db.query(DownloadClient).all()
 
 
-@router.post("/", response_model=DownloadClientOut, status_code=201)
+@router.post("", response_model=DownloadClientOut, status_code=201)
 def create_client(payload: DownloadClientCreate, db: Session = Depends(get_db)):
     client = DownloadClient(**payload.model_dump())
     db.add(client)

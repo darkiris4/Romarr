@@ -9,7 +9,7 @@ from ...schemas.game import GameOut
 router = APIRouter()
 
 
-@router.get("/", response_model=list[GameOut])
+@router.get("", response_model=list[GameOut])
 def get_calendar(
     start: date = Query(...),
     end: date = Query(...),

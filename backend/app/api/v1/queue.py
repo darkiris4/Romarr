@@ -8,7 +8,7 @@ from ...schemas.queue_item import QueueItemOut
 router = APIRouter()
 
 
-@router.get("/", response_model=list[QueueItemOut])
+@router.get("", response_model=list[QueueItemOut])
 def list_queue(db: Session = Depends(get_db)):
     return (
         db.query(QueueItem)

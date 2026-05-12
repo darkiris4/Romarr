@@ -36,6 +36,8 @@ class GameOut(GameBase):
     checksum_sha1: str | None
     checksum_md5: str | None
     checksum_crc32: str | None
+    file_size: int | None = None
+    relative_rom_path: str | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

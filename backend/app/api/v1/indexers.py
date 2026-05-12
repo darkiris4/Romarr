@@ -9,12 +9,12 @@ from ...services.indexer_service import test_indexer
 router = APIRouter()
 
 
-@router.get("/", response_model=list[IndexerOut])
+@router.get("", response_model=list[IndexerOut])
 def list_indexers(db: Session = Depends(get_db)):
     return db.query(Indexer).all()
 
 
-@router.post("/", response_model=IndexerOut, status_code=201)
+@router.post("", response_model=IndexerOut, status_code=201)
 def create_indexer(payload: IndexerCreate, db: Session = Depends(get_db)):
     indexer = Indexer(**payload.model_dump())
     db.add(indexer)

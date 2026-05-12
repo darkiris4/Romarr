@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,7 +12,7 @@ from ...models.indexer import Indexer
 router = APIRouter()
 
 
-@router.get("/", response_model=list[GameOut])
+@router.get("", response_model=list[GameOut])
 def list_games(
     status: GameStatus | None = None,
     platform_id: int | None = None,
@@ -32,7 +34,7 @@ def list_games(
     return q.offset(skip).limit(limit).all()
 
 
-@router.post("/", response_model=GameOut, status_code=201)
+@router.post("", response_model=GameOut, status_code=201)
 def create_game(payload: GameCreate, db: Session = Depends(get_db)):
     game = Game(**payload.model_dump())
     db.add(game)
@@ -46,7 +48,19 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    return game
+    out = GameOut.model_validate(game)
+    if game.rom_path:
+        try:
+            out.file_size = os.path.getsize(game.rom_path)
+        except OSError:
+            pass
+        try:
+            from pathlib import Path
+            from ...config import settings
+            out.relative_rom_path = str(Path(game.rom_path).relative_to(settings.rom_library_path))
+        except ValueError:
+            out.relative_rom_path = game.rom_path
+    return out
 
 
 @router.put("/{game_id}", response_model=GameOut)

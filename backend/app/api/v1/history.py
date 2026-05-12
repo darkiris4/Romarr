@@ -8,7 +8,7 @@ from ...schemas.history import HistoryItemOut
 router = APIRouter()
 
 
-@router.get("/", response_model=list[HistoryItemOut])
+@router.get("", response_model=list[HistoryItemOut])
 def list_history(
     event_type: HistoryEventType | None = None,
     game_id: int | None = None,
