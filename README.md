@@ -1,167 +1,211 @@
 # Romarr
 
-> Automated ROM manager for retro games — a Sonarr/Radarr-style experience for your ROM collection.
+> A Sonarr/Radarr-style automated ROM manager for retro game collections.
 
-Romarr monitors a **Wanted list**, searches **Newznab/Torznab indexers** (or Prowlarr), hands releases to a **download client**, and post-processes them into a No-Intro–named library organised by platform.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status: Early Development](https://img.shields.io/badge/status-early%20development-orange.svg)]()
+
+---
+
+> [!WARNING]
+> **Romarr is early-stage software under active development.** Expect breaking changes, missing features, and rough edges. It is not yet recommended for production use. Contributions and bug reports are very welcome.
+
+---
+
+## What is Romarr?
+
+Romarr automates the acquisition, organisation, and metadata enrichment of ROM files for retro gaming. It follows the same workflow as Sonarr and Radarr:
+
+1. Add games to a **Wanted list** (manually or via list integrations)
+2. Romarr searches configured **Newznab/Torznab indexers** (or Prowlarr)
+3. Releases are sent to a **download client** (qBittorrent, SABnzbd, Transmission)
+4. Downloaded files are **post-processed** — renamed to No-Intro standards and sorted into platform folders
+5. **IGDB metadata and cover art** are automatically scraped
 
 ---
 
 ## Features
 
-| Feature | Detail |
+| Area | What's implemented |
 |---|---|
-| **Wanted list** | Populated manually or via List plugins (IGDB included) |
-| **Indexers** | Newznab + Torznab; Prowlarr-compatible proxy support |
-| **Download clients** | qBittorrent, SABnzbd, Transmission |
-| **Post-processor** | No-Intro standard renaming, platform folder sorting, optional DAT checksum verification |
-| **State tracking** | `wanted → grabbed → downloading → imported / failed` |
-| **Plugin system** | Drop-in List plugins; IGDB is the first example |
-| ***arr-style UI** | Dark theme, sidebar nav, queue, history, settings sections |
+| **Library import** | Scan existing ROM folders; CRC32 matching against No-Intro DAT files (including ZIP-transparent CRC) |
+| **DAT support** | No-Intro DAT parsing; platform auto-detection by header name; qualifier prefix matching |
+| **Metadata scraper** | IGDB cover art + release year; tiered exact/fuzzy search; Japanese→English title alias map; per-run debug log |
+| **Download pipeline** | Indexer search, grab, queue tracking, download client integration, post-processor |
+| **Game views** | Table, poster grid, and overview list; console filter dropdown; sticky toolbar; debounced search |
+| **Game detail page** | Radarr-style hero with blurred backdrop, inline metadata grid, file information table |
+| **Platforms** | 15+ pre-seeded platforms with No-Intro names and IGDB platform IDs |
+| **Settings UI** | Media management, platforms, indexers, download clients, list sources, general/IGDB config |
+| **Plugin system** | Drop-in list source plugins; IGDB list plugin included |
+| **Scheduler** | Background jobs: metadata scraper (6 h), download poller, wanted searcher |
+| **System pages** | System status, task scheduler, structured log viewer |
 
 ---
 
-## Quick Start (Docker Compose)
+## Screenshots
+
+> Screenshots coming soon.
+
+---
+
+## Tech Stack
+
+**Backend** — Python 3.11+
+- [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
+- [SQLAlchemy 2](https://www.sqlalchemy.org/) + SQLite
+- [APScheduler](https://apscheduler.readthedocs.io/) for background jobs
+- [httpx](https://www.python-httpx.org/) for HTTP (IGDB, indexers)
+
+**Frontend** — TypeScript + React 18
+- [Vite](https://vitejs.dev/)
+- [TanStack Query v5](https://tanstack.com/query/latest)
+- [React Router v6](https://reactrouter.com/)
+- [Lucide React](https://lucide.dev/) icons
+
+---
+
+## Quick Start (Docker)
 
 ```bash
+git clone https://github.com/YOUR_USERNAME/Romarr.git
+cd Romarr
 cp .env.example .env
-# Edit .env — set ROM_LIBRARY_PATH and optionally IGDB credentials
+# Edit .env — at minimum set ROM_LIBRARY_PATH to your ROM folder
 docker compose up -d
 ```
 
 Open **http://localhost:7878** in your browser.
 
-Default port is `7878` (configurable via `ROMARR_PORT` in `.env`).
+> **IGDB cover art** requires free Twitch developer credentials. See [IGDB Setup](#igdb-setup) below.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `ROM_LIBRARY_PATH` | `./library` | Path to your ROM library on the host |
+| `ROMARR_PORT` | `7878` | Host port for the web UI |
+| `IGDB_CLIENT_ID` | _(empty)_ | Twitch app Client ID |
+| `IGDB_CLIENT_SECRET` | _(empty)_ | Twitch app Client Secret |
+| `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
 
 ---
 
-## Development
+## Development Setup
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp ../.env.example .env
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
-
-API available at `http://localhost:8000`  
-OpenAPI docs at `http://localhost:8000/docs`
 
 ### Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                       # Vite dev server on http://localhost:5173
 ```
 
-UI available at `http://localhost:3000` (proxies `/api` to the backend).
+The frontend proxies `/api` requests to `http://localhost:8000` via the Vite config.
 
 ---
 
-## Configuration
+## IGDB Setup
 
-All settings are persisted in the database and configurable through **Settings** in the UI.
+Cover art and release metadata are sourced from [IGDB](https://www.igdb.com/) (free, no payment required).
 
-| Section | What it controls |
-|---|---|
-| **Media Management** | Library path, No-Intro renaming, DAT verification |
-| **Platforms** | Which platforms are managed, file extensions, folder names |
-| **Indexers** | Newznab/Torznab endpoints (or Prowlarr) |
-| **Download Clients** | qBittorrent / SABnzbd / Transmission connection details |
-| **Lists** | Plugin-based Wanted list sources |
-| **General** | App name, log level |
-
-### Prowlarr Integration
-
-Point an indexer at your Prowlarr instance instead of configuring individual indexers:
-
-1. In Prowlarr, go to **Settings → Apps** and add Romarr (or note your Prowlarr API key).
-2. In Romarr → **Settings → Indexers**, add a Torznab indexer with:
-   - **URL**: `http://prowlarr:9696/<indexer-id>/api` (for a specific indexer)
-   - **API Key**: your Prowlarr API key
+1. Go to [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) and log in with a Twitch account
+2. Click **Register Your Application**
+3. Set the OAuth Redirect URL to `http://localhost`
+4. Copy the **Client ID** and generate a **Client Secret**
+5. In Romarr, go to **Settings → General** and paste both values, then click **Test Connection**
 
 ---
 
-## No-Intro Library Layout
+## No-Intro DAT Files
 
-```
-/library/
-├── Nintendo - Super Nintendo Entertainment System/
-│   ├── Chrono Trigger (USA).sfc
-│   └── Super Mario World (USA).sfc
-├── Nintendo - Game Boy Advance/
-│   └── Castlevania - Aria of Sorrow (USA).gba
-└── Sega - Mega Drive - Genesis/
-    └── Sonic the Hedgehog (USA, Europe).md
-```
+Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identification by CRC32 checksum.
 
-Folder names follow the **No-Intro naming convention** exactly so they can be imported directly into RetroArch, EmulationStation, or Pegasus.
+1. Download DAT files from the No-Intro website (requires a free account)
+2. Place them in `backend/data/dats/` (or `/data/dats/` inside the container)
+3. Romarr auto-matches DAT files to platforms by their `<header><name>` field on startup
 
 ---
 
-## Writing a List Plugin
-
-Create a directory under `backend/plugins/<your-plugin>/`:
-
-```python
-# backend/plugins/mywishlist/__init__.py
-from .plugin import MyWishlistPlugin as Plugin
-
-# backend/plugins/mywishlist/plugin.py
-from plugins.base import ListPlugin, WantedItem
-
-class MyWishlistPlugin(ListPlugin):
-    name = "mywishlist"
-    description = "Import from my custom wishlist source"
-
-    async def fetch(self) -> list[WantedItem]:
-        # return a list of WantedItem objects
-        return [
-            WantedItem(title="Chrono Trigger", platform_id=1, release_year=1995),
-        ]
-```
-
-Romarr auto-discovers plugins at startup. The plugin will appear in **Settings → Lists**.
-
----
-
-## Architecture
+## Project Structure
 
 ```
-backend/
-  app/
-    models/      — SQLAlchemy ORM models
-    schemas/     — Pydantic request/response schemas
-    api/v1/      — FastAPI route handlers
-    services/    — Indexer search, download client abstraction, post-processor, scheduler
-  plugins/       — List plugin interface + IGDB example
-
-frontend/
-  src/
-    api/         — Axios wrappers for each backend resource
-    components/  — Shared UI components (Layout, StatusBadge, etc.)
-    pages/       — One directory per major UI section
-    types/       — TypeScript interfaces mirroring backend schemas
+Romarr/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/          # FastAPI route handlers
+│   │   ├── models/          # SQLAlchemy ORM models
+│   │   ├── schemas/         # Pydantic request/response schemas
+│   │   ├── services/        # Business logic
+│   │   │   ├── dat_manager.py        # No-Intro DAT parsing & platform matching
+│   │   │   ├── library_scanner.py    # ROM folder scan + ZIP-transparent CRC32
+│   │   │   ├── igdb_service.py       # IGDB API client with tiered title matching
+│   │   │   ├── metadata_scraper.py   # Background scrape worker + debug log
+│   │   │   └── ...
+│   │   ├── config.py        # Pydantic settings (env-based)
+│   │   ├── database.py      # DB init, migrations, platform seeding
+│   │   └── main.py
+│   ├── plugins/             # Drop-in list source plugins
+│   ├── data/                # SQLite DB + DAT files (gitignored)
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api/             # Axios API clients per resource
+│   │   ├── components/      # Shared components (Layout, modals, badges)
+│   │   ├── pages/           # Route-level page components
+│   │   ├── styles/          # global.css — single-file *arr-style dark theme
+│   │   └── types/           # Shared TypeScript interfaces
+│   ├── package.json
+│   └── vite.config.ts
+├── .github/
+│   ├── ISSUE_TEMPLATE/      # Bug report and feature request templates
+│   └── pull_request_template.md
+├── docker-compose.yml
+├── .env.example
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
 
 ## Roadmap
 
-- [ ] Deluge download client
-- [ ] No-Intro DAT file management UI (upload / auto-update)
-- [ ] Manual grab from search results
-- [ ] Multi-region support with region priority ordering
-- [ ] RetroAchievements list plugin
-- [ ] IGDB cover art auto-fetch on game add
-- [ ] Notification webhooks (Discord, Slack, Pushover)
+- [ ] Manual search results UI with one-click grab
+- [ ] History and activity feed (UI complete, backend wiring in progress)
+- [ ] Calendar view
+- [ ] Real-time log streaming in the UI
+- [ ] More list source plugins (LaunchBox, ScreenScraper)
+- [ ] User authentication
+- [ ] Alembic database migrations (currently uses in-place `ALTER TABLE`)
+
+---
+
+## Contributing
+
+Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+**Quick links:**
+- [Report a bug](../../issues/new?template=bug_report.md)
+- [Request a feature](../../issues/new?template=feature_request.md)
+- [Open a PR](../../compare)
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE) © Mike H
