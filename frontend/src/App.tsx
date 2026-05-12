@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import GamesPage from './pages/Games/GamesPage'
+import GameDetailPage from './pages/Games/GameDetailPage'
 import CalendarPage from './pages/Calendar/CalendarPage'
 import QueuePage from './pages/Activity/QueuePage'
 import HistoryPage from './pages/Activity/HistoryPage'
@@ -23,6 +24,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/games" replace />} />
           <Route path="/games" element={<GamesPage />} />
+          <Route path="/games/:id" element={<GameDetailPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/activity/queue" element={<QueuePage />} />
           <Route path="/activity/history" element={<HistoryPage />} />
