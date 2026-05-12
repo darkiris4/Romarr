@@ -1,0 +1,399 @@
+"""
+Hash-first library scanner.
+
+Identification priority:
+  1. CRC32 lookup against any loaded No-Intro DAT files  →  exact match
+  2. Fuzzy title match against existing Game records      →  likely match
+  3. Filename stem after stripping common junk            →  best-guess
+
+Folder structure and filenames are completely ignored for identification.
+The only thing that matters is the file content hash and/or the
+human-readable part of the filename.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+import zipfile
+import zlib
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+
+from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
+
+from ..models.game import Game, GameStatus
+from ..models.platform import Platform
+from .post_processor import load_dat_file
+
+
+# ── Filename cleaning ────────────────────────────────────────────────────────
+
+# Tags to strip when falling back to filename-based title guessing
+_STRIP_TAGS = re.compile(
+    r"\s*[\(\[]["
+    r"Uu]nknown|[Bb]eta|[Dd]emo|[Pp]rototype|[Pp]roto|[Ss]ample"
+    r"|[Rr]ev\s*[\dA-Za-z]+|[Vv]\d[\d.]*"
+    r"|[A-Za-z]{2,3}(?:,\s*[A-Za-z]{2,3})*"  # region codes: USA, Europe, JP ...
+    r"|!\]?|T[+-]\w+"
+    r"[\)\]]"
+    ,
+    re.VERBOSE,
+)
+
+_PAREN_BLOCK = re.compile(r"\s*[\(\[].*?[\)\]]")
+
+
+def _clean_title(stem: str) -> tuple[str, str]:
+    """
+    Return (cleaned_title, region) from a filename stem.
+    Tries No-Intro format first, then strips all tags and returns 'Unknown' region.
+    """
+    # No-Intro: "Title (Region) ..."
+    m = re.match(r"^(?P<title>.+?)\s+\((?P<region>[A-Za-z ,]+)\)", stem)
+    if m:
+        return m.group("title").strip(), m.group("region").strip()
+    # Strip everything in parens/brackets and hope for the best
+    title = _PAREN_BLOCK.sub("", stem).strip(" .-_")
+    return title or stem, "Unknown"
+
+
+# ── CRC32 ────────────────────────────────────────────────────────────────────
+
+def _crc32_raw(path: Path, chunk: int = 1 << 20) -> str:
+    val = 0
+    with open(path, "rb") as f:
+        while data := f.read(chunk):
+            val = zlib.crc32(data, val)
+    return format(val & 0xFFFFFFFF, "08x")
+
+
+def _crc32_and_ext(path: Path) -> tuple[str, str]:
+    """
+    Return (crc32_hex, effective_extension).
+
+    For ZIP archives the CRC32 is read from the central directory (no
+    extraction needed) and the inner ROM file's extension is returned so
+    platform matching still works.  The ZIP central-directory CRC32 is
+    the CRC of the uncompressed content — exactly what No-Intro records.
+    """
+    ext = path.suffix.lstrip(".").lower()
+    if ext == "zip":
+        try:
+            with zipfile.ZipFile(path, "r") as zf:
+                members = [m for m in zf.infolist() if not m.filename.endswith("/")]
+                if members:
+                    # Pick the largest member — the actual ROM, not readme/cue sheets
+                    rom_info = max(members, key=lambda m: m.file_size)
+                    inner_ext = Path(rom_info.filename).suffix.lstrip(".").lower()
+                    return format(rom_info.CRC & 0xFFFFFFFF, "08x"), inner_ext
+        except zipfile.BadZipFile:
+            pass
+    return _crc32_raw(path), ext
+
+
+# ── DAT index (loaded once per process, keyed by platform id) ────────────────
+
+_DAT_INDEX: dict[int, dict[str, "DatROM"]] = {}
+
+
+@dataclass
+class DatROM:
+    title: str
+    region: str
+    crc32: str
+    sha1: str
+    md5: str
+    platform_id: int
+
+
+def load_dat_for_platform(platform_id: int, dat_path: Path) -> int:
+    """Index a No-Intro DAT file for a platform. Returns number of entries loaded."""
+    from .post_processor import load_dat_file
+    entries = load_dat_file(dat_path)  # keyed by sha1
+    index: dict[str, DatROM] = {}
+    for entry in entries.values():
+        # Build a CRC32-keyed index for fast scan lookups
+        if entry.crc32:
+            region = _extract_region(entry.name)
+            index[entry.crc32] = DatROM(
+                title=_strip_region_tags(entry.name),
+                region=region,
+                crc32=entry.crc32,
+                sha1=entry.sha1,
+                md5=entry.md5,
+                platform_id=platform_id,
+            )
+    _DAT_INDEX[platform_id] = index
+    return len(index)
+
+
+def _extract_region(name: str) -> str:
+    m = re.search(r"\(([A-Za-z ,]+)\)", name)
+    return m.group(1) if m else "Unknown"
+
+
+def _strip_region_tags(name: str) -> str:
+    return _PAREN_BLOCK.sub("", name).strip(" .-")
+
+
+def lookup_crc32(crc: str) -> DatROM | None:
+    """Search all loaded DAT indexes for a CRC32."""
+    for index in _DAT_INDEX.values():
+        hit = index.get(crc)
+        if hit:
+            return hit
+    return None
+
+
+# ── Extension → platform map ─────────────────────────────────────────────────
+
+def _ext_map(platforms: list[Platform]) -> dict[str, list[Platform]]:
+    idx: dict[str, list[Platform]] = {}
+    for p in platforms:
+        for ext in p.extensions.split(","):
+            e = ext.strip().lower()
+            if e:
+                idx.setdefault(e, []).append(p)
+    return idx
+
+
+# ── Scan result ──────────────────────────────────────────────────────────────
+
+MatchSource = Literal["dat", "filename", "unmatched"]
+
+
+@dataclass
+class ScannedROM:
+    path: str
+    filename: str
+    extension: str
+    crc32: str
+
+    # Identification result
+    title: str
+    region: str
+    match_source: MatchSource          # how we identified it
+    confidence: float                  # 0.0–1.0
+
+    # Platform
+    platform_id: int | None            # None = ambiguous / unknown
+    platform_name: str | None
+    candidate_platforms: list[dict]    # [{id, name}] when ambiguous
+
+    # DB state
+    already_exists: bool = False
+    existing_game_id: int | None = None
+
+
+@dataclass
+class ScanSummary:
+    folder: str
+    total_files_seen: int = 0
+    roms: list[ScannedROM] = field(default_factory=list)
+
+    @property
+    def matched_dat(self) -> int:
+        return sum(1 for r in self.roms if r.match_source == "dat")
+
+    @property
+    def matched_filename(self) -> int:
+        return sum(1 for r in self.roms if r.match_source == "filename")
+
+    @property
+    def ambiguous(self) -> int:
+        return sum(1 for r in self.roms if r.platform_id is None)
+
+    @property
+    def already_imported(self) -> int:
+        return sum(1 for r in self.roms if r.already_exists)
+
+    @property
+    def to_import(self) -> int:
+        return sum(1 for r in self.roms if not r.already_exists and r.platform_id is not None)
+
+
+# ── Main scan entry point ─────────────────────────────────────────────────────
+
+def scan_folder(
+    db: Session,
+    folder_path: str,
+    platform_hint_id: int | None = None,
+) -> ScanSummary:
+    """
+    Walk folder_path recursively.  For each ROM file:
+      1. Compute CRC32 and check DAT index            → dat match
+      2. Fall back to filename parsing                → filename match
+      3. Determine platform via DAT / extension / hint
+    Returns a ScanSummary without touching the database.
+    """
+    root = Path(folder_path).expanduser().resolve()
+    platforms = db.query(Platform).filter_by(enabled=True).all()
+    ext_map = _ext_map(platforms)
+    platform_by_id = {p.id: p for p in platforms}
+    hint_platform = platform_by_id.get(platform_hint_id) if platform_hint_id else None
+
+    summary = ScanSummary(folder=str(root))
+
+    if not root.exists():
+        return summary
+
+    all_exts = set(ext_map.keys()) | {"zip"}
+
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        summary.total_files_seen += 1
+
+        ext = path.suffix.lstrip(".").lower()
+        if ext not in all_exts and hint_platform is None:
+            continue  # not a recognized ROM extension
+
+        crc, effective_ext = _crc32_and_ext(path)
+
+        # ── 1. DAT lookup ──────────────────────────────────────────────────
+        dat_hit = lookup_crc32(crc)
+        if dat_hit:
+            platform = platform_by_id.get(dat_hit.platform_id)
+            rom = ScannedROM(
+                path=str(path),
+                filename=path.name,
+                extension=effective_ext,
+                crc32=crc,
+                title=dat_hit.title,
+                region=dat_hit.region,
+                match_source="dat",
+                confidence=1.0,
+                platform_id=dat_hit.platform_id if platform else None,
+                platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
+                candidate_platforms=[],
+            )
+        else:
+            # ── 2. Filename fallback ───────────────────────────────────────
+            title, region = _clean_title(path.stem)
+
+            # Determine platform from hint > extension candidates
+            candidates = ext_map.get(effective_ext, [])
+            if hint_platform:
+                resolved = hint_platform
+                candidate_list: list[dict] = []
+            elif len(candidates) == 1:
+                resolved = candidates[0]
+                candidate_list = []
+            else:
+                resolved = None
+                candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
+
+            rom = ScannedROM(
+                path=str(path),
+                filename=path.name,
+                extension=effective_ext,
+                crc32=crc,
+                title=title,
+                region=region,
+                match_source="filename" if resolved else "unmatched",
+                confidence=0.6 if resolved else 0.0,
+                platform_id=resolved.id if resolved else None,
+                platform_name=resolved.name if resolved else None,
+                candidate_platforms=candidate_list,
+            )
+
+        # ── 3. DB existence check ──────────────────────────────────────────
+        if rom.platform_id:
+            existing = (
+                db.query(Game)
+                .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
+                .first()
+            )
+            if existing:
+                rom.already_exists = True
+                rom.existing_game_id = existing.id
+
+        summary.roms.append(rom)
+
+    return summary
+
+
+# ── Import ────────────────────────────────────────────────────────────────────
+
+def import_roms(
+    db: Session,
+    folder_path: str,
+    platform_hint_id: int | None = None,
+    platform_overrides: dict[str, int] | None = None,
+    skip_existing: bool = True,
+) -> dict:
+    """
+    Scan and create/update Game records.
+
+    platform_overrides: {rom_path: platform_id} — lets the UI assign platforms
+                        to ambiguous files before confirming.
+    """
+    summary = scan_folder(db, folder_path, platform_hint_id)
+    overrides = platform_overrides or {}
+    platform_by_id = {p.id: p for p in db.query(Platform).all()}
+
+    created = updated = skipped_existing = skipped_ambiguous = 0
+
+    for rom in summary.roms:
+        # Apply manual override if provided
+        if rom.path in overrides:
+            rom.platform_id = overrides[rom.path]
+            p = platform_by_id.get(rom.platform_id)
+            rom.platform_name = p.name if p else None
+
+        if rom.platform_id is None:
+            skipped_ambiguous += 1
+            continue
+
+        if rom.already_exists:
+            if skip_existing:
+                skipped_existing += 1
+            else:
+                game = db.query(Game).filter_by(id=rom.existing_game_id).first()
+                if game and not game.rom_path:
+                    game.rom_path = rom.path
+                    game.checksum_crc32 = rom.crc32
+                    if rom.match_source == "dat":
+                        game.status = GameStatus.IMPORTED
+                    updated += 1
+            continue
+
+        game = Game(
+            title=rom.title,
+            platform_id=rom.platform_id,
+            region=rom.region,
+            status=GameStatus.IMPORTED,
+            rom_path=rom.path,
+            checksum_crc32=rom.crc32,
+            monitored=True,
+        )
+        db.add(game)
+        created += 1
+
+    db.commit()
+
+    result = {
+        "scanned": summary.total_files_seen,
+        "created": created,
+        "updated": updated,
+        "skipped_existing": skipped_existing,
+        "skipped_ambiguous": skipped_ambiguous,
+        "dat_matches": summary.matched_dat,
+        "filename_matches": summary.matched_filename,
+    }
+    logger.info(
+        "Import complete — folder=%s created=%d updated=%d "
+        "skipped_existing=%d skipped_ambiguous=%d dat=%d filename=%d",
+        folder_path, created, updated,
+        skipped_existing, skipped_ambiguous,
+        summary.matched_dat, summary.matched_filename,
+    )
+    if skipped_ambiguous:
+        ambiguous_files = [r.filename for r in summary.roms if r.platform_id is None]
+        logger.warning("Skipped %d ambiguous ROMs (no platform match): %s",
+                       skipped_ambiguous, ambiguous_files[:20])
+    return result
