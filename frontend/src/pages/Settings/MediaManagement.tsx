@@ -221,8 +221,8 @@ export default function MediaManagement() {
       {/* ── DAT Files ── */}
       <div className="settings-section-title">No-Intro DAT Files</div>
       <div className="settings-section-desc">
-        DAT files enable hash-based ROM identification — filenames and folder structure are ignored entirely.
-        Download DAT files free from <strong>datomatic.no-intro.org</strong> and place them in the folder below.
+        DAT files enable hash-based ROM identification using CRC32 checksums — filenames and folder structure are ignored entirely.
+        Upload DAT files using the drop zone below. Romarr matches them to platforms automatically and shows the date of each DAT so you know when an update is available.
       </div>
 
       {/* Upload drop zone */}
@@ -295,16 +295,15 @@ export default function MediaManagement() {
           lineHeight: 1.7,
           marginBottom: 16,
         }}>
-          <strong style={{ color: 'var(--info)' }}>How to add DAT files:</strong>
-          <ol style={{ paddingLeft: 20, marginTop: 6 }}>
+          <strong style={{ color: 'var(--info)' }}>Getting DAT files:</strong>
+          <ol style={{ paddingLeft: 20, marginTop: 6, marginBottom: 8 }}>
             <li>Go to <strong>datomatic.no-intro.org</strong> → Download → P/C XML</li>
             <li>Download the <code>.dat</code> file for each platform you want</li>
-            <li>Place the files into <code style={{ color: 'var(--accent-hover)' }}>{datDir ?? 'data/dats/'}</code></li>
-            <li>Click <strong>Reload DATs</strong> — Romarr auto-matches by the DAT name</li>
+            <li>Drag and drop the files onto the upload area above — platforms are matched and loaded automatically</li>
           </ol>
-          <div style={{ marginTop: 8, color: 'var(--text-muted)' }}>
-            DATs are also auto-loaded each time Romarr starts.
-            Filenames don't need to match exactly — Romarr reads the name from inside the file.
+          <div style={{ color: 'var(--text-muted)' }}>
+            To update a DAT, upload the new file — it replaces the existing one automatically.
+            DATs are also reloaded each time Romarr starts.
           </div>
         </div>
 
