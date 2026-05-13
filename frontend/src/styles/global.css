@@ -160,6 +160,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: var(--accent-hover);
 }
 
+.nav-item--sub {
+  padding-left: 40px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.nav-item--sub:hover { color: var(--text-white); }
+.nav-item--sub.active { color: var(--accent-hover); }
+
 /* icon container — exact *arr: 18px wide, 7px margin-right */
 .nav-item .nav-icon {
   width: 18px;
