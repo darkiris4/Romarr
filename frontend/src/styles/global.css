@@ -563,6 +563,13 @@ select.form-control { cursor: pointer; }
 /* ── Library Import Page ────────────────────────────────────────── */
 .import-page { width: 100%; }
 
+.import-page-hint {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.7;
+}
+
 .import-page-form { width: 100%; }
 
 .import-stat-strip {

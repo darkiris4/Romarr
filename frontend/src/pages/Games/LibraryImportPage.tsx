@@ -50,6 +50,7 @@ export default function LibraryImportPage() {
   /* ── Step 1 ── */
   if (step === 'path') return (
     <div className="import-page">
+      <p className="import-page-hint">Import an existing organized library to add games to Romarr</p>
       <div className="import-page-form">
         <div className="form-group">
           <label className="form-label">Folder Path</label>
