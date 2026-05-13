@@ -936,6 +936,22 @@ select.form-control { cursor: pointer; }
   margin-bottom: 10px;
 }
 
+.igdb-result-row--in-library { opacity: .6; }
+.igdb-result-row--in-library:hover { opacity: 1; }
+
+.igdb-result-in-library {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--success);
+  background: rgba(61,214,140,.12);
+  border: 1px solid rgba(61,214,140,.3);
+  border-radius: 4px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
 .igdb-result-summary {
   font-size: 14px;
   color: var(--text-secondary);

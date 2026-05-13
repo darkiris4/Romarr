@@ -39,6 +39,13 @@ export default function AddNewPage() {
     queryFn: platformsApi.list,
   })
 
+  const { data: libraryGames = [] } = useQuery({
+    queryKey: ['games'],
+    queryFn: () => gamesApi.list({}),
+  })
+
+  const libraryIgdbIds = new Set(libraryGames.map(g => g.igdb_id).filter(Boolean))
+
   const enabledPlatforms = platforms.filter(p => p.enabled)
 
   useEffect(() => {
@@ -134,37 +141,49 @@ export default function AddNewPage() {
             <div className="add-new-no-results">No results found on IGDB.</div>
           ) : (
             <div className="igdb-results igdb-results--page">
-              {results.map(r => (
-                <div
-                  key={r.igdb_id}
-                  className="igdb-result-row"
-                  onClick={() => { setSelected(r); setStep('confirm'); setError('') }}
-                >
-                  <div className="igdb-result-cover">
-                    {r.cover_url
-                      ? <img src={r.cover_url} alt={r.name} />
-                      : <div className="igdb-result-cover--empty"><ImageOff size={16} /></div>
+              {results.map(r => {
+                const inLibrary = libraryIgdbIds.has(r.igdb_id)
+                const existingGame = inLibrary
+                  ? libraryGames.find(g => g.igdb_id === r.igdb_id)
+                  : null
+                return (
+                  <div
+                    key={r.igdb_id}
+                    className={`igdb-result-row${inLibrary ? ' igdb-result-row--in-library' : ''}`}
+                    onClick={() => inLibrary && existingGame
+                      ? navigate(`/games/${existingGame.id}`)
+                      : (setSelected(r), setStep('confirm'), setError(''))
                     }
-                  </div>
-                  <div className="igdb-result-info">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                      <div className="igdb-result-title" style={{ marginBottom: 0 }}>{r.name}</div>
-                      {r.rating != null && (
-                        <div className={`detail-rating-badge ${ratingClass(r.rating)}`} style={{ position: 'static', flexShrink: 0 }}>
-                          <span className="detail-rating-score">{r.rating}</span>
-                          <span className="detail-rating-label">rating</span>
-                        </div>
-                      )}
+                  >
+                    <div className="igdb-result-cover">
+                      {r.cover_url
+                        ? <img src={r.cover_url} alt={r.name} />
+                        : <div className="igdb-result-cover--empty"><ImageOff size={16} /></div>
+                      }
                     </div>
-                    <div className="igdb-result-year">
-                      {r.release_year ?? ''}
-                      {r.release_year && r.platforms.length > 0 && ' · '}
-                      {r.platforms.join(', ')}
+                    <div className="igdb-result-info">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                        <div className="igdb-result-title" style={{ marginBottom: 0 }}>{r.name}</div>
+                        {r.rating != null && (
+                          <div className={`detail-rating-badge ${ratingClass(r.rating)}`} style={{ position: 'static', flexShrink: 0 }}>
+                            <span className="detail-rating-score">{r.rating}</span>
+                            <span className="detail-rating-label">rating</span>
+                          </div>
+                        )}
+                        {inLibrary && (
+                          <span className="igdb-result-in-library">In Library</span>
+                        )}
+                      </div>
+                      <div className="igdb-result-year">
+                        {r.release_year ?? ''}
+                        {r.release_year && r.platforms.length > 0 && ' · '}
+                        {r.platforms.join(', ')}
+                      </div>
+                      {r.summary && <div className="igdb-result-summary">{r.summary}</div>}
                     </div>
-                    {r.summary && <div className="igdb-result-summary">{r.summary}</div>}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </>
