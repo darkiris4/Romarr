@@ -5,7 +5,7 @@ import {
   Gamepad2, Plus, FolderInput,
   Clock, List, Ban,
   BookX,
-  HardDrive, Wifi, Server, FileInput, Plug, Database, Tag, Settings, Monitor,
+  HardDrive, Wifi, Server, FileInput, Plug, Database, Tag, Settings, Monitor, Star,
   Activity, CheckSquare, Archive, RefreshCw, Bell, FileText,
 } from 'lucide-react'
 
@@ -50,6 +50,7 @@ const SECTIONS: Section[] = [
     key: 'settings', to: '/settings', icon: <Settings size={16} />, label: 'Settings', prefix: '/settings',
     children: [
       { to: '/settings/mediamanagement', icon: <HardDrive size={14} />,  label: 'Media Management' },
+      { to: '/settings/quality',          icon: <Star size={14} />,       label: 'Quality' },
       { to: '/settings/indexers',         icon: <Wifi size={14} />,       label: 'Indexers' },
       { to: '/settings/downloadclients',  icon: <Server size={14} />,     label: 'Download Clients' },
       { to: '/settings/lists',            icon: <FileInput size={14} />,  label: 'Import Lists' },
