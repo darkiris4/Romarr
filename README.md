@@ -2,7 +2,7 @@
 
 > A Sonarr/Radarr-style automated ROM manager for retro game collections.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Status: Early Development](https://img.shields.io/badge/status-early%20development-orange.svg)]()
 
 ---
@@ -176,4 +176,4 @@ Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) bef
 
 ## License
 
-[MIT](LICENSE) © Mike H
+[GPL v3](LICENSE) © Mike H
