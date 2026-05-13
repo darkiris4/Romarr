@@ -6,6 +6,7 @@ from .list_source import ListSource
 from .queue_item import QueueItem, QueueStatus
 from .history import HistoryItem, HistoryEventType
 from .app_config import AppConfig
+from .root_folder import RootFolder
 
 __all__ = [
     "Platform",
@@ -21,4 +22,5 @@ __all__ = [
     "HistoryItem",
     "HistoryEventType",
     "AppConfig",
+    "RootFolder",
 ]

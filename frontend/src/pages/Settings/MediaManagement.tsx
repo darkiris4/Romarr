@@ -2,36 +2,34 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, CheckCircle, AlertCircle, Plus, X } from 'lucide-react'
 import { libraryApi } from '../../api/library'
-
-interface RootFolder {
-  id: number
-  path: string
-  freeSpace: string
-  unmappedFolders: number
-}
-
-let nextRootId = 1
+import { settingsApi } from '../../api/settings'
 
 export default function MediaManagement() {
   const [renameEnabled, setRenameEnabled] = useState(true)
   const [verifyChecksums, setVerifyChecksums] = useState(true)
   const [deleteAfterImport, setDeleteAfterImport] = useState(false)
   const [unmonitorDeleted, setUnmonitorDeleted] = useState(false)
-  const [rootFolders, setRootFolders] = useState<RootFolder[]>([])
   const [newPath, setNewPath] = useState('')
   const [saved, setSaved] = useState(false)
   const qc = useQueryClient()
 
-  function addRootFolder() {
-    const path = newPath.trim()
-    if (!path) return
-    setRootFolders(prev => [...prev, { id: nextRootId++, path, freeSpace: '—', unmappedFolders: 0 }])
-    setNewPath('')
-  }
+  const { data: rootFolders = [], isLoading: foldersLoading } = useQuery({
+    queryKey: ['root-folders'],
+    queryFn: settingsApi.listRootFolders,
+  })
 
-  function removeRootFolder(id: number) {
-    setRootFolders(prev => prev.filter(f => f.id !== id))
-  }
+  const addFolderMutation = useMutation({
+    mutationFn: (path: string) => settingsApi.addRootFolder(path),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['root-folders'] })
+      setNewPath('')
+    },
+  })
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id: number) => settingsApi.deleteRootFolder(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['root-folders'] }),
+  })
 
   const { data: datStatus } = useQuery({
     queryKey: ['dat-status'],
@@ -47,6 +45,12 @@ export default function MediaManagement() {
     e.preventDefault()
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  function handleAddFolder() {
+    const path = newPath.trim()
+    if (!path) return
+    addFolderMutation.mutate(path)
   }
 
   const datDir = datStatus?.dat_dir
@@ -140,7 +144,13 @@ export default function MediaManagement() {
             </tr>
           </thead>
           <tbody>
-            {rootFolders.length === 0 ? (
+            {foldersLoading ? (
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                  Loading…
+                </td>
+              </tr>
+            ) : rootFolders.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
                   No root folders configured
@@ -149,10 +159,15 @@ export default function MediaManagement() {
             ) : rootFolders.map(folder => (
               <tr key={folder.id}>
                 <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>{folder.path}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{folder.freeSpace}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{folder.unmappedFolders}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{folder.free_space}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{folder.unmapped_folders}</td>
                 <td className="col-action">
-                  <button className="btn-icon" title="Remove root folder" onClick={() => removeRootFolder(folder.id)}>
+                  <button
+                    className="btn-icon"
+                    title="Remove root folder"
+                    onClick={() => deleteFolderMutation.mutate(folder.id)}
+                    disabled={deleteFolderMutation.isPending}
+                  >
                     <X size={14} />
                   </button>
                 </td>
@@ -161,17 +176,28 @@ export default function MediaManagement() {
           </tbody>
         </table>
       </div>
+      {addFolderMutation.isError && (
+        <div className="alert alert-danger" style={{ marginBottom: 12 }}>
+          <AlertCircle size={13} />
+          {String((addFolderMutation.error as any)?.response?.data?.detail ?? 'Failed to add folder')}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 32 }}>
         <input
           className="form-control"
           value={newPath}
           onChange={e => setNewPath(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRootFolder())}
+          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddFolder())}
           placeholder="/media/roms"
           style={{ maxWidth: 400, fontFamily: 'monospace' }}
         />
-        <button className="btn btn-primary" onClick={addRootFolder} disabled={!newPath.trim()}>
-          <Plus size={14} /> Add Root Folder
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={handleAddFolder}
+          disabled={!newPath.trim() || addFolderMutation.isPending}
+        >
+          <Plus size={14} /> {addFolderMutation.isPending ? 'Adding…' : 'Add Root Folder'}
         </button>
       </div>
 
