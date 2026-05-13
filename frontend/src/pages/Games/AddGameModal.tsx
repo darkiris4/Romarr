@@ -220,7 +220,11 @@ export default function AddGameModal({ platforms, initialQuery = '', onClose, on
                     </div>
                     <div className="igdb-result-info">
                       <div className="igdb-result-title">{r.name}</div>
-                      {r.release_year && <div className="igdb-result-year">{r.release_year}</div>}
+                      <div className="igdb-result-year">
+                        {r.release_year ?? ''}
+                        {r.release_year && r.platforms.length > 0 && ' · '}
+                        {r.platforms.join(', ')}
+                      </div>
                       {r.summary && <div className="igdb-result-summary">{r.summary}</div>}
                     </div>
                   </div>

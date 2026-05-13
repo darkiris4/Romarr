@@ -43,7 +43,7 @@ export interface IgdbSearchResult {
   cover_url?: string
   release_year?: number
   summary?: string
-  igdb_platform_ids: number[]
+  platforms: string[]
 }
 
 export interface ReleaseResult {
