@@ -297,7 +297,7 @@ export default function MediaManagement() {
         }}>
           <strong style={{ color: 'var(--info)' }}>Getting DAT files:</strong>
           <ol style={{ paddingLeft: 20, marginTop: 6, marginBottom: 8 }}>
-            <li>Go to <strong>datomatic.no-intro.org</strong> → Download → P/C XML</li>
+            <li>Go to <strong>datomatic.no-intro.org</strong> → Download → Standard DAT</li>
             <li>Download the <code>.dat</code> file for each platform you want</li>
             <li>Drag and drop the files onto the upload area above — platforms are matched and loaded automatically</li>
           </ol>
