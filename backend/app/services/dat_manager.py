@@ -26,17 +26,27 @@ from .library_scanner import load_dat_for_platform, _DAT_INDEX
 _DATE_SUFFIX = re.compile(r"\s*\(\d{8}[-\d]*\)\s*$")
 
 
-def _dat_header_name(dat_path: Path) -> str | None:
-    """Read the <header><name> from a No-Intro DAT file."""
+def _dat_header(dat_path: Path) -> dict:
+    """Read name, version, and date from a No-Intro DAT <header>."""
+    fields: dict[str, str] = {}
     try:
-        for event, elem in ET.iterparse(dat_path, events=("end",)):
-            if elem.tag == "name":
-                return elem.text
+        for _, elem in ET.iterparse(dat_path, events=("end",)):
+            if elem.tag in ("name", "version", "date") and elem.text:
+                fields[elem.tag] = elem.text.strip()
             if elem.tag == "header":
                 break
     except ET.ParseError:
         pass
-    return None
+    # No-Intro encodes date in version string: "20260510-044928" → "2026-05-10"
+    if "date" not in fields and "version" in fields:
+        m = re.match(r"(\d{4})(\d{2})(\d{2})", fields["version"])
+        if m:
+            fields["date"] = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    return fields
+
+
+def _dat_header_name(dat_path: Path) -> str | None:
+    return _dat_header(dat_path).get("name")
 
 
 def _normalise(s: str) -> str:
@@ -114,18 +124,26 @@ def dat_status(db: Session) -> list[dict]:
     loaded = {pid: len(idx) for pid, idx in _DAT_INDEX.items()}
 
     # Files present on disk
-    disk_files: dict[int, str] = {}
+    disk_files: dict[int, dict] = {}
     for dat_path in dat_dir.glob("*.dat"):
         platform = match_dat_to_platform(dat_path, list(platforms.values()))
         if platform:
-            disk_files[platform.id] = dat_path.name
+            hdr = _dat_header(dat_path)
+            disk_files[platform.id] = {
+                "filename": dat_path.name,
+                "version": hdr.get("version"),
+                "date": hdr.get("date"),
+            }
 
     rows = []
     for pid, platform in sorted(platforms.items(), key=lambda x: x[1].name):
+        info = disk_files.get(pid, {})
         rows.append({
             "platform_id": pid,
             "platform_name": platform.name,
-            "dat_file": disk_files.get(pid),
+            "dat_file": info.get("filename"),
+            "dat_version": info.get("version"),
+            "dat_date": info.get("date"),
             "loaded": pid in loaded,
             "entries": loaded.get(pid, 0),
         })

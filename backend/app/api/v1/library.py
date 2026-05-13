@@ -139,6 +139,26 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
     }
 
 
+@router.delete("/dat/{filename}", status_code=204)
+def delete_dat(filename: str, db: Session = Depends(get_db)):
+    """Remove a DAT file from data/dats/ and evict it from the CRC32 index."""
+    if not filename.lower().endswith(".dat"):
+        raise HTTPException(status_code=422, detail="Invalid filename")
+    target = settings.dat_dir / filename
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="DAT file not found")
+
+    # Evict from in-memory index before deleting
+    from ...services.dat_manager import match_dat_to_platform, _DAT_INDEX
+    from ...models.platform import Platform
+    platforms = db.query(Platform).all()
+    platform = match_dat_to_platform(target, platforms)
+    if platform and platform.id in _DAT_INDEX:
+        del _DAT_INDEX[platform.id]
+
+    target.unlink()
+
+
 @router.post("/dat/reload")
 def reload_dats(db: Session = Depends(get_db)):
     """Re-scan data/dats/ and reload all matched DAT files."""

@@ -43,6 +43,11 @@ export default function MediaManagement() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dat-status'] }),
   })
 
+  const deleteDatMutation = useMutation({
+    mutationFn: (filename: string) => libraryApi.deleteDat(filename),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dat-status'] }),
+  })
+
   const uploadMutation = useMutation({
     mutationFn: (file: File) => libraryApi.uploadDat(file),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dat-status'] }),
@@ -313,20 +318,25 @@ export default function MediaManagement() {
               <thead>
                 <tr>
                   <th>Platform</th>
-                  <th>DAT File</th>
-                  <th style={{ width: 90 }}>Entries</th>
-                  <th style={{ width: 80 }}>Status</th>
+                  <th>Date</th>
+                  <th>Version</th>
+                  <th style={{ textAlign: 'right', width: 80 }}>Entries</th>
+                  <th style={{ width: 90 }}>Status</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {platforms.map((p: any) => (
                   <tr key={p.platform_id}>
                     <td style={{ color: 'var(--text-white)' }}>{p.platform_name}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>
-                      {p.dat_file ?? <span style={{ color: 'var(--text-muted)', fontFamily: 'inherit' }}>—</span>}
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {p.dat_date ?? (p.dat_file ? '—' : '')}
                     </td>
-                    <td style={{ color: 'var(--text-muted)' }}>
-                      {p.loaded ? p.entries.toLocaleString() : '—'}
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                      {p.dat_version ?? (p.dat_file ? '—' : '')}
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
+                      {p.loaded ? p.entries.toLocaleString() : (p.dat_file ? '—' : '')}
                     </td>
                     <td>
                       {p.loaded ? (
@@ -339,6 +349,18 @@ export default function MediaManagement() {
                         </span>
                       ) : (
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No DAT</span>
+                      )}
+                    </td>
+                    <td className="col-action">
+                      {p.dat_file && (
+                        <button
+                          className="btn-icon"
+                          title={`Remove ${p.dat_file}`}
+                          onClick={() => deleteDatMutation.mutate(p.dat_file)}
+                          disabled={deleteDatMutation.isPending}
+                        >
+                          <X size={14} />
+                        </button>
                       )}
                     </td>
                   </tr>

@@ -53,10 +53,15 @@ export const libraryApi = {
         platform_id: number
         platform_name: string
         dat_file: string | null
+        dat_version: string | null
+        dat_date: string | null
         loaded: boolean
         entries: number
       }[]
     }>('/library/dat/status').then(r => r.data),
+
+  deleteDat: (filename: string): Promise<void> =>
+    client.delete(`/library/dat/${encodeURIComponent(filename)}`).then(() => undefined),
 
   reloadDats: () =>
     client.post<{ dat_dir: string; loaded: unknown[]; unmatched: unknown[] }>('/library/dat/reload').then(r => r.data),
