@@ -155,6 +155,7 @@ Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identif
 - [ ] End-to-end download pipeline validation (requires real indexer + download client)
 - [ ] Real-time log streaming in the UI
 - [ ] Pagination on the games list
+- [ ] First-run IGDB setup wizard (banner/modal guiding Twitch app registration)
 - [ ] More list source plugins (LaunchBox, ScreenScraper)
 - [ ] Deluge download client support
 - [ ] User authentication
