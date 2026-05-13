@@ -85,22 +85,19 @@ export default function Sidebar() {
     return initial
   })
 
-  // Auto-expand when navigating into a section
+  // Auto-expand only the active section, collapse all others
   useEffect(() => {
     for (const s of SECTIONS) {
       if (location.pathname.startsWith(s.prefix)) {
-        setOpen(prev => prev.has(s.key) ? prev : new Set([...prev, s.key]))
+        setOpen(new Set([s.key]))
+        break
       }
     }
   }, [location.pathname])
 
   function handleParent(s: Section) {
     navigate(s.to)
-    setOpen(prev => {
-      const next = new Set(prev)
-      next.has(s.key) ? next.delete(s.key) : next.add(s.key)
-      return next
-    })
+    setOpen(prev => prev.has(s.key) ? new Set() : new Set([s.key]))
   }
 
   return (
