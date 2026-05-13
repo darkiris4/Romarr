@@ -10,7 +10,7 @@ interface Props {
   platforms: Platform[]
   initialQuery?: string
   onClose: () => void
-  onAdded: () => void
+  onAdded: (gameId: number) => void
 }
 
 type Step = 'search' | 'igdb' | 'confirm'
@@ -86,9 +86,9 @@ export default function AddGameModal({ platforms, initialQuery = '', onClose, on
       }
       return gamesApi.create({ title: query.trim(), platform_id: plat, region, monitored })
     },
-    onSuccess: () => {
+    onSuccess: (game) => {
       qc.invalidateQueries({ queryKey: ['games'] })
-      onAdded()
+      onAdded(game.id)
     },
     onError: () => setError('Failed to add game.'),
   })
@@ -231,14 +231,7 @@ export default function AddGameModal({ platforms, initialQuery = '', onClose, on
                 ))}
               </div>
             </div>
-            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-              <button
-                className="btn btn-secondary"
-                disabled={!trimmed || !platformId}
-                onClick={() => addMutation.mutate()}
-              >
-                Add "{trimmed}" manually
-              </button>
+            <div className="modal-footer">
               <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>

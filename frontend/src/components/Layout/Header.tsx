@@ -123,7 +123,7 @@ export default function Header() {
           platforms={platforms}
           initialQuery={addQuery}
           onClose={() => { setShowAdd(false); setInputValue('') }}
-          onAdded={() => { setShowAdd(false); setInputValue('') }}
+          onAdded={(gameId) => { setShowAdd(false); setInputValue(''); navigate(`/games/${gameId}`) }}
         />
       )}
     </>
