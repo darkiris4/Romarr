@@ -23,6 +23,7 @@ import BackupPage from './pages/System/BackupPage'
 import UpdatesPage from './pages/System/UpdatesPage'
 import EventsPage from './pages/System/EventsPage'
 import LogsPage from './pages/System/LogsPage'
+import AddNewPage from './pages/Games/AddNewPage'
 import StubPage from './components/StubPage'
 
 export default function App() {
@@ -32,7 +33,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/games" replace />} />
           <Route path="/games" element={<GamesPage />} />
-          <Route path="/games/add" element={<StubPage title="Add New" />} />
+          <Route path="/games/add" element={<AddNewPage />} />
           <Route path="/games/import" element={<StubPage title="Library Import" />} />
           <Route path="/games/:id" element={<GameDetailPage />} />
           <Route path="/activity" element={<Navigate to="/activity/queue" replace />} />

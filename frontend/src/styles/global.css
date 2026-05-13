@@ -560,6 +560,48 @@ select.form-control { cursor: pointer; }
   max-width: 96vw;
 }
 
+/* ── Add New Page ───────────────────────────────────────────────── */
+.add-new-page { max-width: 860px; }
+
+.add-new-search-wrap { margin-bottom: 28px; }
+
+.add-new-searchbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.add-new-searchbox-icon { color: var(--text-muted); flex-shrink: 0; }
+
+.add-new-searchbox-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-white);
+  font-size: 15px;
+}
+.add-new-searchbox-input::placeholder { color: var(--text-muted); }
+
+.add-new-hint {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.add-new-no-results { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
+
+.igdb-results--page { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.igdb-results--page .igdb-result-row { border-bottom: 1px solid var(--border); }
+.igdb-results--page .igdb-result-row:last-child { border-bottom: none; }
+
+.add-new-confirm-wrap { max-width: 700px; }
+
 /* Tall modal variant for add game IGDB search */
 .modal--add-game {
   width: 640px;

@@ -4,16 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Search, ImageOff, X, Plus } from 'lucide-react'
 import { gamesApi } from '../../api/games'
-import { platformsApi } from '../../api/platforms'
-import AddGameModal from '../../pages/Games/AddGameModal'
 
 export default function Header() {
   const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
   const [focused, setFocused] = useState(false)
   const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0, width: 380 })
-  const [showAdd, setShowAdd] = useState(false)
-  const [addQuery, setAddQuery] = useState('')
   const searchWrapRef = useRef<HTMLDivElement>(null)
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -22,11 +18,6 @@ export default function Header() {
     queryFn: () => gamesApi.list({ search: inputValue }),
     enabled: focused && inputValue.length > 1,
     staleTime: 10_000,
-  })
-
-  const { data: platforms = [] } = useQuery({
-    queryKey: ['platforms'],
-    queryFn: platformsApi.list,
   })
 
   function updateCoords() {
@@ -46,10 +37,10 @@ export default function Header() {
     blurTimerRef.current = setTimeout(() => setFocused(false), 150)
   }
 
-  function openAdd(query: string) {
+  function goToAddNew(q: string) {
+    setInputValue('')
     setFocused(false)
-    setAddQuery(query)
-    setShowAdd(true)
+    navigate(`/games/add?q=${encodeURIComponent(q.trim())}`)
   }
 
   const trimmed = inputValue.trim()
@@ -69,7 +60,7 @@ export default function Header() {
             onBlur={handleBlur}
             onKeyDown={e => {
               if (e.key === 'Escape') { setInputValue(''); setFocused(false) }
-              if (e.key === 'Enter' && trimmed) openAdd(trimmed)
+              if (e.key === 'Enter' && trimmed) goToAddNew(trimmed)
             }}
           />
           {inputValue && (
@@ -108,7 +99,7 @@ export default function Header() {
             </div>
           ))}
 
-          <div className="search-dropdown-row search-dropdown-row--add" onClick={() => openAdd(trimmed)}>
+          <div className="search-dropdown-row search-dropdown-row--add" onClick={() => goToAddNew(trimmed)}>
             <div className="search-dropdown-cover search-dropdown-cover--add">
               <Plus size={13} />
             </div>
@@ -116,15 +107,6 @@ export default function Header() {
           </div>
         </div>,
         document.body
-      )}
-
-      {showAdd && (
-        <AddGameModal
-          platforms={platforms}
-          initialQuery={addQuery}
-          onClose={() => { setShowAdd(false); setInputValue('') }}
-          onAdded={(gameId) => { setShowAdd(false); setInputValue(''); navigate(`/games/${gameId}`) }}
-        />
       )}
     </>
   )
