@@ -561,7 +561,7 @@ select.form-control { cursor: pointer; }
 }
 
 /* ── Add New Page ───────────────────────────────────────────────── */
-.add-new-page { max-width: 860px; }
+.add-new-page { width: 100%; }
 
 .add-new-search-wrap { margin-bottom: 28px; }
 
@@ -600,7 +600,7 @@ select.form-control { cursor: pointer; }
 .igdb-results--page .igdb-result-row { border-bottom: 1px solid var(--border); }
 .igdb-results--page .igdb-result-row:last-child { border-bottom: none; }
 
-.add-new-confirm-wrap { max-width: 700px; }
+.add-new-confirm-wrap { width: 100%; }
 
 /* Tall modal variant for add game IGDB search */
 .modal--add-game {
@@ -878,8 +878,8 @@ select.form-control { cursor: pointer; }
 
 .igdb-result-row {
   display: flex;
-  gap: 14px;
-  padding: 10px;
+  gap: 16px;
+  padding: 14px 16px;
   border-radius: var(--radius);
   cursor: pointer;
   align-items: flex-start;
@@ -892,8 +892,8 @@ select.form-control { cursor: pointer; }
 
 .igdb-result-cover {
   flex-shrink: 0;
-  width: 48px;
-  height: 68px;
+  width: 60px;
+  height: 84px;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -923,22 +923,22 @@ select.form-control { cursor: pointer; }
 }
 
 .igdb-result-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--text-white);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .igdb-result-year {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .igdb-result-summary {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.5;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
