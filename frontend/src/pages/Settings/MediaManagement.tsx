@@ -138,8 +138,8 @@ export default function MediaManagement() {
           <thead>
             <tr>
               <th>Path</th>
-              <th>Free Space</th>
-              <th>Unmapped Folders</th>
+              <th style={{ textAlign: 'right', width: 120 }}>Free Space</th>
+              <th style={{ textAlign: 'right', width: 160 }}>Unmapped Folders</th>
               <th />
             </tr>
           </thead>
@@ -159,8 +159,8 @@ export default function MediaManagement() {
             ) : rootFolders.map(folder => (
               <tr key={folder.id}>
                 <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>{folder.path}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{folder.free_space}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{folder.unmapped_folders}</td>
+                <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{folder.free_space}</td>
+                <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{folder.unmapped_folders}</td>
                 <td className="col-action">
                   <button
                     className="btn-icon"

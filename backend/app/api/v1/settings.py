@@ -13,12 +13,19 @@ class RootFolderCreate(BaseModel):
     path: str
 
 
+def _fmt_bytes(n: int) -> str:
+    for unit, div in [("TiB", 1 << 40), ("GiB", 1 << 30), ("MiB", 1 << 20), ("KiB", 1 << 10)]:
+        if n >= div:
+            v = n / div
+            return f"{v:.2f} {unit}" if v < 10 else f"{v:.1f} {unit}" if v < 100 else f"{v:.0f} {unit}"
+    return f"{n} B"
+
+
 def _folder_info(path: str) -> dict:
     p = Path(path)
     if p.exists() and p.is_dir():
         usage = shutil.disk_usage(path)
-        free_gb = usage.free / 1024 ** 3
-        free_str = f"{free_gb:.1f} GB" if free_gb >= 1 else f"{usage.free / 1024 ** 2:.0f} MB"
+        free_str = _fmt_bytes(usage.free)
         try:
             unmapped = len([d for d in p.iterdir() if d.is_dir()])
         except PermissionError:
