@@ -550,31 +550,146 @@ select.form-control { cursor: pointer; }
   min-height: 0;
 }
 
-/* ── Add Game IGDB search ──────────────────────────────────────── */
-.add-game-search-row {
+/* ── Add Game search box ──────────────────────────────────────── */
+.add-game-searchbox {
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius);
+  padding: 0 10px;
   margin-bottom: 16px;
 }
 
-.search-input-wrap {
-  position: relative;
+.add-game-searchbox:focus-within {
+  border-color: var(--accent);
 }
 
-.search-input-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+.add-game-searchbox-icon { color: var(--text-muted); flex-shrink: 0; }
+
+.add-game-searchbox-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-white);
+  font-size: 15px;
+  padding: 10px 0;
+}
+
+.add-game-searchbox-input::placeholder { color: var(--text-muted); }
+
+.add-game-results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 120px;
+}
+
+.add-game-results-hint {
   color: var(--text-muted);
-  pointer-events: none;
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 0;
 }
 
-.search-input-padded {
-  padding-left: 32px !important;
+.add-game-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding: 0 4px 6px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  margin-bottom: 4px;
 }
 
+.add-game-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.add-game-result-row:hover { background: rgba(255,255,255,.06); }
+
+.add-game-result-row--new:hover { background: rgba(123,104,238,.1); }
+
+.add-game-result-cover {
+  flex-shrink: 0;
+  width: 32px;
+  height: 45px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.add-game-result-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.add-game-result-cover--empty {
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.25);
+}
+
+.add-game-result-cover--new {
+  background: rgba(123,104,238,.15);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-hover);
+}
+
+.add-game-result-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-game-result-title {
+  font-size: 14px;
+  color: var(--text-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.add-game-result-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.add-game-result-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(39,194,76,.15);
+  color: var(--success);
+  border: 1px solid rgba(39,194,76,.3);
+}
+
+/* IGDB results (step 2) */
 .igdb-results {
   display: flex;
   flex-direction: column;
@@ -589,13 +704,6 @@ select.form-control { cursor: pointer; }
   font-size: 13px;
   padding: 20px 0;
   justify-content: center;
-}
-
-.igdb-results-hint {
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
-  padding: 24px 0;
 }
 
 .igdb-result-row {

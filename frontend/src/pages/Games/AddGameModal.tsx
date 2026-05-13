@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, ImageOff, ChevronLeft, Search } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { X, ImageOff, ChevronLeft, Search, Plus } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { igdbApi } from '../../api/igdb'
 import type { Platform, IgdbSearchResult } from '../../types'
@@ -11,34 +12,57 @@ interface Props {
   onAdded: () => void
 }
 
+type Step = 'search' | 'igdb' | 'confirm'
+
 export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
+  const navigate = useNavigate()
   const qc = useQueryClient()
+
+  const [step, setStep] = useState<Step>('search')
   const [query, setQuery] = useState('')
-  const [platformId, setPlatformId] = useState(platforms[0]?.id?.toString() ?? '')
-  const [results, setResults] = useState<IgdbSearchResult[]>([])
-  const [searching, setSearching] = useState(false)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [igdbResults, setIgdbResults] = useState<IgdbSearchResult[]>([])
+  const [igdbLoading, setIgdbLoading] = useState(false)
   const [selected, setSelected] = useState<IgdbSearchResult | null>(null)
+  const [platformId, setPlatformId] = useState(platforms[0]?.id?.toString() ?? '')
   const [region, setRegion] = useState('USA')
   const [monitored, setMonitored] = useState(true)
   const [error, setError] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
+  // Debounce library search
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const data = await igdbApi.search(query.trim())
-        setResults(data)
-      } catch {
-        setResults([])
-      } finally {
-        setSearching(false)
-      }
-    }, 400)
+    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 250)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query])
+
+  // Existing library matches
+  const { data: existing = [] } = useQuery({
+    queryKey: ['games', debouncedQuery],
+    queryFn: () => gamesApi.list({ search: debouncedQuery }),
+    enabled: debouncedQuery.length > 1,
+  })
+
+  async function searchIgdb() {
+    if (!query.trim()) return
+    setStep('igdb')
+    setIgdbLoading(true)
+    try {
+      const data = await igdbApi.search(query.trim())
+      setIgdbResults(data)
+    } catch {
+      setIgdbResults([])
+    } finally {
+      setIgdbLoading(false)
+    }
+  }
+
+  function selectIgdbResult(r: IgdbSearchResult) {
+    setSelected(r)
+    setStep('confirm')
+  }
 
   const addMutation = useMutation({
     mutationFn: () => {
@@ -64,65 +88,124 @@ export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
   })
 
   const enabledPlatforms = platforms.filter(p => p.enabled)
+  const trimmed = query.trim()
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal modal--add-game" onClick={e => e.stopPropagation()}>
+
+        {/* ── Header ── */}
         <div className="modal-header">
-          {selected && (
-            <button className="btn-icon" style={{ marginRight: 8 }} onClick={() => setSelected(null)}>
+          {step !== 'search' && (
+            <button
+              className="btn-icon"
+              style={{ marginRight: 8 }}
+              onClick={() => setStep(step === 'confirm' ? 'igdb' : 'search')}
+            >
               <ChevronLeft size={16} />
             </button>
           )}
-          <span className="modal-title">{selected ? 'Add Game' : 'Search IGDB'}</span>
+          <span className="modal-title">
+            {step === 'search' && 'Add Game'}
+            {step === 'igdb' && `IGDB results for "${trimmed}"`}
+            {step === 'confirm' && 'Add Game'}
+          </span>
           <button className="btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {/* ── Step 1: IGDB Search ── */}
-        {!selected && (
+        {/* ── Step: Search ── */}
+        {step === 'search' && (
           <>
             <div className="modal-body">
-              {error && <div className="alert alert-danger">{error}</div>}
-              <div className="add-game-search-row">
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Search</label>
-                  <div className="search-input-wrap">
-                    <Search size={14} className="search-input-icon" />
-                    <input
-                      className="form-control search-input-padded"
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                      placeholder="e.g. Chrono Trigger"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <div className="form-group" style={{ width: 180 }}>
-                  <label className="form-label">Platform</label>
-                  <select
-                    className="form-control"
-                    value={platformId}
-                    onChange={e => setPlatformId(e.target.value)}
-                  >
-                    <option value="">— Select —</option>
-                    {enabledPlatforms.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="add-game-searchbox">
+                <Search size={15} className="add-game-searchbox-icon" />
+                <input
+                  ref={inputRef}
+                  className="add-game-searchbox-input"
+                  placeholder="Search for a game…"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && trimmed && searchIgdb()}
+                  autoFocus
+                />
+                {query && (
+                  <button className="btn-icon" onClick={() => setQuery('')}>
+                    <X size={13} />
+                  </button>
+                )}
               </div>
 
-              <div className="igdb-results">
-                {searching && (
-                  <div className="igdb-results-status">
-                    <div className="spinner" /> Searching IGDB…
+              <div className="add-game-results">
+                {/* Existing library section */}
+                {existing.length > 0 && (
+                  <div className="add-game-section">
+                    <div className="add-game-section-label">In your library</div>
+                    {existing.slice(0, 5).map(g => (
+                      <div
+                        key={g.id}
+                        className="add-game-result-row"
+                        onClick={() => { onClose(); navigate(`/games/${g.id}`) }}
+                      >
+                        <div className="add-game-result-cover">
+                          {g.cover_url
+                            ? <img src={g.cover_url} alt={g.title} />
+                            : <div className="add-game-result-cover--empty"><ImageOff size={12} /></div>
+                          }
+                        </div>
+                        <div className="add-game-result-info">
+                          <span className="add-game-result-title">{g.title}</span>
+                          <span className="add-game-result-meta">
+                            {g.platform?.name}
+                            {g.release_year && ` · ${g.release_year}`}
+                          </span>
+                        </div>
+                        <span className="add-game-result-badge">In Library</span>
+                      </div>
+                    ))}
                   </div>
                 )}
-                {!searching && query && results.length === 0 && (
-                  <div className="igdb-results-status">No results found.</div>
+
+                {/* Add new section */}
+                {trimmed && (
+                  <div className="add-game-section">
+                    <div className="add-game-section-label">Add new</div>
+                    <div className="add-game-result-row add-game-result-row--new" onClick={searchIgdb}>
+                      <div className="add-game-result-cover add-game-result-cover--new">
+                        <Plus size={14} />
+                      </div>
+                      <div className="add-game-result-info">
+                        <span className="add-game-result-title">Search IGDB for "{trimmed}"</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
-                {!searching && results.map(r => (
-                  <div key={r.igdb_id} className="igdb-result-row" onClick={() => setSelected(r)}>
+
+                {!trimmed && (
+                  <div className="add-game-results-hint">
+                    Start typing to search your library and IGDB.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step: IGDB results ── */}
+        {step === 'igdb' && (
+          <>
+            <div className="modal-body">
+              {igdbLoading && (
+                <div className="igdb-results-status"><div className="spinner" /> Searching IGDB…</div>
+              )}
+              {!igdbLoading && igdbResults.length === 0 && (
+                <div className="igdb-results-status">No results found on IGDB.</div>
+              )}
+              <div className="igdb-results">
+                {igdbResults.map(r => (
+                  <div key={r.igdb_id} className="igdb-result-row" onClick={() => selectIgdbResult(r)}>
                     <div className="igdb-result-cover">
                       {r.cover_url
                         ? <img src={r.cover_url} alt={r.name} />
@@ -131,42 +214,31 @@ export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
                     </div>
                     <div className="igdb-result-info">
                       <div className="igdb-result-title">{r.name}</div>
-                      {r.release_year && (
-                        <div className="igdb-result-year">{r.release_year}</div>
-                      )}
-                      {r.summary && (
-                        <div className="igdb-result-summary">{r.summary}</div>
-                      )}
+                      {r.release_year && <div className="igdb-result-year">{r.release_year}</div>}
+                      {r.summary && <div className="igdb-result-summary">{r.summary}</div>}
                     </div>
                   </div>
                 ))}
-                {!query && (
-                  <div className="igdb-results-hint">
-                    Type a game title to search IGDB, or add manually using the form below.
-                  </div>
-                )}
               </div>
             </div>
-
             <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
               <button
                 className="btn btn-secondary"
-                disabled={!query.trim() || !platformId}
+                disabled={!trimmed || !platformId}
                 onClick={() => addMutation.mutate()}
               >
-                Add manually without IGDB
+                Add "{trimmed}" manually
               </button>
               <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>
         )}
 
-        {/* ── Step 2: Confirm ── */}
-        {selected && (
+        {/* ── Step: Confirm ── */}
+        {step === 'confirm' && selected && (
           <>
             <div className="modal-body">
               {error && <div className="alert alert-danger">{error}</div>}
-
               <div className="add-game-confirm">
                 <div className="add-game-confirm-cover">
                   {selected.cover_url
@@ -211,7 +283,6 @@ export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
                   </select>
                 </div>
               </div>
-
               <div className="form-group">
                 <label className="form-check">
                   <input
@@ -223,9 +294,8 @@ export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
                 </label>
               </div>
             </div>
-
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setSelected(null)}>Back</button>
+              <button className="btn btn-secondary" onClick={() => setStep('igdb')}>Back</button>
               <button
                 className="btn btn-primary"
                 disabled={!platformId || addMutation.isPending}
