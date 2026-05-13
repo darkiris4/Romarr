@@ -1,15 +1,37 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, CheckCircle, AlertCircle, Database } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Plus, X } from 'lucide-react'
 import { libraryApi } from '../../api/library'
 
+interface RootFolder {
+  id: number
+  path: string
+  freeSpace: string
+  unmappedFolders: number
+}
+
+let nextRootId = 1
+
 export default function MediaManagement() {
-  const [libraryPath, setLibraryPath] = useState('./library')
   const [renameEnabled, setRenameEnabled] = useState(true)
   const [verifyChecksums, setVerifyChecksums] = useState(true)
   const [deleteAfterImport, setDeleteAfterImport] = useState(false)
+  const [unmonitorDeleted, setUnmonitorDeleted] = useState(false)
+  const [rootFolders, setRootFolders] = useState<RootFolder[]>([])
+  const [newPath, setNewPath] = useState('')
   const [saved, setSaved] = useState(false)
   const qc = useQueryClient()
+
+  function addRootFolder() {
+    const path = newPath.trim()
+    if (!path) return
+    setRootFolders(prev => [...prev, { id: nextRootId++, path, freeSpace: '—', unmappedFolders: 0 }])
+    setNewPath('')
+  }
+
+  function removeRootFolder(id: number) {
+    setRootFolders(prev => prev.filter(f => f.id !== id))
+  }
 
   const { data: datStatus } = useQuery({
     queryKey: ['dat-status'],
@@ -42,26 +64,15 @@ export default function MediaManagement() {
 
       <form onSubmit={handleSave}>
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><span className="card-title">ROM Library</span></div>
-
-          <div className="form-group">
-            <label className="form-label">Library Root Path</label>
-            <input
-              className="form-control"
-              value={libraryPath}
-              onChange={e => setLibraryPath(e.target.value)}
-              placeholder="/media/roms"
-              style={{ maxWidth: 400 }}
-            />
-            <div className="form-hint">
-              Imported ROMs are organised as: <code>Library Path / Platform Folder / Game (Region).ext</code>
-            </div>
-          </div>
+          <div className="card-header"><span className="card-title">ROM Renaming</span></div>
 
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Rename ROMs on Import</div>
-              <div className="toggle-hint">Apply No-Intro standard naming to imported files.</div>
+              <div className="toggle-hint">
+                Rename imported files to the canonical No-Intro title from the DAT file.
+                When no DAT match exists, the original filename is kept.
+              </div>
             </div>
             <label className="toggle">
               <input type="checkbox" checked={renameEnabled} onChange={e => setRenameEnabled(e.target.checked)} />
@@ -96,6 +107,73 @@ export default function MediaManagement() {
           <button type="submit" className="btn btn-primary">Save Changes</button>
         </div>
       </form>
+
+      {/* ── File Management ── */}
+      <div className="settings-section-title">File Management</div>
+      <div className="card" style={{ marginBottom: 32 }}>
+        <div className="toggle-row" style={{ borderBottom: 'none' }}>
+          <div>
+            <div className="toggle-label">Unmonitor Deleted ROMs</div>
+            <div className="toggle-hint">Games deleted from disk are automatically unmonitored in Romarr.</div>
+          </div>
+          <label className="toggle">
+            <input type="checkbox" checked={unmonitorDeleted} onChange={e => setUnmonitorDeleted(e.target.checked)} />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+      </div>
+
+      {/* ── Root Folders ── */}
+      <div className="settings-section-title">Root Folders</div>
+      <div className="settings-section-desc">
+        Root folders are the top-level directories where Romarr organises your ROM library.
+        Imported ROMs are placed under: <code>Root Folder / Platform / Game (Region).ext</code>
+      </div>
+      <div className="card" style={{ padding: 0, marginBottom: 16 }}>
+        <table className="activity-table">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Free Space</th>
+              <th>Unmapped Folders</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rootFolders.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                  No root folders configured
+                </td>
+              </tr>
+            ) : rootFolders.map(folder => (
+              <tr key={folder.id}>
+                <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>{folder.path}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{folder.freeSpace}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{folder.unmappedFolders}</td>
+                <td className="col-action">
+                  <button className="btn-icon" title="Remove root folder" onClick={() => removeRootFolder(folder.id)}>
+                    <X size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 32 }}>
+        <input
+          className="form-control"
+          value={newPath}
+          onChange={e => setNewPath(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRootFolder())}
+          placeholder="/media/roms"
+          style={{ maxWidth: 400, fontFamily: 'monospace' }}
+        />
+        <button className="btn btn-primary" onClick={addRootFolder} disabled={!newPath.trim()}>
+          <Plus size={14} /> Add Root Folder
+        </button>
+      </div>
 
       {/* ── DAT Files ── */}
       <div className="settings-section-title">No-Intro DAT Files</div>
