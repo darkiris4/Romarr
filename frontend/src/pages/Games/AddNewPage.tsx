@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, ImageOff, ChevronLeft } from 'lucide-react'
@@ -14,6 +14,7 @@ export default function AddNewPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const initialQ = searchParams.get('q') ?? ''
   const [query, setQuery] = useState(initialQ)
@@ -45,9 +46,9 @@ export default function AddNewPage() {
     else inputRef.current?.focus()
   }, [])
 
-  async function handleSearch(q = query) {
+  const handleSearch = useCallback(async (q = query) => {
     const trimmed = q.trim()
-    if (!trimmed) return
+    if (!trimmed) { setResults([]); setSearched(false); return }
     setLoading(true)
     setSearched(true)
     setStep('search')
@@ -60,7 +61,14 @@ export default function AddNewPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [query])
+
+  // Debounced search as user types
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => handleSearch(query), 400)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [query])
 
   const addMutation = useMutation({
     mutationFn: () => {

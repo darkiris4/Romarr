@@ -588,10 +588,11 @@ select.form-control { cursor: pointer; }
 .add-new-searchbox-input::placeholder { color: var(--text-muted); }
 
 .add-new-hint {
-  margin-top: 14px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.6;
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1.7;
+  text-align: center;
 }
 
 .add-new-no-results { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
