@@ -561,9 +561,9 @@ select.form-control { cursor: pointer; }
 }
 
 /* ── Library Import Page ────────────────────────────────────────── */
-.import-page { max-width: 1100px; }
+.import-page { width: 100%; }
 
-.import-page-form { max-width: 600px; }
+.import-page-form { width: 100%; }
 
 .import-stat-strip {
   display: grid;
