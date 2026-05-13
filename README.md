@@ -146,54 +146,17 @@ Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identif
 
 ---
 
-## Project Structure
-
-```
-Romarr/
-├── backend/
-│   ├── app/
-│   │   ├── api/v1/          # FastAPI route handlers
-│   │   ├── models/          # SQLAlchemy ORM models
-│   │   ├── schemas/         # Pydantic request/response schemas
-│   │   ├── services/        # Business logic
-│   │   │   ├── dat_manager.py        # No-Intro DAT parsing & platform matching
-│   │   │   ├── library_scanner.py    # ROM folder scan + ZIP-transparent CRC32
-│   │   │   ├── igdb_service.py       # IGDB API client with tiered title matching
-│   │   │   ├── metadata_scraper.py   # Background scrape worker + debug log
-│   │   │   └── ...
-│   │   ├── config.py        # Pydantic settings (env-based)
-│   │   ├── database.py      # DB init, migrations, platform seeding
-│   │   └── main.py
-│   ├── plugins/             # Drop-in list source plugins
-│   ├── data/                # SQLite DB + DAT files (gitignored)
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── api/             # Axios API clients per resource
-│   │   ├── components/      # Shared components (Layout, modals, badges)
-│   │   ├── pages/           # Route-level page components
-│   │   ├── styles/          # global.css — single-file *arr-style dark theme
-│   │   └── types/           # Shared TypeScript interfaces
-│   ├── package.json
-│   └── vite.config.ts
-├── .github/
-│   ├── ISSUE_TEMPLATE/      # Bug report and feature request templates
-│   └── pull_request_template.md
-├── docker-compose.yml
-├── .env.example
-├── CONTRIBUTING.md
-└── README.md
-```
-
----
-
 ## Roadmap
 
-- [ ] Manual search results UI with one-click grab
-- [ ] History and activity feed (UI complete, backend wiring in progress)
-- [ ] Calendar view
+- [x] Global search with library suggestions and IGDB lookup
+- [x] Add game flow — IGDB results → confirm (platform/region/monitored)
+- [x] Manual search UI — indexer results with one-click grab
+- [x] History and activity feed
+- [ ] End-to-end download pipeline validation (requires real indexer + download client)
 - [ ] Real-time log streaming in the UI
+- [ ] Pagination on the games list
 - [ ] More list source plugins (LaunchBox, ScreenScraper)
+- [ ] Deluge download client support
 - [ ] User authentication
 - [ ] Alembic database migrations (currently uses in-place `ALTER TABLE`)
 
