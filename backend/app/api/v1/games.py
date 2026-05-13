@@ -1,13 +1,27 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
+from ...models.download_client import DownloadClient
 from ...models.game import Game, GameStatus
+from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.game import GameCreate, GameOut, GameUpdate
+from ...services.download_service import get_client
 from ...services.indexer_service import search_indexer
 from ...models.indexer import Indexer
+
+
+class GrabPayload(BaseModel):
+    link: str
+    title: str
+    size: int = 0
+    protocol: str
+    indexer: str = ""
+    indexer_id: int | None = None
+    seeders: int | None = None
 
 router = APIRouter()
 
@@ -83,7 +97,7 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-@router.post("/{game_id}/search")
+@router.get("/{game_id}/search")
 async def manual_search(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
@@ -97,13 +111,58 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
                 {
                     "title": r.title,
                     "indexer": r.indexer,
+                    "indexer_id": indexer.id,
                     "size": r.size,
                     "seeders": r.seeders,
+                    "leechers": r.leechers,
                     "protocol": r.protocol,
                     "link": r.link,
+                    "publish_date": r.publish_date.isoformat() if r.publish_date else None,
                 }
                 for r in results
             ])
         except Exception:
             pass
+    all_results.sort(key=lambda r: (r["seeders"] or 0), reverse=True)
     return {"results": all_results}
+
+
+@router.post("/{game_id}/grab")
+async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends(get_db)):
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    clients = (
+        db.query(DownloadClient)
+        .filter_by(enabled=True)
+        .order_by(DownloadClient.priority)
+        .all()
+    )
+    if not clients:
+        raise HTTPException(status_code=400, detail="No download clients configured")
+
+    client_model = clients[0]
+    client = get_client(client_model)
+
+    try:
+        download_id = await client.add(payload.link, payload.title)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Download client error: {exc}")
+
+    item = QueueItem(
+        game_id=game_id,
+        title=payload.title,
+        status=QueueStatus.QUEUED,
+        size=payload.size,
+        download_id=download_id,
+        download_client_id=client_model.id,
+        indexer_id=payload.indexer_id,
+        protocol=payload.protocol,
+    )
+    db.add(item)
+    game.status = GameStatus.GRABBED
+    db.commit()
+    db.refresh(item)
+
+    return {"success": True, "download_id": download_id, "queue_item_id": item.id}

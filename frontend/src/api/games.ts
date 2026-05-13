@@ -1,5 +1,5 @@
 import client from './client'
-import type { Game, GameStatus } from '../types'
+import type { Game, GameStatus, ReleaseResult } from '../types'
 
 export const gamesApi = {
   list: (params?: { status?: GameStatus; platform_id?: number; search?: string }) =>
@@ -8,7 +8,7 @@ export const gamesApi = {
   get: (id: number) =>
     client.get<Game>(`/games/${id}`).then(r => r.data),
 
-  create: (data: { title: string; platform_id: number; region?: string; igdb_id?: number; cover_url?: string; release_year?: number }) =>
+  create: (data: { title: string; platform_id: number; region?: string; igdb_id?: number; cover_url?: string; release_year?: number; monitored?: boolean }) =>
     client.post<Game>('/games', data).then(r => r.data),
 
   update: (id: number, data: Partial<Game>) =>
@@ -18,7 +18,8 @@ export const gamesApi = {
     client.delete(`/games/${id}`),
 
   search: (id: number) =>
-    client.post<{ results: Array<{ title: string; indexer: string; size: number; seeders?: number; protocol: string; link: string }> }>(
-      `/games/${id}/search`
-    ).then(r => r.data),
+    client.get<{ results: ReleaseResult[] }>(`/games/${id}/search`).then(r => r.data),
+
+  grab: (id: number, payload: { link: string; title: string; size: number; protocol: string; indexer: string; indexer_id?: number; seeders?: number }) =>
+    client.post<{ success: boolean; download_id: string; queue_item_id: number }>(`/games/${id}/grab`, payload).then(r => r.data),
 }

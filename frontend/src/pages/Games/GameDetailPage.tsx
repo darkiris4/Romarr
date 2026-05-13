@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import ConfirmModal from '../../components/ConfirmModal'
+import ManualSearchModal from './ManualSearchModal'
 import type { Game } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,6 +44,7 @@ export default function GameDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [showDelete, setShowDelete] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
 
   const { data: game, isLoading } = useQuery<Game>({
     queryKey: ['game', Number(id)],
@@ -66,9 +68,6 @@ export default function GameDetailPage() {
     },
   })
 
-  const searchMutation = useMutation({
-    mutationFn: () => gamesApi.search(Number(id)),
-  })
 
   if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
   if (!game) return <div className="empty-state"><p>Game not found</p></div>
@@ -148,9 +147,8 @@ export default function GameDetailPage() {
 
             {/* Actions */}
             <div className="detail-actions">
-              <button className="btn btn-primary" onClick={() => searchMutation.mutate()} disabled={searchMutation.isPending}>
-                <Search size={13} />
-                {searchMutation.isPending ? 'Searching…' : 'Search'}
+              <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
+                <Search size={13} /> Search
               </button>
               <button className="btn btn-secondary" onClick={() => toggleMonitored.mutate()} disabled={toggleMonitored.isPending}>
                 {game.monitored ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -267,6 +265,14 @@ export default function GameDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showSearch && (
+        <ManualSearchModal
+          gameId={Number(id)}
+          gameTitle={game.title}
+          onClose={() => setShowSearch(false)}
+        />
       )}
 
       {showDelete && (
