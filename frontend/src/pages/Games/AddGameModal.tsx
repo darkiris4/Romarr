@@ -8,18 +8,19 @@ import type { Platform, IgdbSearchResult } from '../../types'
 
 interface Props {
   platforms: Platform[]
+  initialQuery?: string
   onClose: () => void
   onAdded: () => void
 }
 
 type Step = 'search' | 'igdb' | 'confirm'
 
-export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
+export default function AddGameModal({ platforms, initialQuery = '', onClose, onAdded }: Props) {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const [step, setStep] = useState<Step>('search')
-  const [query, setQuery] = useState('')
+  const [step, setStep] = useState<Step>(initialQuery ? 'igdb' : 'search')
+  const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [igdbResults, setIgdbResults] = useState<IgdbSearchResult[]>([])
   const [igdbLoading, setIgdbLoading] = useState(false)
@@ -30,6 +31,11 @@ export default function AddGameModal({ platforms, onClose, onAdded }: Props) {
   const [error, setError] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-search IGDB when opened with a pre-filled query
+  useEffect(() => {
+    if (initialQuery) searchIgdb()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce library search
   useEffect(() => {
