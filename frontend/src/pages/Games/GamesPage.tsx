@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Search, Gamepad2, FolderInput, Table2, LayoutGrid, AlignJustify, X, Plus, ImageOff } from 'lucide-react'
@@ -29,8 +30,10 @@ export default function GamesPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [addQuery, setAddQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const [focused, setFocused] = useState(false)
+  const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0, width: 380 })
+  const searchWrapRef = useRef<HTMLDivElement>(null)
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const qc = useQueryClient()
 
   // Debounce list filter
@@ -39,27 +42,15 @@ export default function GamesPage() {
     return () => clearTimeout(t)
   }, [inputValue])
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
   const { data: games = [], isLoading } = useQuery({
     queryKey: ['games', search, platformFilter],
     queryFn: () => gamesApi.list({ search: search || undefined, platform_id: platformFilter }),
   })
 
-  // Dropdown: existing library matches (up to 5)
   const { data: suggestions = [] } = useQuery({
     queryKey: ['games-suggest', inputValue],
     queryFn: () => gamesApi.list({ search: inputValue }),
-    enabled: dropdownOpen && inputValue.length > 1,
+    enabled: focused && inputValue.length > 1,
     staleTime: 10_000,
   })
 
@@ -73,87 +64,60 @@ export default function GamesPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['games'] }); setDeleteTarget(null) },
   })
 
-  const platformMap = Object.fromEntries(platforms.map(p => [p.id, p.name]))
+  function updateCoords() {
+    if (searchWrapRef.current) {
+      const r = searchWrapRef.current.getBoundingClientRect()
+      setDropdownCoords({ top: r.bottom + 4, left: r.left, width: Math.max(380, r.width) })
+    }
+  }
 
-  function changeView(v: View) {
-    setView(v)
-    localStorage.setItem('games-view', v)
+  function handleFocus() {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
+    updateCoords()
+    setFocused(true)
+  }
+
+  function handleBlur() {
+    // Delay so click events on dropdown rows fire first
+    blurTimerRef.current = setTimeout(() => setFocused(false), 150)
   }
 
   function openAdd(query: string) {
+    setFocused(false)
     setAddQuery(query)
-    setDropdownOpen(false)
     setShowAdd(true)
   }
 
-  const viewProps = { games, platformMap, onDelete: setDeleteTarget }
+  const platformMap = Object.fromEntries(platforms.map(p => [p.id, p.name]))
+  function changeView(v: View) { setView(v); localStorage.setItem('games-view', v) }
+
   const trimmed = inputValue.trim()
+  const showDropdown = focused && trimmed.length > 0
+  const viewProps = { games, platformMap, onDelete: setDeleteTarget }
 
   return (
     <div>
       <div className="page-toolbar">
 
-        {/* Search + dropdown */}
-        <div className="search-wrapper" ref={searchRef} style={{ position: 'relative' }}>
+        {/* Search input */}
+        <div className="search-wrapper" ref={searchWrapRef}>
           <Search size={14} className="search-icon" />
           <input
             className="topbar-search"
             placeholder="Search or add games…"
             value={inputValue}
-            onChange={e => { setInputValue(e.target.value); setDropdownOpen(true) }}
-            onFocus={() => inputValue && setDropdownOpen(true)}
+            onChange={e => setInputValue(e.target.value)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onKeyDown={e => {
-              if (e.key === 'Escape') { setDropdownOpen(false); setInputValue('') }
+              if (e.key === 'Escape') { setInputValue(''); setFocused(false) }
               if (e.key === 'Enter' && trimmed) openAdd(trimmed)
             }}
           />
           {inputValue && (
-            <button
-              className="search-clear"
-              onClick={() => { setInputValue(''); setDropdownOpen(false) }}
-              tabIndex={-1}
-            >
+            <button className="search-clear" onClick={() => { setInputValue(''); setFocused(false) }} tabIndex={-1}>
               <X size={12} />
             </button>
-          )}
-
-          {/* Dropdown */}
-          {dropdownOpen && trimmed && (
-            <div className="search-dropdown">
-              {suggestions.slice(0, 5).map(g => (
-                <div
-                  key={g.id}
-                  className="search-dropdown-row"
-                  onMouseDown={e => { e.preventDefault(); setDropdownOpen(false); navigate(`/games/${g.id}`) }}
-                >
-                  <div className="search-dropdown-cover">
-                    {g.cover_url
-                      ? <img src={g.cover_url} alt={g.title} />
-                      : <div className="search-dropdown-cover--empty"><ImageOff size={10} /></div>
-                    }
-                  </div>
-                  <div className="search-dropdown-info">
-                    <span className="search-dropdown-title">{g.title}</span>
-                    <span className="search-dropdown-meta">
-                      {g.platform?.name}{g.release_year ? ` · ${g.release_year}` : ''}
-                    </span>
-                  </div>
-                  <span className="search-dropdown-badge">In Library</span>
-                </div>
-              ))}
-
-              <div
-                className="search-dropdown-row search-dropdown-row--add"
-                onMouseDown={e => { e.preventDefault(); openAdd(trimmed) }}
-              >
-                <div className="search-dropdown-cover search-dropdown-cover--add">
-                  <Plus size={13} />
-                </div>
-                <span className="search-dropdown-title">
-                  Search IGDB for "{trimmed}"
-                </span>
-              </div>
-            </div>
           )}
         </div>
 
@@ -180,6 +144,45 @@ export default function GamesPage() {
           <FolderInput size={15} /> Import Library
         </button>
       </div>
+
+      {/* Dropdown — portal at body so it escapes all overflow/stacking contexts */}
+      {showDropdown && createPortal(
+        <div
+          className="search-dropdown"
+          style={{ position: 'fixed', top: dropdownCoords.top, left: dropdownCoords.left, width: dropdownCoords.width }}
+          onMouseDown={e => e.preventDefault()}
+        >
+          {suggestions.slice(0, 5).map(g => (
+            <div
+              key={g.id}
+              className="search-dropdown-row"
+              onClick={() => { setFocused(false); navigate(`/games/${g.id}`) }}
+            >
+              <div className="search-dropdown-cover">
+                {g.cover_url
+                  ? <img src={g.cover_url} alt={g.title} />
+                  : <div className="search-dropdown-cover--empty"><ImageOff size={10} /></div>
+                }
+              </div>
+              <div className="search-dropdown-info">
+                <span className="search-dropdown-title">{g.title}</span>
+                <span className="search-dropdown-meta">
+                  {g.platform?.name}{g.release_year ? ` · ${g.release_year}` : ''}
+                </span>
+              </div>
+              <span className="search-dropdown-badge">In Library</span>
+            </div>
+          ))}
+
+          <div className="search-dropdown-row search-dropdown-row--add" onClick={() => openAdd(trimmed)}>
+            <div className="search-dropdown-cover search-dropdown-cover--add">
+              <Plus size={13} />
+            </div>
+            <span className="search-dropdown-title">Search IGDB for "{trimmed}"</span>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {isLoading ? (
         <div className="loading-page"><div className="spinner" /> Loading…</div>
