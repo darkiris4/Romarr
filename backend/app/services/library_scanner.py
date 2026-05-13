@@ -15,15 +15,87 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import zipfile
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+# ── In-process scan state ────────────────────────────────────────────────────
+
+_scan_state: dict[str, Any] = {
+    "running": False,
+    "folder": None,
+    "total": 0,
+    "processed": 0,
+    "done": False,
+    "error": None,
+    "result": None,
+}
+_scan_lock = threading.Lock()
+
+
+def scan_status() -> dict:
+    with _scan_lock:
+        return dict(_scan_state)
+
+
+def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
+    """Start a folder scan in a background thread. Returns immediately."""
+    with _scan_lock:
+        if _scan_state["running"]:
+            return {"already_running": True}
+        _scan_state.update({
+            "running": True, "folder": folder_path, "done": False,
+            "error": None, "result": None, "total": 0, "processed": 0,
+        })
+
+    from ..database import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            summary = scan_folder(db, folder_path, platform_hint_id,
+                                  progress_state=_scan_state, progress_lock=_scan_lock)
+            with _scan_lock:
+                _scan_state.update({"running": False, "done": True, "result": _summary_to_dict(summary)})
+        except Exception as exc:
+            with _scan_lock:
+                _scan_state.update({"running": False, "done": True, "error": str(exc)})
+        finally:
+            db.close()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return {"started": True}
+
+
+def _summary_to_dict(summary: "ScanSummary") -> dict:
+    return {
+        "folder": summary.folder,
+        "total_files_seen": summary.total_files_seen,
+        "dat_matches": summary.matched_dat,
+        "filename_matches": summary.matched_filename,
+        "ambiguous": summary.ambiguous,
+        "already_imported": summary.already_imported,
+        "to_import": summary.to_import,
+        "roms": [
+            {
+                "path": r.path, "filename": r.filename, "title": r.title,
+                "region": r.region, "crc32": r.crc32, "match_source": r.match_source,
+                "confidence": r.confidence, "platform_id": r.platform_id,
+                "platform_name": r.platform_name,
+                "candidate_platforms": r.candidate_platforms,
+                "already_exists": r.already_exists,
+                "existing_game_id": r.existing_game_id,
+            }
+            for r in summary.roms
+        ],
+    }
 
 from ..models.game import Game, GameStatus
 from ..models.platform import Platform
@@ -222,6 +294,8 @@ def scan_folder(
     db: Session,
     folder_path: str,
     platform_hint_id: int | None = None,
+    progress_state: dict | None = None,
+    progress_lock: threading.Lock | None = None,
 ) -> ScanSummary:
     """
     Walk folder_path recursively.  For each ROM file:
@@ -243,10 +317,17 @@ def scan_folder(
 
     all_exts = set(ext_map.keys()) | {"zip"}
 
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
+    # Pre-count files for progress reporting
+    all_files = [p for p in sorted(root.rglob("*")) if p.is_file()]
+    if progress_state is not None and progress_lock is not None:
+        with progress_lock:
+            progress_state["total"] = len(all_files)
+
+    for path in all_files:
         summary.total_files_seen += 1
+        if progress_state is not None and progress_lock is not None:
+            with progress_lock:
+                progress_state["processed"] = summary.total_files_seen
 
         ext = path.suffix.lstrip(".").lower()
         if ext not in all_exts and hint_platform is None:

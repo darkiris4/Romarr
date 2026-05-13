@@ -1,13 +1,18 @@
+import json
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...services.library_scanner import scan_folder, import_roms
+from ...services.library_scanner import scan_folder, import_roms, scan_start, scan_status
 from ...services.dat_manager import scan_dat_dir, dat_status as _dat_status
+from ...services.config_service import get_config, set_config
 from ...config import settings
 
 router = APIRouter()
+
+_RECENT_FOLDERS_KEY = "recent_scan_folders"
+_RECENT_FOLDERS_MAX = 10
 
 
 class ScanRequest(BaseModel):
@@ -22,36 +27,28 @@ class ImportRequest(BaseModel):
     skip_existing: bool = True
 
 
+def _add_recent_folder(path: str):
+    existing = json.loads(get_config(_RECENT_FOLDERS_KEY, "[]"))
+    folders = [f for f in existing if f["path"] != path]
+    folders.insert(0, {"path": path})
+    set_config(_RECENT_FOLDERS_KEY, json.dumps(folders[:_RECENT_FOLDERS_MAX]))
+
+
 @router.post("/scan")
-def preview_scan(payload: ScanRequest, db: Session = Depends(get_db)):
-    """Walk a folder and identify ROMs without writing to the DB."""
-    summary = scan_folder(db, payload.path, payload.platform_hint_id)
-    return {
-        "folder": summary.folder,
-        "total_files_seen": summary.total_files_seen,
-        "dat_matches": summary.matched_dat,
-        "filename_matches": summary.matched_filename,
-        "ambiguous": summary.ambiguous,
-        "already_imported": summary.already_imported,
-        "to_import": summary.to_import,
-        "roms": [
-            {
-                "path": r.path,
-                "filename": r.filename,
-                "title": r.title,
-                "region": r.region,
-                "crc32": r.crc32,
-                "match_source": r.match_source,
-                "confidence": r.confidence,
-                "platform_id": r.platform_id,
-                "platform_name": r.platform_name,
-                "candidate_platforms": r.candidate_platforms,
-                "already_exists": r.already_exists,
-                "existing_game_id": r.existing_game_id,
-            }
-            for r in summary.roms
-        ],
-    }
+def preview_scan(payload: ScanRequest):
+    """Start a background folder scan. Returns immediately; poll /scan/status."""
+    _add_recent_folder(payload.path.strip())
+    return scan_start(payload.path.strip(), payload.platform_hint_id)
+
+
+@router.get("/scan/status")
+def get_scan_status():
+    return scan_status()
+
+
+@router.get("/scan/recent")
+def get_recent_folders():
+    return json.loads(get_config(_RECENT_FOLDERS_KEY, "[]"))
 
 
 @router.post("/import")

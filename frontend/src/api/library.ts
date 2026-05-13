@@ -28,8 +28,22 @@ export interface ScanPreview {
 }
 
 export const libraryApi = {
-  scan: (path: string, platform_hint_id?: number) =>
-    client.post<ScanPreview>('/library/scan', { path, platform_hint_id }).then(r => r.data),
+  scanStart: (path: string, platform_hint_id?: number) =>
+    client.post<{ started?: boolean; already_running?: boolean }>('/library/scan', { path, platform_hint_id }).then(r => r.data),
+
+  scanStatus: () =>
+    client.get<{
+      running: boolean
+      folder: string | null
+      total: number
+      processed: number
+      done: boolean
+      error: string | null
+      result: ScanPreview | null
+    }>('/library/scan/status').then(r => r.data),
+
+  recentFolders: () =>
+    client.get<{ path: string }[]>('/library/scan/recent').then(r => r.data),
 
   import: (
     path: string,

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FolderOpen, CheckCircle, AlertCircle, ArrowRight, Database, FileQuestion } from 'lucide-react'
+import { FolderOpen, CheckCircle, AlertCircle, ArrowRight, Database, FileQuestion, Clock } from 'lucide-react'
 import { libraryApi, type ScannedROM, type ScanPreview } from '../../api/library'
 import { platformsApi } from '../../api/platforms'
 
-type Step = 'path' | 'preview' | 'done'
+type Step = 'path' | 'scanning' | 'preview' | 'done'
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   dat:       { label: 'DAT match',   color: 'var(--success)',   icon: <Database size={11} /> },
@@ -25,10 +25,32 @@ export default function LibraryImportPage() {
   const [result, setResult] = useState<any>(null)
 
   const { data: platforms = [] } = useQuery({ queryKey: ['platforms'], queryFn: platformsApi.list })
+  const { data: recentFolders = [] } = useQuery({ queryKey: ['recent-scan-folders'], queryFn: libraryApi.recentFolders })
+
+  // Poll scan status while scanning
+  const { data: scanStatus } = useQuery({
+    queryKey: ['scan-status'],
+    queryFn: libraryApi.scanStatus,
+    refetchInterval: step === 'scanning' ? 800 : false,
+    enabled: step === 'scanning',
+  })
+
+  // When scan completes, move to preview
+  if (step === 'scanning' && scanStatus?.done && !scanStatus.running) {
+    if (scanStatus.error) {
+      setStep('path')
+    } else if (scanStatus.result) {
+      setPreview(scanStatus.result)
+      setStep('preview')
+    }
+  }
 
   const scanMutation = useMutation({
-    mutationFn: () => libraryApi.scan(folderPath.trim(), hintPlatformId),
-    onSuccess: data => { setPreview(data); setStep('preview') },
+    mutationFn: () => libraryApi.scanStart(folderPath.trim(), hintPlatformId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recent-scan-folders'] })
+      setStep('scanning')
+    },
   })
 
   const importMutation = useMutation({
@@ -47,7 +69,11 @@ export default function LibraryImportPage() {
     ? preview.roms.filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path])).length
     : 0
 
-  /* ── Step 1 ── */
+  const pct = scanStatus?.total
+    ? Math.round((scanStatus.processed / scanStatus.total) * 100)
+    : 0
+
+  /* ── Step 1: path ── */
   if (step === 'path') return (
     <div className="import-page">
       <p className="import-page-hint">Import an existing organized library to add games to Romarr</p>
@@ -91,7 +117,7 @@ export default function LibraryImportPage() {
             <strong style={{ color: 'var(--info)' }}>Tip: load No-Intro DAT files for best results.</strong><br />
             Without DATs, Romarr identifies ROMs by filename. With DATs, it uses CRC32 hashes
             so filenames, languages, and revisions are all identified correctly — even for renamed or mislabelled files.
-            DAT files are free from <strong>datomatic.no-intro.org</strong>.
+            DAT files can be uploaded in Settings → Media Management.
           </div>
         </div>
 
@@ -108,17 +134,86 @@ export default function LibraryImportPage() {
             onClick={() => scanMutation.mutate()}
             disabled={!folderPath.trim() || scanMutation.isPending}
           >
-            {scanMutation.isPending ? 'Scanning…' : <><FolderOpen size={14} /> Scan</>}
+            {scanMutation.isPending ? 'Starting…' : <><FolderOpen size={14} /> Scan</>}
           </button>
+        </div>
+
+        {/* Recent folders */}
+        {recentFolders.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div className="settings-section-title" style={{ marginBottom: 12 }}>Recent Folders</div>
+            <div className="card" style={{ padding: 0 }}>
+              <table className="activity-table">
+                <thead>
+                  <tr>
+                    <th>Path</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentFolders.map((f, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>{f.path}</td>
+                      <td className="col-action">
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => { setFolderPath(f.path); scanMutation.mutate() }}
+                          disabled={scanMutation.isPending}
+                        >
+                          <Clock size={12} /> Scan
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  /* ── Step 2: scanning ── */
+  if (step === 'scanning') return (
+    <div className="import-page">
+      <p className="import-page-hint">Scanning folder…</p>
+      <div className="import-page-form">
+        <div className="card">
+          <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+            {scanStatus?.folder ?? folderPath}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+            <span>Identifying ROMs…</span>
+            <span>
+              {scanStatus?.total
+                ? `${scanStatus.processed.toLocaleString()} / ${scanStatus.total.toLocaleString()}`
+                : scanStatus?.processed
+                  ? `${scanStatus.processed.toLocaleString()} files`
+                  : 'Counting files…'}
+            </span>
+          </div>
+          <div style={{ height: 6, background: 'rgba(255,255,255,.08)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: scanStatus?.total ? `${pct}%` : '100%',
+              background: 'var(--accent)',
+              borderRadius: 3,
+              transition: scanStatus?.total ? 'width .4s ease' : undefined,
+              animation: scanStatus?.total ? undefined : 'progress-indeterminate 1.4s ease infinite',
+            }} />
+          </div>
+          {(scanStatus?.total ?? 0) > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>{pct}%</div>
+          )}
         </div>
       </div>
     </div>
   )
 
-  /* ── Step 2 ── */
+  /* ── Step 3: preview ── */
   if (step === 'preview' && preview) return (
     <div className="import-page">
-      {/* Stat strip */}
       <div className="import-stat-strip">
         {[
           { label: 'Files scanned',  value: preview.total_files_seen },
@@ -142,7 +237,6 @@ export default function LibraryImportPage() {
         </div>
       )}
 
-      {/* ROM table */}
       <div className="card" style={{ padding: 0, marginBottom: 20 }}>
         <table className="import-table">
           <thead>
@@ -183,7 +277,7 @@ export default function LibraryImportPage() {
     </div>
   )
 
-  /* ── Step 3 ── */
+  /* ── Step 4: done ── */
   return (
     <div className="import-page">
       <div className="import-done">

@@ -1931,6 +1931,13 @@ select.form-control { cursor: pointer; }
   -webkit-box-orient: vertical;
 }
 
+/* ── Indeterminate progress bar animation ── */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); width: 40%; }
+  50%  { transform: translateX(150%);  width: 40%; }
+  100% { transform: translateX(150%);  width: 40%; }
+}
+
 /* ── Settings: DAT upload drop zone ── */
 .dat-dropzone {
   display: flex;
