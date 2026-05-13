@@ -564,10 +564,11 @@ select.form-control { cursor: pointer; }
 .import-page { width: 100%; }
 
 .import-page-hint {
-  font-size: 18px;
+  font-size: 36px;
   color: var(--text-secondary);
-  margin-bottom: 28px;
-  line-height: 1.7;
+  margin-bottom: 36px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .import-page-form { width: 100%; }
