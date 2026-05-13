@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Gamepad2, FolderInput, Table2, LayoutGrid, AlignJustify } from 'lucide-react'
+import { Gamepad2, Table2, LayoutGrid, AlignJustify } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { platformsApi } from '../../api/platforms'
 import ConfirmModal from '../../components/ConfirmModal'
-import ImportModal from './ImportModal'
 import GamesTable from './GamesTable'
 import GamesPosters from './GamesPosters'
 import GamesOverview from './GamesOverview'
@@ -21,7 +20,6 @@ export default function GamesPage() {
   const [platformFilter, setPlatformFilter] = useState<number | undefined>(undefined)
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
-  const [showImport, setShowImport] = useState(false)
   const qc = useQueryClient()
 
   const { data: games = [], isLoading } = useQuery({
@@ -65,10 +63,6 @@ export default function GamesPage() {
           <button className={`view-btn${view === 'overview' ? ' active' : ''}`} title="Overview" onClick={() => changeView('overview')}> <AlignJustify size={15} /></button>
         </div>
 
-        <div className="spacer" />
-        <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
-          <FolderInput size={15} /> Import Library
-        </button>
       </div>
 
       {isLoading ? (
@@ -85,13 +79,6 @@ export default function GamesPage() {
         <GamesPosters {...viewProps} />
       ) : (
         <GamesOverview {...viewProps} />
-      )}
-
-      {showImport && (
-        <ImportModal
-          onClose={() => setShowImport(false)}
-          onImported={() => { qc.invalidateQueries({ queryKey: ['games'] }) }}
-        />
       )}
 
       {deleteTarget && (

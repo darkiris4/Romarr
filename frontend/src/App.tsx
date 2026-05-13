@@ -24,6 +24,7 @@ import UpdatesPage from './pages/System/UpdatesPage'
 import EventsPage from './pages/System/EventsPage'
 import LogsPage from './pages/System/LogsPage'
 import AddNewPage from './pages/Games/AddNewPage'
+import LibraryImportPage from './pages/Games/LibraryImportPage'
 import StubPage from './components/StubPage'
 
 export default function App() {
@@ -34,7 +35,7 @@ export default function App() {
           <Route index element={<Navigate to="/games" replace />} />
           <Route path="/games" element={<GamesPage />} />
           <Route path="/games/add" element={<AddNewPage />} />
-          <Route path="/games/import" element={<StubPage title="Library Import" />} />
+          <Route path="/games/import" element={<LibraryImportPage />} />
           <Route path="/games/:id" element={<GameDetailPage />} />
           <Route path="/activity" element={<Navigate to="/activity/queue" replace />} />
           <Route path="/activity/queue" element={<QueuePage />} />

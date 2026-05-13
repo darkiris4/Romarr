@@ -560,6 +560,59 @@ select.form-control { cursor: pointer; }
   max-width: 96vw;
 }
 
+/* ── Library Import Page ────────────────────────────────────────── */
+.import-page { max-width: 1100px; }
+
+.import-page-form { max-width: 600px; }
+
+.import-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.import-stat {
+  padding: 16px 0;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.import-stat:last-child { border-right: none; }
+
+.import-stat-value { font-size: 24px; font-weight: 700; }
+.import-stat-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+
+.import-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.import-table thead th {
+  padding: 9px 14px;
+  text-align: left;
+  background: var(--bg-table-header);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.import-table tbody td { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,.05); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-table tbody tr:last-child td { border-bottom: none; }
+.import-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+
+.import-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  text-align: center;
+}
+.import-done-title { font-size: 24px; font-weight: 600; color: var(--text-white); margin-bottom: 16px; }
+.import-done-stats { font-size: 14px; color: var(--text-secondary); line-height: 2.2; }
+
 /* ── Add New Page ───────────────────────────────────────────────── */
 .add-new-page { width: 100%; }
 
