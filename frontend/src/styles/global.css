@@ -1931,6 +1931,27 @@ select.form-control { cursor: pointer; }
   -webkit-box-orient: vertical;
 }
 
+/* ── Settings: DAT upload drop zone ── */
+.dat-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 24px;
+  margin-bottom: 16px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,.02);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  text-align: center;
+}
+.dat-dropzone:hover,
+.dat-dropzone--over {
+  border-color: var(--accent);
+  background: rgba(123,104,238,.06);
+}
+
 /* ── Settings: Tags page ── */
 .tag-chip {
   display: inline-flex;

@@ -60,4 +60,12 @@ export const libraryApi = {
 
   reloadDats: () =>
     client.post<{ dat_dir: string; loaded: unknown[]; unmatched: unknown[] }>('/library/dat/reload').then(r => r.data),
+
+  uploadDat: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return client.post<{ filename: string; size: number; matched_platform: string | null; status: string }>(
+      '/library/dat/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }
+    ).then(r => r.data)
+  },
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, CheckCircle, AlertCircle, Plus, X } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload } from 'lucide-react'
 import { libraryApi } from '../../api/library'
 import { settingsApi } from '../../api/settings'
 
@@ -11,6 +11,8 @@ export default function MediaManagement() {
   const [unmonitorDeleted, setUnmonitorDeleted] = useState(false)
   const [newPath, setNewPath] = useState('')
   const [saved, setSaved] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
   const { data: rootFolders = [], isLoading: foldersLoading } = useQuery({
@@ -40,6 +42,16 @@ export default function MediaManagement() {
     mutationFn: () => libraryApi.reloadDats(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dat-status'] }),
   })
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => libraryApi.uploadDat(file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dat-status'] }),
+  })
+
+  function handleFiles(files: FileList | null) {
+    if (!files) return
+    Array.from(files).filter(f => f.name.endsWith('.dat')).forEach(f => uploadMutation.mutate(f))
+  }
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -207,6 +219,44 @@ export default function MediaManagement() {
         DAT files enable hash-based ROM identification — filenames and folder structure are ignored entirely.
         Download DAT files free from <strong>datomatic.no-intro.org</strong> and place them in the folder below.
       </div>
+
+      {/* Upload drop zone */}
+      <div
+        className={`dat-dropzone${dragOver ? ' dat-dropzone--over' : ''}`}
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".dat"
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => handleFiles(e.target.files)}
+        />
+        <Upload size={28} style={{ color: 'var(--accent-hover)', marginBottom: 10 }} />
+        <div style={{ fontWeight: 500, color: 'var(--text-white)', marginBottom: 4 }}>
+          {uploadMutation.isPending ? 'Uploading…' : 'Drop DAT files here or click to browse'}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Accepts .dat files — multiple files supported</div>
+      </div>
+
+      {uploadMutation.isSuccess && uploadMutation.data && (
+        <div className={`alert ${uploadMutation.data.status === 'loaded' ? 'alert-success' : 'alert-warning'}`} style={{ marginBottom: 16 }}>
+          {uploadMutation.data.status === 'loaded'
+            ? <><CheckCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> uploaded and matched to <strong>{uploadMutation.data.matched_platform}</strong></>
+            : <><AlertCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> uploaded but no matching platform found — check Settings → Platforms</>}
+        </div>
+      )}
+
+      {uploadMutation.isError && (
+        <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+          <AlertCircle size={13} />
+          {String((uploadMutation.error as any)?.response?.data?.detail ?? 'Upload failed')}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">

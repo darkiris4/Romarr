@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -76,6 +76,25 @@ def get_dat_status(db: Session = Depends(get_db)):
     return {
         "dat_dir": str(settings.dat_dir),
         "platforms": _dat_status(db),
+    }
+
+
+@router.post("/dat/upload")
+async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Save an uploaded DAT file to data/dats/ then reload."""
+    if not file.filename or not file.filename.lower().endswith(".dat"):
+        raise HTTPException(status_code=422, detail="Only .dat files are accepted")
+    dest = settings.dat_dir / file.filename
+    settings.dat_dir.mkdir(parents=True, exist_ok=True)
+    contents = await file.read()
+    dest.write_bytes(contents)
+    results = scan_dat_dir(db)
+    matched = next((r for r in results if r.get("file") == file.filename), None)
+    return {
+        "filename": file.filename,
+        "size": len(contents),
+        "matched_platform": matched.get("platform_name") if matched and matched.get("status") == "loaded" else None,
+        "status": matched.get("status", "unmatched") if matched else "unmatched",
     }
 
 
