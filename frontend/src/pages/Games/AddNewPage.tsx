@@ -9,6 +9,12 @@ import type { IgdbSearchResult } from '../../types'
 
 type Step = 'search' | 'confirm'
 
+function ratingClass(score: number) {
+  if (score >= 75) return 'detail-rating-badge--good'
+  if (score >= 50) return 'detail-rating-badge--ok'
+  return 'detail-rating-badge--bad'
+}
+
 export default function AddNewPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -141,7 +147,15 @@ export default function AddNewPage() {
                     }
                   </div>
                   <div className="igdb-result-info">
-                    <div className="igdb-result-title">{r.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                      <div className="igdb-result-title" style={{ marginBottom: 0 }}>{r.name}</div>
+                      {r.rating != null && (
+                        <div className={`detail-rating-badge ${ratingClass(r.rating)}`} style={{ position: 'static', flexShrink: 0 }}>
+                          <span className="detail-rating-score">{r.rating}</span>
+                          <span className="detail-rating-label">rating</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="igdb-result-year">
                       {r.release_year ?? ''}
                       {r.release_year && r.platforms.length > 0 && ' · '}

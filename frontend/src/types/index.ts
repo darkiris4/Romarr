@@ -44,6 +44,7 @@ export interface IgdbSearchResult {
   release_year?: number
   summary?: string
   platforms: string[]
+  rating?: number
 }
 
 export interface ReleaseResult {

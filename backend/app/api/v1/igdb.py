@@ -18,7 +18,8 @@ def search_igdb(q: str = Query(..., min_length=1)):
     safe_q = q.replace('"', '\\"')
     body = (
         f'search "{safe_q}"; '
-        f'fields id, name, first_release_date, cover.image_id, summary, platforms.name; '
+        f'fields id, name, first_release_date, cover.image_id, summary, platforms.name,'
+        f' total_rating, aggregated_rating, rating; '
         f'limit 15;'
     )
     results = _igdb_query(client_id, token, body)
@@ -39,6 +40,12 @@ def search_igdb(q: str = Query(..., min_length=1)):
             if isinstance(p, dict) and p.get("name")
         ]
 
+        rating = (
+            game.get("total_rating")
+            or game.get("aggregated_rating")
+            or game.get("rating")
+        )
+
         out.append({
             "igdb_id": game["id"],
             "name": game.get("name"),
@@ -46,6 +53,7 @@ def search_igdb(q: str = Query(..., min_length=1)):
             "release_year": release_year,
             "summary": game.get("summary"),
             "platforms": platform_names,
+            "rating": round(rating) if rating else None,
         })
 
     return out
