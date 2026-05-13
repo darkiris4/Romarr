@@ -61,7 +61,7 @@ Romarr automates the acquisition, organisation, and metadata enrichment of ROM f
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Romarr.git
+git clone https://github.com/darkiris4/Romarr.git
 cd Romarr
 cp .env.example .env
 # Edit .env — at minimum set ROM_LIBRARY_PATH to your ROM folder
