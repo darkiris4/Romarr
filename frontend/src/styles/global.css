@@ -879,8 +879,8 @@ select.form-control { cursor: pointer; }
 
 .igdb-result-row {
   display: flex;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 20px;
+  padding: 16px;
   border-radius: var(--radius);
   cursor: pointer;
   align-items: flex-start;
@@ -893,9 +893,9 @@ select.form-control { cursor: pointer; }
 
 .igdb-result-cover {
   flex-shrink: 0;
-  width: 60px;
-  height: 84px;
-  border-radius: 3px;
+  width: 120px;
+  height: 168px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -924,25 +924,25 @@ select.form-control { cursor: pointer; }
 }
 
 .igdb-result-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-white);
-  margin-bottom: 3px;
+  margin-bottom: 5px;
 }
 
 .igdb-result-year {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .igdb-result-summary {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
