@@ -64,7 +64,7 @@ export const libraryApi = {
   uploadDat: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return client.post<{ filename: string; size: number; matched_platform: string | null; status: string }>(
+    return client.post<{ filename: string; size: number; matched_platform: string | null; status: string; platform_created: boolean }>(
       '/library/dat/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }
     ).then(r => r.data)
   },

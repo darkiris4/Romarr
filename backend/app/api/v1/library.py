@@ -81,20 +81,61 @@ def get_dat_status(db: Session = Depends(get_db)):
 
 @router.post("/dat/upload")
 async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Save an uploaded DAT file to data/dats/ then reload."""
+    """Save an uploaded DAT file to data/dats/, auto-create the platform if needed, then reload."""
     if not file.filename or not file.filename.lower().endswith(".dat"):
         raise HTTPException(status_code=422, detail="Only .dat files are accepted")
-    dest = settings.dat_dir / file.filename
     settings.dat_dir.mkdir(parents=True, exist_ok=True)
+    dest = settings.dat_dir / file.filename
     contents = await file.read()
     dest.write_bytes(contents)
+
+    # First reload attempt
     results = scan_dat_dir(db)
     matched = next((r for r in results if r.get("file") == file.filename), None)
+
+    # If unmatched, auto-create a platform from the DAT header
+    platform_created = False
+    if not matched or matched.get("status") == "unmatched":
+        from ...services.dat_manager import _dat_header_name, _DATE_SUFFIX
+        from ...models.platform import Platform
+        from .platforms import BUILTIN_PLATFORMS
+        import re
+
+        header_name = _dat_header_name(dest)
+        no_intro_name = _DATE_SUFFIX.sub("", header_name).strip() if header_name else dest.stem
+
+        # Check built-ins first for full metadata
+        builtin = next(
+            (b for b in BUILTIN_PLATFORMS if b["no_intro_name"].lower() == no_intro_name.lower()),
+            None,
+        )
+        if builtin:
+            p = Platform(**builtin)
+        else:
+            # Derive friendly name by stripping "Manufacturer - " prefix
+            friendly = re.sub(r"^[^-]+ - ", "", no_intro_name, count=1)
+            p = Platform(
+                name=friendly,
+                no_intro_name=no_intro_name,
+                folder_name=no_intro_name,
+                extensions="",
+                enabled=True,
+            )
+
+        db.add(p)
+        db.commit()
+        platform_created = True
+
+        # Reload now that the platform exists
+        results = scan_dat_dir(db)
+        matched = next((r for r in results if r.get("file") == file.filename), None)
+
     return {
         "filename": file.filename,
         "size": len(contents),
         "matched_platform": matched.get("platform_name") if matched and matched.get("status") == "loaded" else None,
         "status": matched.get("status", "unmatched") if matched else "unmatched",
+        "platform_created": platform_created,
     }
 
 

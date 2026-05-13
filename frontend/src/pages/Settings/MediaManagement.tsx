@@ -245,9 +245,11 @@ export default function MediaManagement() {
 
       {uploadMutation.isSuccess && uploadMutation.data && (
         <div className={`alert ${uploadMutation.data.status === 'loaded' ? 'alert-success' : 'alert-warning'}`} style={{ marginBottom: 16 }}>
-          {uploadMutation.data.status === 'loaded'
-            ? <><CheckCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> uploaded and matched to <strong>{uploadMutation.data.matched_platform}</strong></>
-            : <><AlertCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> uploaded but no matching platform found — check Settings → Platforms</>}
+          {uploadMutation.data.status === 'loaded' ? (
+            <><CheckCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> loaded for <strong>{uploadMutation.data.matched_platform}</strong>{uploadMutation.data.platform_created ? ' (platform created automatically)' : ''}</>
+          ) : (
+            <><AlertCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> saved but could not be loaded — the DAT may be malformed</>
+          )}
         </div>
       )}
 
