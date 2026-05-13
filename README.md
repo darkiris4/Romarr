@@ -42,16 +42,6 @@ Romarr automates the acquisition, organisation, and metadata enrichment of ROM f
 
 ---
 
-## Screenshots
-
-![Home / Games List](docs/screenshots/home.png)
-
-![Game Detail](docs/screenshots/game-detail.png)
-
-![Platforms](docs/screenshots/platform.png)
-
----
-
 ## Tech Stack
 
 **Backend** — Python 3.11+
