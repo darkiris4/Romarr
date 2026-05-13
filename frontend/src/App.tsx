@@ -35,9 +35,11 @@ export default function App() {
           <Route path="/games/add" element={<StubPage title="Add New" />} />
           <Route path="/games/import" element={<StubPage title="Library Import" />} />
           <Route path="/games/:id" element={<GameDetailPage />} />
+          <Route path="/activity" element={<Navigate to="/activity/queue" replace />} />
           <Route path="/activity/queue" element={<QueuePage />} />
           <Route path="/activity/history" element={<HistoryPage />} />
           <Route path="/activity/blocklist" element={<BlocklistPage />} />
+          <Route path="/wanted" element={<Navigate to="/wanted/missing" replace />} />
           <Route path="/wanted/missing" element={<WantedPage />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/mediamanagement" replace />} />
@@ -52,6 +54,7 @@ export default function App() {
             <Route path="general" element={<GeneralPage />} />
             <Route path="ui" element={<UISettingsPage />} />
           </Route>
+          <Route path="/system" element={<Navigate to="/system/status" replace />} />
           <Route path="/system/status" element={<SystemStatus />} />
           <Route path="/system/tasks" element={<TasksPage />} />
           <Route path="/system/backup" element={<BackupPage />} />

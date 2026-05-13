@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Gamepad2, Plus, FolderInput,
   Clock, List, Ban,
@@ -7,36 +9,100 @@ import {
   Activity, CheckSquare, Archive, RefreshCw, Bell, FileText,
 } from 'lucide-react'
 
-function NavItem({ to, icon, label, end }: { to: string; icon: React.ReactNode; label: string; end?: boolean }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-    >
-      <span className="nav-icon">{icon}</span>
-      {label}
-    </NavLink>
-  )
+interface Child {
+  to: string
+  icon: React.ReactNode
+  label: string
 }
 
-function NavSubItem({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) => `nav-item nav-item--sub${isActive ? ' active' : ''}`}
-    >
-      <span className="nav-icon">{icon}</span>
-      {label}
-    </NavLink>
-  )
+interface Section {
+  key: string
+  to: string
+  icon: React.ReactNode
+  label: string
+  prefix: string
+  children: Child[]
 }
 
-function SectionLabel({ label }: { label: string }) {
-  return <div className="nav-section-label">{label}</div>
-}
+const SECTIONS: Section[] = [
+  {
+    key: 'games', to: '/games', icon: <Gamepad2 size={16} />, label: 'Games', prefix: '/games',
+    children: [
+      { to: '/games/add',    icon: <Plus size={14} />,        label: 'Add New' },
+      { to: '/games/import', icon: <FolderInput size={14} />, label: 'Library Import' },
+    ],
+  },
+  {
+    key: 'activity', to: '/activity', icon: <Clock size={16} />, label: 'Activity', prefix: '/activity',
+    children: [
+      { to: '/activity/queue',     icon: <Clock size={14} />,    label: 'Queue' },
+      { to: '/activity/history',   icon: <List size={14} />,     label: 'History' },
+      { to: '/activity/blocklist', icon: <Ban size={14} />,      label: 'Blocklist' },
+    ],
+  },
+  {
+    key: 'wanted', to: '/wanted', icon: <BookX size={16} />, label: 'Wanted', prefix: '/wanted',
+    children: [
+      { to: '/wanted/missing', icon: <BookX size={14} />, label: 'Missing' },
+    ],
+  },
+  {
+    key: 'settings', to: '/settings', icon: <Settings size={16} />, label: 'Settings', prefix: '/settings',
+    children: [
+      { to: '/settings/mediamanagement', icon: <HardDrive size={14} />,  label: 'Media Management' },
+      { to: '/settings/indexers',         icon: <Wifi size={14} />,       label: 'Indexers' },
+      { to: '/settings/downloadclients',  icon: <Server size={14} />,     label: 'Download Clients' },
+      { to: '/settings/lists',            icon: <FileInput size={14} />,  label: 'Import Lists' },
+      { to: '/settings/connect',          icon: <Plug size={14} />,       label: 'Connect' },
+      { to: '/settings/metadata',         icon: <Database size={14} />,   label: 'Metadata' },
+      { to: '/settings/tags',             icon: <Tag size={14} />,        label: 'Tags' },
+      { to: '/settings/general',          icon: <Settings size={14} />,   label: 'General' },
+      { to: '/settings/ui',               icon: <Monitor size={14} />,    label: 'UI' },
+    ],
+  },
+  {
+    key: 'system', to: '/system', icon: <Activity size={16} />, label: 'System', prefix: '/system',
+    children: [
+      { to: '/system/status',  icon: <Activity size={14} />,    label: 'Status' },
+      { to: '/system/tasks',   icon: <CheckSquare size={14} />, label: 'Tasks' },
+      { to: '/system/backup',  icon: <Archive size={14} />,     label: 'Backup' },
+      { to: '/system/updates', icon: <RefreshCw size={14} />,   label: 'Updates' },
+      { to: '/system/events',  icon: <Bell size={14} />,        label: 'Events' },
+      { to: '/system/logs',    icon: <FileText size={14} />,    label: 'Log Files' },
+    ],
+  },
+]
 
 export default function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [open, setOpen] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    for (const s of SECTIONS) {
+      if (location.pathname.startsWith(s.prefix)) initial.add(s.key)
+    }
+    return initial
+  })
+
+  // Auto-expand when navigating into a section
+  useEffect(() => {
+    for (const s of SECTIONS) {
+      if (location.pathname.startsWith(s.prefix)) {
+        setOpen(prev => prev.has(s.key) ? prev : new Set([...prev, s.key]))
+      }
+    }
+  }, [location.pathname])
+
+  function handleParent(s: Section) {
+    navigate(s.to)
+    setOpen(prev => {
+      const next = new Set(prev)
+      next.has(s.key) ? next.delete(s.key) : next.add(s.key)
+      return next
+    })
+  }
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -45,36 +111,35 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <NavItem to="/games" icon={<Gamepad2 size={16} />} label="Games" end />
-        <NavSubItem to="/games/add"    icon={<Plus size={14} />}        label="Add New" />
-        <NavSubItem to="/games/import" icon={<FolderInput size={14} />} label="Library Import" />
+        {SECTIONS.map(s => {
+          const isOpen = open.has(s.key)
+          const isActive = location.pathname.startsWith(s.prefix)
+          return (
+            <div key={s.key}>
+              <div
+                className={`nav-item nav-item--parent${isActive ? ' active' : ''}`}
+                onClick={() => handleParent(s)}
+              >
+                <span className="nav-icon">{s.icon}</span>
+                {s.label}
+                <span className="nav-chevron">
+                  {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </span>
+              </div>
 
-        <SectionLabel label="Activity" />
-        <NavItem to="/activity/queue"     icon={<Clock size={16} />}    label="Queue" />
-        <NavItem to="/activity/history"   icon={<List size={16} />}     label="History" />
-        <NavItem to="/activity/blocklist" icon={<Ban size={16} />}      label="Blocklist" />
-
-        <SectionLabel label="Wanted" />
-        <NavItem to="/wanted/missing" icon={<BookX size={16} />} label="Missing" />
-
-        <SectionLabel label="Settings" />
-        <NavItem to="/settings/mediamanagement" icon={<HardDrive size={16} />}  label="Media Management" />
-        <NavItem to="/settings/indexers"         icon={<Wifi size={16} />}       label="Indexers" />
-        <NavItem to="/settings/downloadclients"  icon={<Server size={16} />}     label="Download Clients" />
-        <NavItem to="/settings/lists"            icon={<FileInput size={16} />}  label="Import Lists" />
-        <NavItem to="/settings/connect"          icon={<Plug size={16} />}       label="Connect" />
-        <NavItem to="/settings/metadata"         icon={<Database size={16} />}   label="Metadata" />
-        <NavItem to="/settings/tags"             icon={<Tag size={16} />}        label="Tags" />
-        <NavItem to="/settings/general"          icon={<Settings size={16} />}   label="General" />
-        <NavItem to="/settings/ui"               icon={<Monitor size={16} />}    label="UI" />
-
-        <SectionLabel label="System" />
-        <NavItem to="/system/status"  icon={<Activity size={16} />}     label="Status" />
-        <NavItem to="/system/tasks"   icon={<CheckSquare size={16} />}  label="Tasks" />
-        <NavItem to="/system/backup"  icon={<Archive size={16} />}      label="Backup" />
-        <NavItem to="/system/updates" icon={<RefreshCw size={16} />}    label="Updates" />
-        <NavItem to="/system/events"  icon={<Bell size={16} />}         label="Events" />
-        <NavItem to="/system/logs"    icon={<FileText size={16} />}     label="Log Files" />
+              {isOpen && s.children.map(c => (
+                <NavLink
+                  key={c.to}
+                  to={c.to}
+                  className={({ isActive }) => `nav-item nav-item--sub${isActive ? ' active' : ''}`}
+                >
+                  <span className="nav-icon">{c.icon}</span>
+                  {c.label}
+                </NavLink>
+              ))}
+            </div>
+          )
+        })}
       </nav>
     </aside>
   )
