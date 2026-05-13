@@ -37,6 +37,27 @@ export interface Game {
   updated_at: string
 }
 
+export interface IgdbSearchResult {
+  igdb_id: number
+  name: string
+  cover_url?: string
+  release_year?: number
+  summary?: string
+  platforms: string[]
+}
+
+export interface ReleaseResult {
+  title: string
+  indexer: string
+  indexer_id?: number
+  size: number
+  seeders?: number
+  leechers?: number
+  protocol: string
+  link: string
+  publish_date?: string
+}
+
 export type IndexerProtocol = 'newznab' | 'torznab'
 
 export interface Indexer {
