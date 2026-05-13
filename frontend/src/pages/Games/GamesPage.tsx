@@ -1,12 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Search, Gamepad2, FolderInput, Table2, LayoutGrid, AlignJustify, X, Plus, ImageOff } from 'lucide-react'
+import { Gamepad2, FolderInput, Table2, LayoutGrid, AlignJustify } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { platformsApi } from '../../api/platforms'
 import ConfirmModal from '../../components/ConfirmModal'
-import AddGameModal from './AddGameModal'
 import ImportModal from './ImportModal'
 import GamesTable from './GamesTable'
 import GamesPosters from './GamesPosters'
@@ -21,37 +18,15 @@ function getSavedView(): View {
 }
 
 export default function GamesPage() {
-  const navigate = useNavigate()
-  const [inputValue, setInputValue] = useState('')
-  const [search, setSearch] = useState('')
   const [platformFilter, setPlatformFilter] = useState<number | undefined>(undefined)
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
-  const [showAdd, setShowAdd] = useState(false)
-  const [addQuery, setAddQuery] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0, width: 380 })
-  const searchWrapRef = useRef<HTMLDivElement>(null)
-  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const qc = useQueryClient()
 
-  // Debounce list filter
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(inputValue), 300)
-    return () => clearTimeout(t)
-  }, [inputValue])
-
   const { data: games = [], isLoading } = useQuery({
-    queryKey: ['games', search, platformFilter],
-    queryFn: () => gamesApi.list({ search: search || undefined, platform_id: platformFilter }),
-  })
-
-  const { data: suggestions = [] } = useQuery({
-    queryKey: ['games-suggest', inputValue],
-    queryFn: () => gamesApi.list({ search: inputValue }),
-    enabled: focused && inputValue.length > 1,
-    staleTime: 10_000,
+    queryKey: ['games', platformFilter],
+    queryFn: () => gamesApi.list({ platform_id: platformFilter }),
   })
 
   const { data: platforms = [] } = useQuery({
@@ -64,63 +39,14 @@ export default function GamesPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['games'] }); setDeleteTarget(null) },
   })
 
-  function updateCoords() {
-    if (searchWrapRef.current) {
-      const r = searchWrapRef.current.getBoundingClientRect()
-      setDropdownCoords({ top: r.bottom + 4, left: r.left, width: Math.max(380, r.width) })
-    }
-  }
-
-  function handleFocus() {
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
-    updateCoords()
-    setFocused(true)
-  }
-
-  function handleBlur() {
-    // Delay so click events on dropdown rows fire first
-    blurTimerRef.current = setTimeout(() => setFocused(false), 150)
-  }
-
-  function openAdd(query: string) {
-    setFocused(false)
-    setAddQuery(query)
-    setShowAdd(true)
-  }
-
   const platformMap = Object.fromEntries(platforms.map(p => [p.id, p.name]))
   function changeView(v: View) { setView(v); localStorage.setItem('games-view', v) }
 
-  const trimmed = inputValue.trim()
-  const showDropdown = focused && trimmed.length > 0
   const viewProps = { games, platformMap, onDelete: setDeleteTarget }
 
   return (
     <div>
       <div className="page-toolbar">
-
-        {/* Search input */}
-        <div className="search-wrapper" ref={searchWrapRef}>
-          <Search size={14} className="search-icon" />
-          <input
-            className="topbar-search"
-            placeholder="Search or add games…"
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            onKeyDown={e => {
-              if (e.key === 'Escape') { setInputValue(''); setFocused(false) }
-              if (e.key === 'Enter' && trimmed) openAdd(trimmed)
-            }}
-          />
-          {inputValue && (
-            <button className="search-clear" onClick={() => { setInputValue(''); setFocused(false) }} tabIndex={-1}>
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
         <select
           className="form-control"
           style={{ maxWidth: 180, height: 32, padding: '0 8px', fontSize: 13 }}
@@ -145,45 +71,6 @@ export default function GamesPage() {
         </button>
       </div>
 
-      {/* Dropdown — portal at body so it escapes all overflow/stacking contexts */}
-      {showDropdown && createPortal(
-        <div
-          className="search-dropdown"
-          style={{ position: 'fixed', top: dropdownCoords.top, left: dropdownCoords.left, width: dropdownCoords.width }}
-          onMouseDown={e => e.preventDefault()}
-        >
-          {suggestions.slice(0, 5).map(g => (
-            <div
-              key={g.id}
-              className="search-dropdown-row"
-              onClick={() => { setFocused(false); navigate(`/games/${g.id}`) }}
-            >
-              <div className="search-dropdown-cover">
-                {g.cover_url
-                  ? <img src={g.cover_url} alt={g.title} />
-                  : <div className="search-dropdown-cover--empty"><ImageOff size={10} /></div>
-                }
-              </div>
-              <div className="search-dropdown-info">
-                <span className="search-dropdown-title">{g.title}</span>
-                <span className="search-dropdown-meta">
-                  {g.platform?.name}{g.release_year ? ` · ${g.release_year}` : ''}
-                </span>
-              </div>
-              <span className="search-dropdown-badge">In Library</span>
-            </div>
-          ))}
-
-          <div className="search-dropdown-row search-dropdown-row--add" onClick={() => openAdd(trimmed)}>
-            <div className="search-dropdown-cover search-dropdown-cover--add">
-              <Plus size={13} />
-            </div>
-            <span className="search-dropdown-title">Search IGDB for "{trimmed}"</span>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {isLoading ? (
         <div className="loading-page"><div className="spinner" /> Loading…</div>
       ) : games.length === 0 ? (
@@ -198,15 +85,6 @@ export default function GamesPage() {
         <GamesPosters {...viewProps} />
       ) : (
         <GamesOverview {...viewProps} />
-      )}
-
-      {showAdd && (
-        <AddGameModal
-          platforms={platforms}
-          initialQuery={addQuery}
-          onClose={() => setShowAdd(false)}
-          onAdded={() => { qc.invalidateQueries({ queryKey: ['games'] }); setShowAdd(false) }}
-        />
       )}
 
       {showImport && (
