@@ -29,37 +29,13 @@ def stop():
 
 def _deduplicate():
     from ..database import SessionLocal
-    from ..models.game import Game
-    from sqlalchemy import func
+    from .library_scanner import deduplicate_games
 
     db = SessionLocal()
     try:
-        dupes = (
-            db.query(Game.checksum_crc32)
-            .filter(Game.checksum_crc32.isnot(None))
-            .group_by(Game.checksum_crc32)
-            .having(func.count(Game.id) > 1)
-            .all()
-        )
-        removed = 0
-        for (crc32,) in dupes:
-            games = db.query(Game).filter_by(checksum_crc32=crc32).all()
-
-            def _score(g: Game) -> int:
-                return (
-                    (1 if g.igdb_id else 0) +
-                    (1 if g.cover_url else 0) +
-                    (1 if g.summary else 0) +
-                    (1 if g.rating is not None else 0)
-                )
-
-            games.sort(key=_score, reverse=True)
-            for duplicate in games[1:]:
-                db.delete(duplicate)
-                removed += 1
-        if removed:
-            db.commit()
-            logger.info("Deduplication removed %d duplicate game record(s)", removed)
+        result = deduplicate_games(db)
+        if result["removed"]:
+            logger.info("Deduplication removed %d duplicate game record(s)", result["removed"])
     except Exception:
         logger.exception("Deduplication job failed")
     finally:

@@ -168,42 +168,9 @@ def delete_dat(filename: str, db: Session = Depends(get_db)):
 
 @router.post("/deduplicate")
 def deduplicate_library(db: Session = Depends(get_db)):
-    """
-    Find and remove duplicate Game records.
-    Duplicates are detected by checksum_crc32. For each group the record
-    with the most metadata (igdb_id, cover_url, summary) is kept; the rest
-    are deleted.  Returns counts of duplicates found and removed.
-    """
-    from ...models.game import Game
-    from sqlalchemy import func
-
-    # Find CRC32 values that appear more than once
-    dupes = (
-        db.query(Game.checksum_crc32)
-        .filter(Game.checksum_crc32.isnot(None))
-        .group_by(Game.checksum_crc32)
-        .having(func.count(Game.id) > 1)
-        .all()
-    )
-
-    removed = 0
-    for (crc32,) in dupes:
-        games = db.query(Game).filter_by(checksum_crc32=crc32).all()
-        # Score each by richness of metadata — keep the highest scorer
-        def _score(g: Game) -> int:
-            return (
-                (1 if g.igdb_id else 0) +
-                (1 if g.cover_url else 0) +
-                (1 if g.summary else 0) +
-                (1 if g.rating is not None else 0)
-            )
-        games.sort(key=_score, reverse=True)
-        for duplicate in games[1:]:
-            db.delete(duplicate)
-            removed += 1
-
-    db.commit()
-    return {"duplicate_groups": len(dupes), "removed": removed}
+    """Find and remove duplicate Game records (CRC32 and title+platform passes)."""
+    from ...services.library_scanner import deduplicate_games
+    return deduplicate_games(db)
 
 
 @router.post("/dat/reload")

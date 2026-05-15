@@ -478,10 +478,15 @@ def import_roms(
                     updated += 1
             continue
 
-        # Hard dedup guard — catches any case the scan-time check missed
-        # (e.g. title changed between DAT reloads, or concurrent imports).
+        # Hard dedup guards — catch any case the scan-time check missed
+        # (e.g. both inner files of a multi-ROM ZIP resolved to the same title,
+        # or title changed between DAT reloads, or concurrent imports).
         if rom.crc32:
             if db.query(Game).filter_by(checksum_crc32=rom.crc32).first():
+                skipped_existing += 1
+                continue
+        if rom.title and rom.platform_id:
+            if db.query(Game).filter_by(title=rom.title, platform_id=rom.platform_id).first():
                 skipped_existing += 1
                 continue
 
@@ -520,6 +525,63 @@ def import_roms(
         logger.warning("Skipped %d ambiguous ROMs (no platform match): %s",
                        skipped_ambiguous, ambiguous_files[:20])
     return result
+
+
+def deduplicate_games(db: Session) -> dict:
+    """
+    Remove duplicate Game records in two passes:
+      1. CRC32 duplicates — exact same ROM content, different DB rows.
+      2. Title+platform duplicates — same clean title on same platform
+         (happens when a multi-ROM ZIP contains two inner files that both
+         resolve to the same No-Intro title via the DAT).
+    In each group the record with the richest metadata is kept.
+    """
+    from sqlalchemy import func, tuple_
+
+    def _score(g: Game) -> int:
+        return (
+            (1 if g.igdb_id else 0) +
+            (1 if g.cover_url else 0) +
+            (1 if g.summary else 0) +
+            (1 if g.rating is not None else 0)
+        )
+
+    removed = 0
+
+    # Pass 1: CRC32 duplicates
+    crc_dupes = (
+        db.query(Game.checksum_crc32)
+        .filter(Game.checksum_crc32.isnot(None))
+        .group_by(Game.checksum_crc32)
+        .having(func.count(Game.id) > 1)
+        .all()
+    )
+    for (crc32,) in crc_dupes:
+        games = db.query(Game).filter_by(checksum_crc32=crc32).all()
+        games.sort(key=_score, reverse=True)
+        for dup in games[1:]:
+            db.delete(dup)
+            removed += 1
+
+    # Pass 2: title+platform duplicates (different CRC32, same game)
+    title_dupes = (
+        db.query(Game.title, Game.platform_id)
+        .filter(Game.platform_id.isnot(None))
+        .group_by(Game.title, Game.platform_id)
+        .having(func.count(Game.id) > 1)
+        .all()
+    )
+    for (title, platform_id) in title_dupes:
+        games = db.query(Game).filter_by(title=title, platform_id=platform_id).all()
+        games.sort(key=_score, reverse=True)
+        for dup in games[1:]:
+            db.delete(dup)
+            removed += 1
+
+    if removed:
+        db.commit()
+
+    return {"duplicate_groups": len(crc_dupes) + len(title_dupes), "removed": removed}
 
 
 def import_start(
