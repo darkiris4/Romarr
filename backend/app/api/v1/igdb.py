@@ -20,7 +20,7 @@ def search_igdb(q: str = Query(..., min_length=1)):
         f'search "{safe_q}"; '
         f'fields id, name, first_release_date, cover.image_id, summary, platforms.name, category,'
         f' total_rating, aggregated_rating, rating; '
-        f'limit 20;'
+        f'limit 50;'
     )
     results = _igdb_query(client_id, token, body)
 
@@ -34,7 +34,6 @@ def search_igdb(q: str = Query(..., min_length=1)):
         0 if g.get("category", 0) in _PREFERRED_CATEGORIES else 1,
         g.get("first_release_date") or float("inf"),
     ))
-    results = results[:15]
 
     out = []
     for game in results:
