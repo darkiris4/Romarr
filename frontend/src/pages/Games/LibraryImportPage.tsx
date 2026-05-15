@@ -104,7 +104,7 @@ export default function LibraryImportPage() {
   const [overrides, setOverrides] = useState<Record<string, number>>({})
   const [result, setResult] = useState<any>(null)
   const [scanError, setScanError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'dat' | 'filename' | 'ambiguous' | 'exists'>('all')
+  const [filter, setFilter] = useState<'all' | 'new' | 'dat' | 'filename' | 'ambiguous' | 'exists'>('all')
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set())
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set())
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
@@ -184,6 +184,7 @@ export default function LibraryImportPage() {
 
   const filteredRoms = preview?.roms.filter(rom => {
     switch (filter) {
+      case 'new':       if (rom.already_exists) return false; break
       case 'dat':       if (rom.match_source !== 'dat') return false; break
       case 'filename':  if (rom.match_source !== 'filename') return false; break
       case 'ambiguous': if (rom.platform_id !== null || overrides[rom.path]) return false; break
@@ -406,6 +407,7 @@ export default function LibraryImportPage() {
   if (step === 'preview' && preview) {
     const filterDefs = [
       { key: 'all'      as const, label: 'All',       count: preview.roms.length },
+      { key: 'new'      as const, label: 'New',        count: preview.to_import,        color: 'var(--accent)' },
       { key: 'dat'      as const, label: 'DAT',        count: preview.dat_matches,      color: 'var(--success)' },
       { key: 'filename' as const, label: 'Filename',   count: preview.filename_matches, color: 'var(--warning)' },
       { key: 'ambiguous'as const, label: 'Ambiguous',  count: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
