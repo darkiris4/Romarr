@@ -1,9 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Gamepad2, Table2, LayoutGrid, AlignJustify, RefreshCw, CheckSquare, Tag, Trash2, Filter, ArrowUpDown } from 'lucide-react'
+import { Gamepad2, Table2, LayoutGrid, AlignJustify, RefreshCw, CheckSquare, Tag, Trash2, Filter, ArrowUpDown, Copy } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
 import { platformsApi } from '../../api/platforms'
+import { libraryApi } from '../../api/library'
 import ConfirmModal from '../../components/ConfirmModal'
 import GamesTable from './GamesTable'
 import GamesPosters from './GamesPosters'
@@ -23,6 +25,15 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'platform',    label: 'Platform' },
   { key: 'added_desc',  label: 'Date Added' },
 ]
+
+function parseIds(p: URLSearchParams, key: string): Set<number> {
+  const v = p.get(key); if (!v) return new Set()
+  return new Set(v.split(',').filter(Boolean).map(Number))
+}
+function parseStrs(p: URLSearchParams, key: string): Set<string> {
+  const v = p.get(key); if (!v) return new Set()
+  return new Set(v.split(',').filter(Boolean))
+}
 
 function getSavedView(): View {
   const v = localStorage.getItem('games-view')
@@ -74,11 +85,16 @@ export default function GamesPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
 
-  const [filterPlatforms, setFilterPlatforms] = useState<Set<number>>(new Set())
-  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set())
-  const [filterMissing, setFilterMissing] = useState<Set<string>>(new Set())
-  const [filterRegions, setFilterRegions] = useState<Set<string>>(new Set())
-  const [sortBy, setSortBy] = useState<SortKey>('name_asc')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Derive filter/sort state from URL — persists across refresh and back/forward
+  const filterPlatforms = useMemo(() => parseIds(searchParams, 'platforms'), [searchParams])
+  const filterStatuses  = useMemo(() => parseStrs(searchParams, 'statuses'),  [searchParams])
+  const filterMissing   = useMemo(() => parseStrs(searchParams, 'missing'),    [searchParams])
+  const filterRegions   = useMemo(() => parseStrs(searchParams, 'regions'),    [searchParams])
+  const sortBy = (searchParams.get('sort') as SortKey) || 'name_asc'
+
+  const [dedupResult, setDedupResult] = useState<string | null>(null)
 
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
@@ -137,6 +153,15 @@ export default function GamesPage() {
     },
   })
 
+  const dedupMutation = useMutation({
+    mutationFn: () => libraryApi.deduplicate(),
+    onSuccess: ({ removed }) => {
+      qc.invalidateQueries({ queryKey: ['games'] })
+      setDedupResult(removed > 0 ? `Removed ${removed}` : 'None found')
+      setTimeout(() => setDedupResult(null), 3000)
+    },
+  })
+
   const platformMap = Object.fromEntries(platforms.map(p => [p.id, p.name]))
 
   const uniqueRegions = useMemo(() => {
@@ -191,18 +216,26 @@ export default function GamesPage() {
     else setSelected(new Set(games.map(g => g.id)))
   }
 
-  function toggleSet<T>(set: Set<T>, value: T): Set<T> {
-    const next = new Set(set)
-    if (next.has(value)) next.delete(value)
-    else next.add(value)
-    return next
+  function updateParams(updates: Record<string, string | null>) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      for (const [k, v] of Object.entries(updates)) {
+        if (v) next.set(k, v); else next.delete(k)
+      }
+      return next
+    }, { replace: true })
+  }
+
+  function toggleFilter(paramKey: string, value: string | number) {
+    const current = searchParams.get(paramKey)
+    const parts = current ? current.split(',').filter(Boolean) : []
+    const str = String(value)
+    const next = parts.includes(str) ? parts.filter(p => p !== str) : [...parts, str]
+    updateParams({ [paramKey]: next.join(',') || null })
   }
 
   function clearAllFilters() {
-    setFilterPlatforms(new Set())
-    setFilterStatuses(new Set())
-    setFilterMissing(new Set())
-    setFilterRegions(new Set())
+    updateParams({ platforms: null, statuses: null, missing: null, regions: null })
   }
 
   const activeFilterCount =
@@ -237,6 +270,16 @@ export default function GamesPage() {
               <span>Edit Games</span>
             </button>
 
+            <button
+              className="toolbar-icon-btn"
+              onClick={() => dedupMutation.mutate()}
+              disabled={dedupMutation.isPending || dedupResult !== null}
+              title="Find and remove duplicate game entries"
+            >
+              <Copy size={18} />
+              <span>{dedupResult ?? (dedupMutation.isPending ? 'Running…' : 'Dedupe')}</span>
+            </button>
+
             <div className="spacer" />
 
             <div ref={filterRef} className="toolbar-dropdown-wrap">
@@ -255,7 +298,7 @@ export default function GamesPage() {
                       <div className="toolbar-dropdown-scroll">
                         {platforms.map(p => (
                           <label key={p.id} className="toolbar-dropdown-item">
-                            <input type="checkbox" checked={filterPlatforms.has(p.id)} onChange={() => setFilterPlatforms(s => toggleSet(s, p.id))} />
+                            <input type="checkbox" checked={filterPlatforms.has(p.id)} onChange={() => toggleFilter('platforms', p.id)} />
                             {p.name}
                           </label>
                         ))}
@@ -267,7 +310,7 @@ export default function GamesPage() {
                   <div className="toolbar-dropdown-section-label">Status</div>
                   {(['wanted', 'grabbed', 'downloading', 'imported', 'failed'] as const).map(s => (
                     <label key={s} className="toolbar-dropdown-item">
-                      <input type="checkbox" checked={filterStatuses.has(s)} onChange={() => setFilterStatuses(prev => toggleSet(prev, s))} />
+                      <input type="checkbox" checked={filterStatuses.has(s)} onChange={() => toggleFilter('statuses', s)} />
                       {s.charAt(0).toUpperCase() + s.slice(1)}
                     </label>
                   ))}
@@ -280,7 +323,7 @@ export default function GamesPage() {
                     { key: 'no_igdb',   label: 'Not in IGDB' },
                   ].map(({ key, label }) => (
                     <label key={key} className="toolbar-dropdown-item">
-                      <input type="checkbox" checked={filterMissing.has(key)} onChange={() => setFilterMissing(prev => toggleSet(prev, key))} />
+                      <input type="checkbox" checked={filterMissing.has(key)} onChange={() => toggleFilter('missing', key)} />
                       {label}
                     </label>
                   ))}
@@ -292,7 +335,7 @@ export default function GamesPage() {
                       <div className="toolbar-dropdown-scroll">
                         {uniqueRegions.map(r => (
                           <label key={r} className="toolbar-dropdown-item">
-                            <input type="checkbox" checked={filterRegions.has(r)} onChange={() => setFilterRegions(prev => toggleSet(prev, r))} />
+                            <input type="checkbox" checked={filterRegions.has(r)} onChange={() => toggleFilter('regions', r)} />
                             {r || '—'}
                           </label>
                         ))}
@@ -324,7 +367,7 @@ export default function GamesPage() {
                 <div className="toolbar-dropdown-panel" style={{ minWidth: 170 }}>
                   {SORT_OPTIONS.map(({ key, label }) => (
                     <label key={key} className={`toolbar-dropdown-item${sortBy === key ? ' active' : ''}`}>
-                      <input type="radio" name="sort" checked={sortBy === key} onChange={() => { setSortBy(key); setShowSort(false) }} />
+                      <input type="radio" name="sort" checked={sortBy === key} onChange={() => { updateParams({ sort: key === 'name_asc' ? null : key }); setShowSort(false) }} />
                       {label}
                     </label>
                   ))}

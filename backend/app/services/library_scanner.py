@@ -405,15 +405,20 @@ def scan_folder(
                 )
 
             # ── 3. DB existence check ──────────────────────────────────────────
-            if rom.platform_id:
+            # CRC32 is checked first — it's content-based and never lies.
+            # Title+platform is the fallback for filename-only matches.
+            existing = None
+            if rom.crc32:
+                existing = db.query(Game).filter_by(checksum_crc32=rom.crc32).first()
+            if not existing and rom.platform_id:
                 existing = (
                     db.query(Game)
                     .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
                     .first()
                 )
-                if existing:
-                    rom.already_exists = True
-                    rom.existing_game_id = existing.id
+            if existing:
+                rom.already_exists = True
+                rom.existing_game_id = existing.id
 
             summary.roms.append(rom)
 
@@ -472,6 +477,13 @@ def import_roms(
                         game.status = GameStatus.IMPORTED
                     updated += 1
             continue
+
+        # Hard dedup guard — catches any case the scan-time check missed
+        # (e.g. title changed between DAT reloads, or concurrent imports).
+        if rom.crc32:
+            if db.query(Game).filter_by(checksum_crc32=rom.crc32).first():
+                skipped_existing += 1
+                continue
 
         game = Game(
             title=rom.title,
