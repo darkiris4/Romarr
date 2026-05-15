@@ -411,8 +411,9 @@ export default function LibraryImportPage() {
 
   /* ── Step 3: preview ── */
   if (step === 'preview' && preview) {
+    const newCount = preview.roms.filter(r => !r.already_exists).length
     const filterDefs: { key: FilterKey; label: string; count: number; color?: string }[] = [
-      { key: 'new',       label: 'New',       count: preview.to_import,        color: 'var(--accent)' },
+      { key: 'new',       label: 'New',       count: newCount,                 color: 'var(--accent)' },
       { key: 'dat',       label: 'DAT',       count: preview.dat_matches,      color: 'var(--success)' },
       { key: 'filename',  label: 'Filename',  count: preview.filename_matches, color: 'var(--warning)' },
       { key: 'ambiguous', label: 'Ambiguous', count: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
