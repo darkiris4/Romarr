@@ -92,6 +92,9 @@ export const libraryApi = {
   reloadDats: () =>
     client.post<{ dat_dir: string; loaded: unknown[]; unmatched: unknown[] }>('/library/dat/reload').then(r => r.data),
 
+  deduplicate: () =>
+    client.post<{ duplicate_groups: number; removed: number }>('/library/deduplicate').then(r => r.data),
+
   uploadDat: (file: File) => {
     const form = new FormData()
     form.append('file', file)
