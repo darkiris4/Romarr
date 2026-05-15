@@ -209,8 +209,11 @@ export default function LibraryImportPage() {
     return true
   }) ?? []
 
+  // Include all resolvable ROMs in selected_paths — the backend re-scans at import
+  // time and does its own fresh already_exists check, so we don't filter by
+  // already_exists here. That avoids stale preview data causing games to be missed.
   const eligiblePaths = filteredRoms
-    .filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path]))
+    .filter(r => r.platform_id !== null || overrides[r.path])
     .map(r => r.path)
 
   const toImport = filteredRoms.filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path])).length
