@@ -13,14 +13,15 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TypedDict
 
 from ..config import settings
 from ..database import SessionLocal
+from sqlalchemy import or_
 from ..models.game import Game
-from .igdb_service import fetch_game_metadata_debug, fetch_enrichment_by_id
+from .igdb_service import fetch_game_metadata_debug, fetch_enrichment_batch
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ _DEBUG_LOG = Path(settings.data_dir) / "scrape_debug.jsonl"
 
 class ScrapeState(TypedDict):
     running: bool
+    phase: str          # 'scraping' | 'enriching'
     total: int
     processed: int
     updated: int
@@ -39,6 +41,7 @@ class ScrapeState(TypedDict):
 
 _state: ScrapeState = {
     "running": False,
+    "phase": "scraping",
     "total": 0,
     "processed": 0,
     "updated": 0,
@@ -73,7 +76,7 @@ def scrape_start() -> dict:
         if _state["running"]:
             return {"already_running": True, "running": True}
         _state.update({
-            "running": True, "done": False, "error": None,
+            "running": True, "phase": "scraping", "done": False, "error": None,
             "total": 0, "processed": 0, "updated": 0, "failed": 0,
         })
 
@@ -101,12 +104,19 @@ def scrape_pending() -> dict:
     _DEBUG_LOG.write_text("")
     _log_entry({"event": "run_start", "time": datetime.now(timezone.utc).isoformat()})
 
+    _RETRY_AFTER_DAYS = 30  # re-search unmatched games after this many days
+
     try:
-        # Skip games already matched in IGDB (igdb_id set) but without a cover —
-        # those were confirmed to have no cover image in IGDB and don't need retrying.
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=_RETRY_AFTER_DAYS)
+        # Skip games already matched (igdb_id set) — they've been found.
+        # Skip games searched recently that still weren't found — retry after 30 days.
         games = (
             db.query(Game)
-            .filter(Game.cover_url.is_(None), Game.igdb_id.is_(None))
+            .filter(
+                Game.cover_url.is_(None),
+                Game.igdb_id.is_(None),
+                or_(Game.igdb_searched_at.is_(None), Game.igdb_searched_at < cutoff),
+            )
             .all()
         )
 
@@ -129,6 +139,7 @@ def scrape_pending() -> dict:
             try:
                 meta, detail = fetch_game_metadata_debug(game.title, igdb_platform_id)
                 entry["queries"] = detail
+                game.igdb_searched_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 if meta:
                     game.igdb_id = meta["igdb_id"]
                     game.cover_url = meta["cover_url"]
@@ -167,8 +178,7 @@ def scrape_pending() -> dict:
 
         db.commit()
 
-        # ── Enrichment pass: fill new fields for already-matched games ──
-        from sqlalchemy import or_
+        # ── Enrichment pass: fill new fields for already-matched games (batched) ──
         to_enrich = (
             db.query(Game)
             .filter(
@@ -178,24 +188,37 @@ def scrape_pending() -> dict:
             .all()
         )
         enriched = 0
+        _state["phase"] = "enriching"
+        _state["total"] = len(to_enrich)
+        _state["processed"] = 0
         _log_entry({"event": "enrich_start", "total": len(to_enrich)})
-        for game in to_enrich:
+
+        _BATCH = 50
+        for i in range(0, len(to_enrich), _BATCH):
+            chunk = to_enrich[i:i + _BATCH]
+            ids = [g.igdb_id for g in chunk]
             try:
-                meta = fetch_enrichment_by_id(game.igdb_id)
-                if meta:
-                    if meta.get("summary"):
-                        game.summary = meta["summary"]
-                    if meta.get("rating") is not None:
-                        game.rating = meta["rating"]
-                    if meta.get("game_modes"):
-                        game.game_modes = meta["game_modes"]
-                    if meta.get("themes"):
-                        game.themes = meta["themes"]
-                    if meta.get("similar_games"):
-                        game.similar_games = meta["similar_games"]
-                    enriched += 1
+                batch_meta = fetch_enrichment_batch(ids)
+                for game in chunk:
+                    meta = batch_meta.get(game.igdb_id)
+                    if meta:
+                        if meta.get("summary"):
+                            game.summary = meta["summary"]
+                        if meta.get("rating") is not None:
+                            game.rating = meta["rating"]
+                        if meta.get("game_modes"):
+                            game.game_modes = meta["game_modes"]
+                        if meta.get("themes"):
+                            game.themes = meta["themes"]
+                        if meta.get("similar_games"):
+                            game.similar_games = meta["similar_games"]
+                        enriched += 1
             except Exception as exc:
-                logger.warning("Enrich failed for igdb_id=%s: %s", game.igdb_id, exc)
+                logger.warning("Enrich batch failed for ids=%s: %s", ids, exc)
+            _state["processed"] += len(chunk)
+            if (i // _BATCH) % 10 == 0:
+                db.commit()
+
         db.commit()
         _log_entry({"event": "enrich_end", "enriched": enriched})
 

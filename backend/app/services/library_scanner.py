@@ -15,15 +15,106 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import zipfile
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+# ── In-process scan state ────────────────────────────────────────────────────
+
+_scan_state: dict[str, Any] = {
+    "running": False,
+    "folder": None,
+    "total": 0,
+    "processed": 0,
+    "done": False,
+    "error": None,
+    "result": None,
+}
+_scan_lock = threading.Lock()
+
+_import_state: dict[str, Any] = {
+    "running": False,
+    "done": False,
+    "error": None,
+    "result": None,
+}
+_import_lock = threading.Lock()
+
+
+def import_status() -> dict:
+    with _import_lock:
+        return dict(_import_state)
+
+
+def scan_status() -> dict:
+    with _scan_lock:
+        return dict(_scan_state)
+
+
+def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
+    """Start a folder scan in a background thread. Returns immediately."""
+    p = Path(folder_path).expanduser().resolve()
+    if not p.exists():
+        return {"error": f"Path not found: {folder_path}"}
+    if not p.is_dir():
+        return {"error": f"Not a directory: {folder_path}"}
+
+    with _scan_lock:
+        if _scan_state["running"]:
+            return {"already_running": True}
+        _scan_state.update({
+            "running": True, "folder": folder_path, "done": False,
+            "error": None, "result": None, "total": 0, "processed": 0,
+        })
+
+    from ..database import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            summary = scan_folder(db, folder_path, platform_hint_id,
+                                  progress_state=_scan_state, progress_lock=_scan_lock)
+            with _scan_lock:
+                _scan_state.update({"running": False, "done": True, "result": _summary_to_dict(summary)})
+        except Exception as exc:
+            with _scan_lock:
+                _scan_state.update({"running": False, "done": True, "error": str(exc)})
+        finally:
+            db.close()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return {"started": True}
+
+
+def _summary_to_dict(summary: "ScanSummary") -> dict:
+    return {
+        "folder": summary.folder,
+        "total_files_seen": summary.total_files_seen,
+        "dat_matches": summary.matched_dat,
+        "filename_matches": summary.matched_filename,
+        "ambiguous": summary.ambiguous,
+        "already_imported": summary.already_imported,
+        "to_import": summary.to_import,
+        "roms": [
+            {
+                "path": r.path, "filename": r.filename, "title": r.title,
+                "region": r.region, "crc32": r.crc32, "match_source": r.match_source,
+                "confidence": r.confidence, "platform_id": r.platform_id,
+                "platform_name": r.platform_name,
+                "candidate_platforms": r.candidate_platforms,
+                "already_exists": r.already_exists,
+                "existing_game_id": r.existing_game_id,
+            }
+            for r in summary.roms
+        ],
+    }
 
 from ..models.game import Game, GameStatus
 from ..models.platform import Platform
@@ -71,14 +162,15 @@ def _crc32_raw(path: Path, chunk: int = 1 << 20) -> str:
     return format(val & 0xFFFFFFFF, "08x")
 
 
-def _crc32_and_ext(path: Path) -> tuple[str, str]:
+def _rom_entries(path: Path) -> list[tuple[str, str, str]]:
     """
-    Return (crc32_hex, effective_extension).
+    Return [(crc32_hex, effective_ext, display_name), ...] for a ROM file.
 
-    For ZIP archives the CRC32 is read from the central directory (no
-    extraction needed) and the inner ROM file's extension is returned so
-    platform matching still works.  The ZIP central-directory CRC32 is
-    the CRC of the uncompressed content — exactly what No-Intro records.
+    For ZIPs every inner file becomes its own entry so multi-region archives
+    (e.g. a single ZIP containing USA, Europe, and Japan variants) are each
+    identified separately.  The ZIP central-directory CRC32 is the CRC of
+    the uncompressed content — exactly what No-Intro records.
+    Non-ZIP files return a single entry using the file's own name.
     """
     ext = path.suffix.lstrip(".").lower()
     if ext == "zip":
@@ -86,13 +178,15 @@ def _crc32_and_ext(path: Path) -> tuple[str, str]:
             with zipfile.ZipFile(path, "r") as zf:
                 members = [m for m in zf.infolist() if not m.filename.endswith("/")]
                 if members:
-                    # Pick the largest member — the actual ROM, not readme/cue sheets
-                    rom_info = max(members, key=lambda m: m.file_size)
-                    inner_ext = Path(rom_info.filename).suffix.lstrip(".").lower()
-                    return format(rom_info.CRC & 0xFFFFFFFF, "08x"), inner_ext
+                    entries = []
+                    for m in members:
+                        inner_ext = Path(m.filename).suffix.lstrip(".").lower()
+                        crc = format(m.CRC & 0xFFFFFFFF, "08x")
+                        entries.append((crc, inner_ext, m.filename))
+                    return entries
         except zipfile.BadZipFile:
             pass
-    return _crc32_raw(path), ext
+    return [(_crc32_raw(path), ext, path.name)]
 
 
 # ── DAT index (loaded once per process, keyed by platform id) ────────────────
@@ -222,6 +316,8 @@ def scan_folder(
     db: Session,
     folder_path: str,
     platform_hint_id: int | None = None,
+    progress_state: dict | None = None,
+    progress_lock: threading.Lock | None = None,
 ) -> ScanSummary:
     """
     Walk folder_path recursively.  For each ROM file:
@@ -243,76 +339,83 @@ def scan_folder(
 
     all_exts = set(ext_map.keys()) | {"zip"}
 
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
+    # Pre-count files for progress reporting
+    all_files = [p for p in sorted(root.rglob("*")) if p.is_file()]
+    if progress_state is not None and progress_lock is not None:
+        with progress_lock:
+            progress_state["total"] = len(all_files)
+
+    for path in all_files:
         summary.total_files_seen += 1
+        if progress_state is not None and progress_lock is not None:
+            with progress_lock:
+                progress_state["processed"] = summary.total_files_seen
 
         ext = path.suffix.lstrip(".").lower()
         if ext not in all_exts and hint_platform is None:
             continue  # not a recognized ROM extension
 
-        crc, effective_ext = _crc32_and_ext(path)
+        for crc, effective_ext, display_name in _rom_entries(path):
 
-        # ── 1. DAT lookup ──────────────────────────────────────────────────
-        dat_hit = lookup_crc32(crc)
-        if dat_hit:
-            platform = platform_by_id.get(dat_hit.platform_id)
-            rom = ScannedROM(
-                path=str(path),
-                filename=path.name,
-                extension=effective_ext,
-                crc32=crc,
-                title=dat_hit.title,
-                region=dat_hit.region,
-                match_source="dat",
-                confidence=1.0,
-                platform_id=dat_hit.platform_id if platform else None,
-                platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
-                candidate_platforms=[],
-            )
-        else:
-            # ── 2. Filename fallback ───────────────────────────────────────
-            title, region = _clean_title(path.stem)
-
-            # Determine platform from hint > extension candidates
-            candidates = ext_map.get(effective_ext, [])
-            if hint_platform:
-                resolved = hint_platform
-                candidate_list: list[dict] = []
-            elif len(candidates) == 1:
-                resolved = candidates[0]
-                candidate_list = []
+            # ── 1. DAT lookup ──────────────────────────────────────────────────
+            dat_hit = lookup_crc32(crc)
+            if dat_hit:
+                platform = platform_by_id.get(dat_hit.platform_id)
+                rom = ScannedROM(
+                    path=str(path),
+                    filename=display_name,
+                    extension=effective_ext,
+                    crc32=crc,
+                    title=dat_hit.title,
+                    region=dat_hit.region,
+                    match_source="dat",
+                    confidence=1.0,
+                    platform_id=dat_hit.platform_id if platform else None,
+                    platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
+                    candidate_platforms=[],
+                )
             else:
-                resolved = None
-                candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
+                # ── 2. Filename fallback ───────────────────────────────────────
+                title, region = _clean_title(Path(display_name).stem)
 
-            rom = ScannedROM(
-                path=str(path),
-                filename=path.name,
-                extension=effective_ext,
-                crc32=crc,
-                title=title,
-                region=region,
-                match_source="filename" if resolved else "unmatched",
-                confidence=0.6 if resolved else 0.0,
-                platform_id=resolved.id if resolved else None,
-                platform_name=resolved.name if resolved else None,
-                candidate_platforms=candidate_list,
-            )
+                # Determine platform from hint > extension candidates
+                candidates = ext_map.get(effective_ext, [])
+                if hint_platform:
+                    resolved = hint_platform
+                    candidate_list: list[dict] = []
+                elif len(candidates) == 1:
+                    resolved = candidates[0]
+                    candidate_list = []
+                else:
+                    resolved = None
+                    candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
 
-        # ── 3. DB existence check ──────────────────────────────────────────
-        if rom.platform_id:
-            existing = (
-                db.query(Game)
-                .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
-                .first()
-            )
-            if existing:
-                rom.already_exists = True
-                rom.existing_game_id = existing.id
+                rom = ScannedROM(
+                    path=str(path),
+                    filename=display_name,
+                    extension=effective_ext,
+                    crc32=crc,
+                    title=title,
+                    region=region,
+                    match_source="filename" if resolved else "unmatched",
+                    confidence=0.6 if resolved else 0.0,
+                    platform_id=resolved.id if resolved else None,
+                    platform_name=resolved.name if resolved else None,
+                    candidate_platforms=candidate_list,
+                )
 
-        summary.roms.append(rom)
+            # ── 3. DB existence check ──────────────────────────────────────────
+            if rom.platform_id:
+                existing = (
+                    db.query(Game)
+                    .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
+                    .first()
+                )
+                if existing:
+                    rom.already_exists = True
+                    rom.existing_game_id = existing.id
+
+            summary.roms.append(rom)
 
     return summary
 
@@ -325,12 +428,15 @@ def import_roms(
     platform_hint_id: int | None = None,
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
+    selected_keys: set[str] | None = None,
 ) -> dict:
     """
     Scan and create/update Game records.
 
     platform_overrides: {rom_path: platform_id} — lets the UI assign platforms
                         to ambiguous files before confirming.
+    selected_keys: set of "path::filename" strings identifying exactly which
+                   inner ROM entries to import (handles multi-ROM ZIPs correctly).
     """
     summary = scan_folder(db, folder_path, platform_hint_id)
     overrides = platform_overrides or {}
@@ -339,6 +445,11 @@ def import_roms(
     created = updated = skipped_existing = skipped_ambiguous = 0
 
     for rom in summary.roms:
+        if selected_keys is not None:
+            key = f"{rom.path}::{rom.filename}"
+            if key not in selected_keys:
+                continue
+
         # Apply manual override if provided
         if rom.path in overrides:
             rom.platform_id = overrides[rom.path]
@@ -397,3 +508,43 @@ def import_roms(
         logger.warning("Skipped %d ambiguous ROMs (no platform match): %s",
                        skipped_ambiguous, ambiguous_files[:20])
     return result
+
+
+def import_start(
+    folder_path: str,
+    platform_hint_id: int | None = None,
+    platform_overrides: dict[str, int] | None = None,
+    skip_existing: bool = True,
+    selected_keys: set[str] | None = None,
+) -> dict:
+    """Start a ROM import in a background thread. Returns immediately."""
+    with _import_lock:
+        if _import_state["running"]:
+            return {"already_running": True}
+        _import_state.update({"running": True, "done": False, "error": None, "result": None})
+
+    from ..database import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            result = import_roms(
+                db, folder_path,
+                platform_hint_id=platform_hint_id,
+                platform_overrides=platform_overrides,
+                skip_existing=skip_existing,
+                selected_keys=selected_keys,
+            )
+            if result.get("created", 0) > 0:
+                from .metadata_scraper import scrape_start
+                scrape_start()
+            with _import_lock:
+                _import_state.update({"running": False, "done": True, "result": result})
+        except Exception as exc:
+            with _import_lock:
+                _import_state.update({"running": False, "done": True, "error": str(exc)})
+        finally:
+            db.close()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return {"started": True}

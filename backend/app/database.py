@@ -76,7 +76,24 @@ def _migrate():
     _add_column_if_missing("games", "game_modes", "TEXT")
     _add_column_if_missing("games", "themes", "TEXT")
     _add_column_if_missing("games", "similar_games", "TEXT")
+    _add_column_if_missing("games", "tags", "TEXT")
+    _add_column_if_missing("games", "igdb_searched_at", "DATETIME")
+    _seed_platforms()
     _seed_igdb_platform_ids()
+
+
+def _seed_platforms():
+    """Insert built-in platforms on a fresh database."""
+    from .api.v1.platforms import BUILTIN_PLATFORMS
+    from .models.platform import Platform
+    db = SessionLocal()
+    try:
+        if db.query(Platform).count() == 0:
+            for p in BUILTIN_PLATFORMS:
+                db.add(Platform(**p))
+            db.commit()
+    finally:
+        db.close()
 
 
 def _seed_igdb_platform_ids():

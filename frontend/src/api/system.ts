@@ -6,4 +6,9 @@ export const systemApi = {
   tasks: () => client.get<Array<{ id: string; name: string; nextExecution: string | null }>>('/system/tasks').then(r => r.data),
   triggerTask: (id: string) => client.post(`/system/tasks/${id}/trigger`),
   logs: (limit = 200) => client.get('/system/logs', { params: { limit } }).then(r => r.data),
+  scrape: () => client.post('/system/scrape').then(r => r.data),
+  scrapeStatus: () => client.get<{
+    running: boolean; phase: string; done: boolean; total: number
+    processed: number; updated: number; failed: number; error: string | null
+  }>('/system/scrape/status').then(r => r.data),
 }

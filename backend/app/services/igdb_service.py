@@ -162,19 +162,37 @@ def _title_variants(title: str) -> list[str]:
     return seen
 
 
+_IGDB_MIN_INTERVAL = 0.26  # ~4 req/s — IGDB free tier limit
+_last_igdb_request: float = 0.0
+
+
 def _igdb_query(client_id: str, token: str, body: str) -> list:
-    try:
-        resp = httpx.post(
-            "https://api.igdb.com/v4/games",
-            headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
-            content=body.encode(),
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("IGDB request error: %s", exc)
-        return []
+    global _last_igdb_request
+    elapsed = time.monotonic() - _last_igdb_request
+    if elapsed < _IGDB_MIN_INTERVAL:
+        time.sleep(_IGDB_MIN_INTERVAL - elapsed)
+
+    for attempt in range(3):
+        _last_igdb_request = time.monotonic()
+        try:
+            resp = httpx.post(
+                "https://api.igdb.com/v4/games",
+                headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
+                content=body.encode(),
+                timeout=10,
+            )
+            if resp.status_code == 429:
+                wait = 2 ** attempt
+                logger.warning("IGDB rate limited — backing off %ds (attempt %d/3)", wait, attempt + 1)
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("IGDB request error: %s", exc)
+            return []
+    logger.warning("IGDB rate limit not resolved after 3 attempts — skipping query")
+    return []
 
 
 def _run_tiered_search(title: str, igdb_platform_id: int | None) -> tuple[list, list[dict]]:
@@ -292,17 +310,32 @@ def fetch_game_metadata_debug(
 
 
 def fetch_enrichment_by_id(igdb_id: int) -> dict | None:
-    """Fetch extended metadata (summary, rating, modes, themes, similar) for a known IGDB ID."""
+    """Fetch extended metadata for a single known IGDB ID."""
+    results = fetch_enrichment_batch([igdb_id])
+    return results.get(igdb_id)
+
+
+def fetch_enrichment_batch(igdb_ids: list[int]) -> dict[int, dict]:
+    """Fetch extended metadata for up to 50 IGDB IDs in one request.
+    Returns a dict keyed by igdb_id."""
+    if not igdb_ids:
+        return {}
     client_id, _ = _credentials()
     token = _get_token()
     if not token:
-        return None
+        return {}
     fields = (
         "fields id, name, first_release_date, cover.image_id,"
         " summary, rating, aggregated_rating, total_rating,"
         " game_modes.name, themes.name,"
         " similar_games.name, similar_games.cover.image_id;"
     )
-    body = f"{fields} where id = {igdb_id}; limit 1;"
+    id_list = ", ".join(str(i) for i in igdb_ids)
+    body = f"{fields} where id = ({id_list}); limit {len(igdb_ids)};"
     results = _igdb_query(client_id, token, body)
-    return _build_metadata(results)
+    out: dict[int, dict] = {}
+    for game in results:
+        meta = _build_metadata([game])
+        if meta:
+            out[game["id"]] = meta
+    return out

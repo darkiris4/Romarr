@@ -33,7 +33,7 @@ def list_games(
     monitored: bool | None = None,
     search: str | None = None,
     skip: int = 0,
-    limit: int = 200,
+    limit: int = 10000,
     db: Session = Depends(get_db),
 ):
     q = db.query(Game).options(joinedload(Game.platform))
@@ -55,6 +55,30 @@ def create_game(payload: GameCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(game)
     return db.query(Game).options(joinedload(Game.platform)).filter_by(id=game.id).one()
+
+
+class BulkDeletePayload(BaseModel):
+    ids: list[int]
+
+
+class BulkTagPayload(BaseModel):
+    ids: list[int]
+    tags: str
+
+
+@router.post("/bulk-delete", status_code=204)
+def bulk_delete(payload: BulkDeletePayload, db: Session = Depends(get_db)):
+    db.query(Game).filter(Game.id.in_(payload.ids)).delete(synchronize_session=False)
+    db.commit()
+
+
+@router.patch("/bulk-tag")
+def bulk_tag(payload: BulkTagPayload, db: Session = Depends(get_db)):
+    db.query(Game).filter(Game.id.in_(payload.ids)).update(
+        {"tags": payload.tags or None}, synchronize_session=False
+    )
+    db.commit()
+    return {"updated": len(payload.ids)}
 
 
 @router.get("/{game_id}", response_model=GameOut)

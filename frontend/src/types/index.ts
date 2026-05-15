@@ -7,6 +7,7 @@ export interface Platform {
   folder_name: string
   extensions: string
   enabled: boolean
+  igdb_platform_id?: number | null
   created_at: string
   updated_at: string
 }
@@ -33,6 +34,7 @@ export interface Game {
   game_modes?: string
   themes?: string
   similar_games?: string
+  tags?: string | null
   added_at: string
   updated_at: string
 }
@@ -44,6 +46,8 @@ export interface IgdbSearchResult {
   release_year?: number
   summary?: string
   platforms: string[]
+  platform_ids: number[]
+  rating?: number
 }
 
 export interface ReleaseResult {

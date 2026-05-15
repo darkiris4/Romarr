@@ -1,69 +1,39 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, AlertCircle, RefreshCw, Play } from 'lucide-react'
-import client from '../../api/client'
-
-interface IgdbConfig {
-  igdb_client_id: string
-  igdb_client_secret: string
-  configured: boolean
-}
-
-interface ScrapeStatus {
-  running: boolean
-  total: number
-  processed: number
-  updated: number
-  failed: number
-  done: boolean
-  error: string | null
-}
+import { RefreshCw, Copy, Check } from 'lucide-react'
 
 export default function GeneralPage() {
-  const qc = useQueryClient()
-  const [appName, setAppName] = useState('Romarr')
-  const [logLevel, setLogLevel] = useState('INFO')
   const [saved, setSaved] = useState(false)
-  const [clientId, setClientId] = useState('')
-  const [clientSecret, setClientSecret] = useState('')
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [copiedKey, setCopiedKey] = useState(false)
 
-  const { data: igdbConfig, refetch: refetchIgdb } = useQuery<IgdbConfig>({
-    queryKey: ['igdb-config'],
-    queryFn: () => client.get('/system/config/igdb').then(r => r.data),
-  })
+  // Host
+  const [bindAddress, setBindAddress] = useState('*')
+  const [port, setPort] = useState('8000')
+  const [urlBase, setUrlBase] = useState('')
+  const [instanceName, setInstanceName] = useState('Romarr')
+  const [applicationUrl, setApplicationUrl] = useState('')
 
-  // Poll scrape status — interval is active only while running, persists across navigation
-  const { data: scrapeStatus } = useQuery<ScrapeStatus>({
-    queryKey: ['scrape-status'],
-    queryFn: () => client.get('/system/scrape/status').then(r => r.data),
-    refetchInterval: query => (query.state.data?.running ? 1500 : false),
-    refetchIntervalInBackground: true,
-  })
+  // Security
+  const [authMethod, setAuthMethod] = useState('None')
+  const [authRequired, setAuthRequired] = useState('DisabledForLocalAddresses')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const apiKey = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
-  // Invalidate games cache once when the scrape transitions to done
-  const wasDone = scrapeStatus?.done && !scrapeStatus?.running
-  if (wasDone && scrapeStatus?.updated && scrapeStatus.updated > 0) {
-    qc.invalidateQueries({ queryKey: ['games'] })
-  }
+  // Logging
+  const [logLevel, setLogLevel] = useState('Info')
+  const [logRetention, setLogRetention] = useState('28')
 
-  const saveMeta = useMutation({
-    mutationFn: () => client.put('/system/config/igdb', {
-      igdb_client_id: clientId,
-      igdb_client_secret: clientSecret,
-    }),
-    onSuccess: () => { refetchIgdb(); setTestResult(null) },
-  })
+  // Analytics
+  const [analytics, setAnalytics] = useState(false)
 
-  const testMeta = useMutation({
-    mutationFn: () => client.post<{ ok: boolean; message: string }>('/system/config/igdb/test').then(r => r.data),
-    onSuccess: data => setTestResult(data),
-  })
+  // Updates
+  const [branch, setBranch] = useState('main')
+  const [autoUpdate, setAutoUpdate] = useState(false)
 
-  const startScrape = useMutation({
-    mutationFn: () => client.post('/system/scrape').then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['scrape-status'] }),
-  })
+  // Backup
+  const [backupFolder, setBackupFolder] = useState('./Backups')
+  const [backupInterval, setBackupInterval] = useState('7')
+  const [backupRetention, setBackupRetention] = useState('28')
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -71,164 +41,207 @@ export default function GeneralPage() {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const pct = scrapeStatus?.total
-    ? Math.round((scrapeStatus.processed / scrapeStatus.total) * 100)
-    : 0
+  function copyApiKey() {
+    navigator.clipboard.writeText(apiKey)
+    setCopiedKey(true)
+    setTimeout(() => setCopiedKey(false), 2000)
+  }
+
+  function regenerateKey() {
+    // no-op in UI-only mode
+  }
 
   return (
     <div>
       <div className="settings-section-title">General</div>
-      <div className="settings-section-desc">Application-level settings.</div>
+      <div className="settings-section-desc">Application host, security, logging, and maintenance settings.</div>
 
       {saved && <div className="alert alert-success">Settings saved.</div>}
 
       <form onSubmit={handleSave}>
+
+        {/* ── Host ── */}
+        <div className="settings-section-title" style={{ marginTop: 8 }}>Host</div>
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
-            <label className="form-label">Application Name</label>
-            <input className="form-control" value={appName} onChange={e => setAppName(e.target.value)} style={{ maxWidth: 320 }} />
+            <label className="form-label">Bind Address</label>
+            <input className="form-control" value={bindAddress} onChange={e => setBindAddress(e.target.value)} style={{ maxWidth: 240 }} />
+            <div className="form-hint">Valid IP4 address or <code>*</code> for all interfaces. Leave as <code>*</code> unless you have a specific reason.</div>
           </div>
           <div className="form-group">
-            <label className="form-label">Log Level</label>
-            <select className="form-control" value={logLevel} onChange={e => setLogLevel(e.target.value)} style={{ maxWidth: 200 }}>
-              <option>DEBUG</option>
-              <option>INFO</option>
-              <option>WARNING</option>
-              <option>ERROR</option>
-            </select>
+            <label className="form-label">Port Number</label>
+            <input className="form-control" type="number" value={port} onChange={e => setPort(e.target.value)} style={{ maxWidth: 120 }} />
+            <div className="form-hint">Requires restart to take effect.</div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">URL Base</label>
+            <input className="form-control" value={urlBase} onChange={e => setUrlBase(e.target.value)} placeholder="/" style={{ maxWidth: 240 }} />
+            <div className="form-hint">For reverse proxy support. Example: <code>/romarr</code></div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Instance Name</label>
+            <input className="form-control" value={instanceName} onChange={e => setInstanceName(e.target.value)} style={{ maxWidth: 320 }} />
+            <div className="form-hint">Name shown in the browser tab and notifications.</div>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Application URL</label>
+            <input className="form-control" value={applicationUrl} onChange={e => setApplicationUrl(e.target.value)} placeholder="http://localhost:8000" style={{ maxWidth: 400 }} />
+            <div className="form-hint">Used in notification links. Leave blank to use the local address.</div>
           </div>
         </div>
+
+        {/* ── Security ── */}
+        <div className="settings-section-title">Security</div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="form-group">
+            <label className="form-label">Authentication Method</label>
+            <select className="form-control" value={authMethod} onChange={e => setAuthMethod(e.target.value)} style={{ maxWidth: 240 }}>
+              <option value="None">None</option>
+              <option value="Basic">Basic (Browser Popup)</option>
+              <option value="Forms">Forms (Login Page)</option>
+            </select>
+            <div className="form-hint">
+              {authMethod === 'None'
+                ? 'No authentication. Recommended for trusted local networks only.'
+                : authMethod === 'Basic'
+                ? 'Browser-native popup dialog. Simple but credentials are not encrypted in transit without HTTPS.'
+                : 'Full login page. Recommended when exposed to a wider network.'}
+            </div>
+          </div>
+
+          {authMethod !== 'None' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Authentication Required</label>
+                <select className="form-control" value={authRequired} onChange={e => setAuthRequired(e.target.value)} style={{ maxWidth: 320 }}>
+                  <option value="DisabledForLocalAddresses">Disabled for Local Addresses</option>
+                  <option value="Enabled">Enabled</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input className="form-control" value={username} onChange={e => setUsername(e.target.value)} autoComplete="off" style={{ maxWidth: 280 }} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" style={{ maxWidth: 280 }} />
+              </div>
+            </>
+          )}
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">API Key</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 420 }}>
+              <input
+                className="form-control"
+                value={apiKey}
+                readOnly
+                style={{ fontFamily: 'monospace', fontSize: 12, flex: 1 }}
+              />
+              <button type="button" className="btn btn-secondary btn-sm" onClick={copyApiKey} style={{ flexShrink: 0 }}>
+                {copiedKey ? <Check size={13} /> : <Copy size={13} />}
+                {copiedKey ? 'Copied' : 'Copy'}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={regenerateKey} style={{ flexShrink: 0 }}>
+                <RefreshCw size={13} /> Reset
+              </button>
+            </div>
+            <div className="form-hint">Used by external applications and scripts to access the Romarr API.</div>
+          </div>
+        </div>
+
+        {/* ── Logging ── */}
+        <div className="settings-section-title">Logging</div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="form-group">
+            <label className="form-label">Log Level</label>
+            <select className="form-control" value={logLevel} onChange={e => setLogLevel(e.target.value)} style={{ maxWidth: 180 }}>
+              <option>Trace</option>
+              <option>Debug</option>
+              <option>Info</option>
+              <option>Warn</option>
+              <option>Error</option>
+            </select>
+            <div className="form-hint">
+              {logLevel === 'Trace' || logLevel === 'Debug'
+                ? 'Verbose output — only enable for troubleshooting. Causes significant log growth.'
+                : 'Standard logging level.'}
+            </div>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Log Retention</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input className="form-control" type="number" value={logRetention} onChange={e => setLogRetention(e.target.value)} style={{ maxWidth: 100 }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>days</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Analytics ── */}
+        <div className="settings-section-title">Analytics</div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="toggle-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="toggle-label">Send Anonymous Usage Data</div>
+              <div className="toggle-hint">
+                Sends anonymous feature usage and error data to help improve Romarr. No personal data or library content is ever sent.
+              </div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={analytics} onChange={e => setAnalytics(e.target.checked)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+        </div>
+
+        {/* ── Updates ── */}
+        <div className="settings-section-title">Updates</div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="form-group">
+            <label className="form-label">Branch</label>
+            <input className="form-control" value={branch} onChange={e => setBranch(e.target.value)} style={{ maxWidth: 200 }} />
+            <div className="form-hint">The release branch to track for updates. Use <code>main</code> for stable releases.</div>
+          </div>
+          <div className="toggle-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="toggle-label">Automatic</div>
+              <div className="toggle-hint">Automatically install updates when available. Romarr will restart.</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+        </div>
+
+        {/* ── Backup ── */}
+        <div className="settings-section-title">Backups</div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="form-group">
+            <label className="form-label">Folder</label>
+            <input className="form-control" value={backupFolder} onChange={e => setBackupFolder(e.target.value)} style={{ maxWidth: 320 }} />
+            <div className="form-hint">Path where Romarr stores database backups. Relative paths are from the application data directory.</div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Interval</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input className="form-control" type="number" value={backupInterval} onChange={e => setBackupInterval(e.target.value)} style={{ maxWidth: 100 }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>days</span>
+            </div>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Retention</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input className="form-control" type="number" value={backupRetention} onChange={e => setBackupRetention(e.target.value)} style={{ maxWidth: 100 }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>files</span>
+            </div>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
           <button type="submit" className="btn btn-primary">Save Changes</button>
         </div>
       </form>
-
-      {/* ── Metadata Scraper ── */}
-      <div className="settings-section-title">Metadata Scraper</div>
-      <div className="settings-section-desc">
-        IGDB provides cover art and release information. Get free credentials at{' '}
-        <strong>dev.twitch.tv/console/apps</strong> — create an app, set OAuth redirect to{' '}
-        <code>http://localhost</code>, then copy the Client ID and generate a Client Secret.
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header">
-          <span className="card-title">IGDB Credentials</span>
-          {igdbConfig?.configured ? (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--success)' }}>
-              <CheckCircle size={13} /> Configured
-            </span>
-          ) : (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--warning)' }}>
-              <AlertCircle size={13} /> Not configured
-            </span>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Client ID</label>
-          <input
-            className="form-control"
-            placeholder={igdbConfig?.igdb_client_id || 'Paste your Twitch Client ID'}
-            value={clientId}
-            onChange={e => setClientId(e.target.value)}
-            style={{ maxWidth: 400 }}
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Client Secret</label>
-          <input
-            className="form-control"
-            type="password"
-            placeholder={igdbConfig?.configured ? '••••••••' : 'Paste your Client Secret'}
-            value={clientSecret}
-            onChange={e => setClientSecret(e.target.value)}
-            style={{ maxWidth: 400 }}
-          />
-        </div>
-
-        {testResult && (
-          <div className={`alert ${testResult.ok ? 'alert-success' : 'alert-danger'}`} style={{ marginBottom: 16 }}>
-            {testResult.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
-            {' '}{testResult.message}
-          </div>
-        )}
-
-        <div className="flex-center gap-2">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => testMeta.mutate()}
-            disabled={testMeta.isPending}
-          >
-            <RefreshCw size={13} />
-            {testMeta.isPending ? 'Testing…' : 'Test Connection'}
-          </button>
-          <button
-            className="btn btn-primary"
-            type="button"
-            disabled={saveMeta.isPending || (!clientId && !clientSecret)}
-            onClick={() => saveMeta.mutate()}
-          >
-            {saveMeta.isPending ? 'Saving…' : 'Save Credentials'}
-          </button>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">Run Scraper</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Also runs automatically every 6 hours</span>
-        </div>
-
-        {/* Progress bar */}
-        {scrapeStatus?.running && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
-              <span>Scraping metadata…</span>
-              <span>{scrapeStatus.processed} / {scrapeStatus.total || '…'}</span>
-            </div>
-            <div style={{ height: 6, background: 'rgba(255,255,255,.08)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${pct}%`,
-                background: 'var(--accent)',
-                borderRadius: 3,
-                transition: 'width .4s ease',
-              }} />
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
-              {scrapeStatus.updated} updated · {scrapeStatus.failed} not found
-            </div>
-          </div>
-        )}
-
-        {/* Done result */}
-        {scrapeStatus?.done && !scrapeStatus.running && (
-          <div className={`alert ${scrapeStatus.error ? 'alert-danger' : 'alert-success'}`} style={{ marginBottom: 16 }}>
-            {scrapeStatus.error
-              ? `Error: ${scrapeStatus.error}`
-              : `Done — ${scrapeStatus.updated} games updated, ${scrapeStatus.failed} not found on IGDB.`}
-          </div>
-        )}
-
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => startScrape.mutate()}
-          disabled={scrapeStatus?.running || startScrape.isPending || !igdbConfig?.configured}
-        >
-          <Play size={13} />
-          {scrapeStatus?.running ? 'Scraping…' : 'Scrape Metadata Now'}
-        </button>
-
-        {!igdbConfig?.configured && (
-          <div className="form-hint" style={{ marginTop: 8 }}>
-            Configure IGDB credentials above before running the scraper.
-          </div>
-        )}
-      </div>
     </div>
   )
 }

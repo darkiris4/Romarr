@@ -1,15 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Trash2, Clock } from 'lucide-react'
 import { queueApi } from '../../api/queue'
-import StatusBadge from '../../components/StatusBadge'
+import type { QueueItem } from '../../types'
 
 function formatBytes(bytes: number) {
   if (!bytes) return '—'
-  const mb = bytes / 1024 / 1024
-  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`
+  const gb = bytes / 1024 ** 3
+  if (gb >= 1) return `${gb.toFixed(2)} GB`
+  const mb = bytes / 1024 ** 2
+  return mb >= 1 ? `${mb.toFixed(0)} MB` : `${(bytes / 1024).toFixed(0)} KB`
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  queued:        'var(--text-muted)',
+  downloading:   'var(--info)',
+  completed:     'var(--success)',
+  importPending: 'var(--warning)',
+  failed:        'var(--danger)',
+  paused:        'var(--text-muted)',
 }
 
 export default function QueuePage() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
 
   const { data: items = [], isLoading } = useQuery({
@@ -23,67 +36,90 @@ export default function QueuePage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['queue'] }),
   })
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
-
-  if (items.length === 0) {
-    return (
-      <div className="empty-state">
-        <Clock size={48} />
-        <p>Queue is empty</p>
-        <small>Downloads will appear here when Romarr grabs a release.</small>
-      </div>
-    )
-  }
-
   return (
-    <div className="card" style={{ padding: 0 }}>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Game</th>
-              <th>Protocol</th>
-              <th>Size</th>
-              <th>Progress</th>
-              <th className="col-status">Status</th>
-              <th className="col-actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => (
-              <tr key={item.id}>
-                <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {item.title}
-                </td>
-                <td className="text-muted">{item.game?.title ?? '—'}</td>
-                <td className="text-muted" style={{ textTransform: 'uppercase', fontSize: 11 }}>{item.protocol}</td>
-                <td className="text-muted">{formatBytes(item.size)}</td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${item.progress}%` }} />
-                    </div>
-                    <span className="text-sm text-muted">{item.progress}%</span>
-                  </div>
-                </td>
-                <td><StatusBadge status={item.status} /></td>
-                <td>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      className="btn-icon"
-                      title="Remove from queue"
-                      onClick={() => removeMutation.mutate(item.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="activity-page">
+      <div className="activity-toolbar">
+        <span className="activity-title">Queue</span>
+        <span className="activity-count">{items.length}</span>
       </div>
+
+      {isLoading ? (
+        <div className="loading-page"><div className="spinner" /> Loading…</div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">
+          <Clock size={48} />
+          <p>Queue is empty</p>
+          <small>Downloads will appear here when Romarr grabs a release.</small>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="activity-table">
+            <thead>
+              <tr>
+                <th>Game</th>
+                <th>Release</th>
+                <th>Indexer</th>
+                <th>Protocol</th>
+                <th>Size</th>
+                <th style={{ minWidth: 160 }}>Progress</th>
+                <th>Status</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <QueueRow
+                  key={item.id}
+                  item={item}
+                  onRemove={() => removeMutation.mutate(item.id)}
+                  onGameClick={() => item.game_id && navigate(`/games/${item.game_id}`)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
+  )
+}
+
+function QueueRow({ item, onRemove, onGameClick }: {
+  item: QueueItem
+  onRemove: () => void
+  onGameClick: () => void
+}) {
+  const color = STATUS_COLOR[item.status] ?? 'var(--text-muted)'
+  return (
+    <tr>
+      <td>
+        <span className="activity-game-link" onClick={onGameClick}>
+          {item.game?.title ?? `Game #${item.game_id}`}
+        </span>
+      </td>
+      <td className="activity-release-cell" title={item.title}>{item.title}</td>
+      <td className="text-muted">{item.indexer_id ?? '—'}</td>
+      <td>
+        <span className={`protocol-badge protocol-badge--${item.protocol}`}>{item.protocol}</span>
+      </td>
+      <td className="text-muted">{formatBytes(item.size)}</td>
+      <td>
+        <div className="queue-progress">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${item.progress}%` }} />
+          </div>
+          <span className="text-muted" style={{ fontSize: 11, width: 34, textAlign: 'right' }}>{item.progress}%</span>
+        </div>
+      </td>
+      <td>
+        <span style={{ color, fontSize: 12, fontWeight: 500 }}>
+          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+        </span>
+      </td>
+      <td className="col-action">
+        <button className="btn-icon" title="Remove from queue" onClick={onRemove}>
+          <Trash2 size={14} />
+        </button>
+      </td>
+    </tr>
   )
 }
