@@ -162,14 +162,15 @@ def _crc32_raw(path: Path, chunk: int = 1 << 20) -> str:
     return format(val & 0xFFFFFFFF, "08x")
 
 
-def _crc32_and_ext(path: Path) -> tuple[str, str]:
+def _rom_entries(path: Path) -> list[tuple[str, str, str]]:
     """
-    Return (crc32_hex, effective_extension).
+    Return [(crc32_hex, effective_ext, display_name), ...] for a ROM file.
 
-    For ZIP archives the CRC32 is read from the central directory (no
-    extraction needed) and the inner ROM file's extension is returned so
-    platform matching still works.  The ZIP central-directory CRC32 is
-    the CRC of the uncompressed content — exactly what No-Intro records.
+    For ZIPs every inner file becomes its own entry so multi-region archives
+    (e.g. a single ZIP containing USA, Europe, and Japan variants) are each
+    identified separately.  The ZIP central-directory CRC32 is the CRC of
+    the uncompressed content — exactly what No-Intro records.
+    Non-ZIP files return a single entry using the file's own name.
     """
     ext = path.suffix.lstrip(".").lower()
     if ext == "zip":
@@ -177,13 +178,15 @@ def _crc32_and_ext(path: Path) -> tuple[str, str]:
             with zipfile.ZipFile(path, "r") as zf:
                 members = [m for m in zf.infolist() if not m.filename.endswith("/")]
                 if members:
-                    # Pick the largest member — the actual ROM, not readme/cue sheets
-                    rom_info = max(members, key=lambda m: m.file_size)
-                    inner_ext = Path(rom_info.filename).suffix.lstrip(".").lower()
-                    return format(rom_info.CRC & 0xFFFFFFFF, "08x"), inner_ext
+                    entries = []
+                    for m in members:
+                        inner_ext = Path(m.filename).suffix.lstrip(".").lower()
+                        crc = format(m.CRC & 0xFFFFFFFF, "08x")
+                        entries.append((crc, inner_ext, m.filename))
+                    return entries
         except zipfile.BadZipFile:
             pass
-    return _crc32_raw(path), ext
+    return [(_crc32_raw(path), ext, path.name)]
 
 
 # ── DAT index (loaded once per process, keyed by platform id) ────────────────
@@ -352,67 +355,67 @@ def scan_folder(
         if ext not in all_exts and hint_platform is None:
             continue  # not a recognized ROM extension
 
-        crc, effective_ext = _crc32_and_ext(path)
+        for crc, effective_ext, display_name in _rom_entries(path):
 
-        # ── 1. DAT lookup ──────────────────────────────────────────────────
-        dat_hit = lookup_crc32(crc)
-        if dat_hit:
-            platform = platform_by_id.get(dat_hit.platform_id)
-            rom = ScannedROM(
-                path=str(path),
-                filename=path.name,
-                extension=effective_ext,
-                crc32=crc,
-                title=dat_hit.title,
-                region=dat_hit.region,
-                match_source="dat",
-                confidence=1.0,
-                platform_id=dat_hit.platform_id if platform else None,
-                platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
-                candidate_platforms=[],
-            )
-        else:
-            # ── 2. Filename fallback ───────────────────────────────────────
-            title, region = _clean_title(path.stem)
-
-            # Determine platform from hint > extension candidates
-            candidates = ext_map.get(effective_ext, [])
-            if hint_platform:
-                resolved = hint_platform
-                candidate_list: list[dict] = []
-            elif len(candidates) == 1:
-                resolved = candidates[0]
-                candidate_list = []
+            # ── 1. DAT lookup ──────────────────────────────────────────────────
+            dat_hit = lookup_crc32(crc)
+            if dat_hit:
+                platform = platform_by_id.get(dat_hit.platform_id)
+                rom = ScannedROM(
+                    path=str(path),
+                    filename=display_name,
+                    extension=effective_ext,
+                    crc32=crc,
+                    title=dat_hit.title,
+                    region=dat_hit.region,
+                    match_source="dat",
+                    confidence=1.0,
+                    platform_id=dat_hit.platform_id if platform else None,
+                    platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
+                    candidate_platforms=[],
+                )
             else:
-                resolved = None
-                candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
+                # ── 2. Filename fallback ───────────────────────────────────────
+                title, region = _clean_title(Path(display_name).stem)
 
-            rom = ScannedROM(
-                path=str(path),
-                filename=path.name,
-                extension=effective_ext,
-                crc32=crc,
-                title=title,
-                region=region,
-                match_source="filename" if resolved else "unmatched",
-                confidence=0.6 if resolved else 0.0,
-                platform_id=resolved.id if resolved else None,
-                platform_name=resolved.name if resolved else None,
-                candidate_platforms=candidate_list,
-            )
+                # Determine platform from hint > extension candidates
+                candidates = ext_map.get(effective_ext, [])
+                if hint_platform:
+                    resolved = hint_platform
+                    candidate_list: list[dict] = []
+                elif len(candidates) == 1:
+                    resolved = candidates[0]
+                    candidate_list = []
+                else:
+                    resolved = None
+                    candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
 
-        # ── 3. DB existence check ──────────────────────────────────────────
-        if rom.platform_id:
-            existing = (
-                db.query(Game)
-                .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
-                .first()
-            )
-            if existing:
-                rom.already_exists = True
-                rom.existing_game_id = existing.id
+                rom = ScannedROM(
+                    path=str(path),
+                    filename=display_name,
+                    extension=effective_ext,
+                    crc32=crc,
+                    title=title,
+                    region=region,
+                    match_source="filename" if resolved else "unmatched",
+                    confidence=0.6 if resolved else 0.0,
+                    platform_id=resolved.id if resolved else None,
+                    platform_name=resolved.name if resolved else None,
+                    candidate_platforms=candidate_list,
+                )
 
-        summary.roms.append(rom)
+            # ── 3. DB existence check ──────────────────────────────────────────
+            if rom.platform_id:
+                existing = (
+                    db.query(Game)
+                    .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
+                    .first()
+                )
+                if existing:
+                    rom.already_exists = True
+                    rom.existing_game_id = existing.id
+
+            summary.roms.append(rom)
 
     return summary
 
