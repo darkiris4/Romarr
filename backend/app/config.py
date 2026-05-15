@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     def dat_dir(self) -> Path:
         return Path(self.data_dir) / "dats"
 
+    @property
+    def log_dir(self) -> Path:
+        return Path(self.data_dir) / "logs"
+
     class Config:
         env_file = ".env"
 

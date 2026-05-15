@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Copy, Check } from 'lucide-react'
+import { logsApi } from '../../api/logs'
 
 export default function GeneralPage() {
   const [saved, setSaved] = useState(false)
   const [copiedKey, setCopiedKey] = useState(false)
+  const qc = useQueryClient()
 
   // Host
   const [bindAddress, setBindAddress] = useState('*')
@@ -20,8 +23,12 @@ export default function GeneralPage() {
   const apiKey = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
   // Logging
-  const [logLevel, setLogLevel] = useState('Info')
-  const [logRetention, setLogRetention] = useState('28')
+  const { data: levelData } = useQuery({ queryKey: ['log-level'], queryFn: logsApi.level })
+  const setLevelMutation = useMutation({
+    mutationFn: (level: string) => logsApi.setLevel(level),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['log-level'] }),
+  })
+  const logLevel = levelData?.level ?? 'info'
 
   // Analytics
   const [analytics, setAnalytics] = useState(false)
@@ -153,26 +160,22 @@ export default function GeneralPage() {
         {/* ── Logging ── */}
         <div className="settings-section-title">Logging</div>
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Log Level</label>
-            <select className="form-control" value={logLevel} onChange={e => setLogLevel(e.target.value)} style={{ maxWidth: 180 }}>
-              <option>Trace</option>
-              <option>Debug</option>
-              <option>Info</option>
-              <option>Warn</option>
-              <option>Error</option>
+            <select
+              className="form-control"
+              value={logLevel}
+              onChange={e => setLevelMutation.mutate(e.target.value)}
+              style={{ maxWidth: 180 }}
+            >
+              <option value="info">Info</option>
+              <option value="debug">Debug</option>
+              <option value="trace">Trace</option>
             </select>
             <div className="form-hint">
-              {logLevel === 'Trace' || logLevel === 'Debug'
+              {logLevel === 'trace' || logLevel === 'debug'
                 ? 'Verbose output — only enable for troubleshooting. Causes significant log growth.'
-                : 'Standard logging level.'}
-            </div>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Log Retention</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input className="form-control" type="number" value={logRetention} onChange={e => setLogRetention(e.target.value)} style={{ maxWidth: 100 }} />
-              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>days</span>
+                : 'Standard logging level. View log files under System → Logs.'}
             </div>
           </div>
         </div>
