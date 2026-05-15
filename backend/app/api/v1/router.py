@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import games, platforms, indexers, download_clients, queue, history, wanted, calendar, system, library, igdb, settings
+from . import games, platforms, indexers, download_clients, queue, history, wanted, calendar, system, library, igdb, settings, logs
 
 router = APIRouter()
 
@@ -15,3 +15,4 @@ router.include_router(calendar.router, prefix="/calendar", tags=["Calendar"])
 router.include_router(system.router, prefix="/system", tags=["System"])
 router.include_router(library.router, prefix="/library", tags=["Library"])
 router.include_router(settings.router, prefix="/settings", tags=["Settings"])
+router.include_router(logs.router, prefix="/logs", tags=["Logs"])

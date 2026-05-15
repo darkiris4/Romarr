@@ -30,7 +30,18 @@ def _load_dats():
     finally:
         db.close()
 
-logging.basicConfig(level=settings.log_level)
+from .services.log_service import setup_logging
+
+# Bootstrap logging from env/default before the DB is available.
+# The lifespan will reconfigure from the persisted DB setting once init_db() runs.
+setup_logging(settings.log_level.lower())
+
+# Keep console output during development
+_console = logging.StreamHandler()
+_console.setFormatter(logging.Formatter("%(levelname)-5s %(name)s: %(message)s"))
+_console.setLevel(logging.DEBUG)
+logging.getLogger().addHandler(_console)
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +49,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting %s", settings.app_name)
     init_db()
+    # Reconfigure logging from the persisted DB setting (may differ from env default)
+    from .services.config_service import get_config
+    setup_logging(get_config("log_level", settings.log_level.lower()))
     _load_dats()
     start_scheduler()
     yield

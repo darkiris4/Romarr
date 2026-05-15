@@ -112,11 +112,6 @@ def scrape_log(limit: int = 500):
     return {"entries": _log(limit)}
 
 
-@router.get("/logs")
-def get_logs(limit: int = 200):
-    # Structured log tail — extend with a real log handler in production
-    return {"page": 1, "totalRecords": 0, "records": []}
-
 
 @router.get("/backup")
 def list_backups():
