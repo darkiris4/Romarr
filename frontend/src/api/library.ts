@@ -29,7 +29,7 @@ export interface ScanPreview {
 
 export const libraryApi = {
   scanStart: (path: string, platform_hint_id?: number) =>
-    client.post<{ started?: boolean; already_running?: boolean }>('/library/scan', { path, platform_hint_id }).then(r => r.data),
+    client.post<{ started?: boolean; already_running?: boolean; error?: string }>('/library/scan', { path, platform_hint_id }).then(r => r.data),
 
   scanStatus: () =>
     client.get<{
@@ -45,20 +45,32 @@ export const libraryApi = {
   recentFolders: () =>
     client.get<{ path: string }[]>('/library/scan/recent').then(r => r.data),
 
-  import: (
+  deleteRecentFolder: (path: string): Promise<void> =>
+    client.delete('/library/scan/recent', { params: { path } }).then(() => undefined),
+
+  importStart: (
     path: string,
-    opts: { platform_hint_id?: number; platform_overrides?: Record<string, number>; skip_existing?: boolean }
+    opts: { platform_hint_id?: number; platform_overrides?: Record<string, number>; skip_existing?: boolean; selected_paths?: string[] }
   ) =>
-    client.post<{
-      scanned: number; created: number; updated: number
-      skipped_existing: number; skipped_ambiguous: number
-      dat_matches: number; filename_matches: number
-    }>('/library/import', {
+    client.post<{ started?: boolean; already_running?: boolean }>('/library/import', {
       path,
       platform_hint_id: opts.platform_hint_id,
       platform_overrides: opts.platform_overrides ?? {},
       skip_existing: opts.skip_existing ?? true,
+      selected_paths: opts.selected_paths ?? null,
     }).then(r => r.data),
+
+  importStatus: () =>
+    client.get<{
+      running: boolean
+      done: boolean
+      error: string | null
+      result: {
+        scanned: number; created: number; updated: number
+        skipped_existing: number; skipped_ambiguous: number
+        dat_matches: number; filename_matches: number
+      } | null
+    }>('/library/import/status').then(r => r.data),
 
   datStatus: () =>
     client.get<{

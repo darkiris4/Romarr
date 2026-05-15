@@ -22,4 +22,10 @@ export const gamesApi = {
 
   grab: (id: number, payload: { link: string; title: string; size: number; protocol: string; indexer: string; indexer_id?: number; seeders?: number }) =>
     client.post<{ success: boolean; download_id: string; queue_item_id: number }>(`/games/${id}/grab`, payload).then(r => r.data),
+
+  bulkDelete: (ids: number[]) =>
+    client.post('/games/bulk-delete', { ids }),
+
+  bulkTag: (ids: number[], tags: string) =>
+    client.patch('/games/bulk-tag', { ids, tags }),
 }

@@ -39,6 +39,19 @@ _scan_state: dict[str, Any] = {
 }
 _scan_lock = threading.Lock()
 
+_import_state: dict[str, Any] = {
+    "running": False,
+    "done": False,
+    "error": None,
+    "result": None,
+}
+_import_lock = threading.Lock()
+
+
+def import_status() -> dict:
+    with _import_lock:
+        return dict(_import_state)
+
 
 def scan_status() -> dict:
     with _scan_lock:
@@ -47,6 +60,12 @@ def scan_status() -> dict:
 
 def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
     """Start a folder scan in a background thread. Returns immediately."""
+    p = Path(folder_path).expanduser().resolve()
+    if not p.exists():
+        return {"error": f"Path not found: {folder_path}"}
+    if not p.is_dir():
+        return {"error": f"Not a directory: {folder_path}"}
+
     with _scan_lock:
         if _scan_state["running"]:
             return {"already_running": True}
@@ -406,6 +425,7 @@ def import_roms(
     platform_hint_id: int | None = None,
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
+    selected_paths: set[str] | None = None,
 ) -> dict:
     """
     Scan and create/update Game records.
@@ -420,6 +440,9 @@ def import_roms(
     created = updated = skipped_existing = skipped_ambiguous = 0
 
     for rom in summary.roms:
+        if selected_paths is not None and rom.path not in selected_paths:
+            continue
+
         # Apply manual override if provided
         if rom.path in overrides:
             rom.platform_id = overrides[rom.path]
@@ -478,3 +501,43 @@ def import_roms(
         logger.warning("Skipped %d ambiguous ROMs (no platform match): %s",
                        skipped_ambiguous, ambiguous_files[:20])
     return result
+
+
+def import_start(
+    folder_path: str,
+    platform_hint_id: int | None = None,
+    platform_overrides: dict[str, int] | None = None,
+    skip_existing: bool = True,
+    selected_paths: set[str] | None = None,
+) -> dict:
+    """Start a ROM import in a background thread. Returns immediately."""
+    with _import_lock:
+        if _import_state["running"]:
+            return {"already_running": True}
+        _import_state.update({"running": True, "done": False, "error": None, "result": None})
+
+    from ..database import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            result = import_roms(
+                db, folder_path,
+                platform_hint_id=platform_hint_id,
+                platform_overrides=platform_overrides,
+                skip_existing=skip_existing,
+                selected_paths=selected_paths,
+            )
+            if result.get("created", 0) > 0:
+                from .metadata_scraper import scrape_start
+                scrape_start()
+            with _import_lock:
+                _import_state.update({"running": False, "done": True, "result": result})
+        except Exception as exc:
+            with _import_lock:
+                _import_state.update({"running": False, "done": True, "error": str(exc)})
+        finally:
+            db.close()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return {"started": True}

@@ -27,6 +27,7 @@ class GameUpdate(BaseModel):
     release_year: int | None = None
     monitored: bool | None = None
     status: GameStatus | None = None
+    tags: str | None = None
 
 
 class GameOut(GameBase):
@@ -43,6 +44,7 @@ class GameOut(GameBase):
     game_modes: str | None = None
     themes: str | None = None
     similar_games: str | None = None
+    tags: str | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

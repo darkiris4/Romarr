@@ -1,16 +1,81 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FolderOpen, CheckCircle, AlertCircle, ArrowRight, Database, FileQuestion, Clock } from 'lucide-react'
+import { FolderOpen, CheckCircle, AlertCircle, ArrowRight, Database, FileQuestion, Clock, X } from 'lucide-react'
 import { libraryApi, type ScannedROM, type ScanPreview } from '../../api/library'
 import { platformsApi } from '../../api/platforms'
 
-type Step = 'path' | 'scanning' | 'preview' | 'done'
+type Step = 'path' | 'scanning' | 'preview' | 'importing' | 'done'
+
+function getRomType(filename: string): 'retail' | 'demo' | 'beta' | 'proto' | 'sample' {
+  if (/\(Demo\b/i.test(filename))  return 'demo'
+  if (/\(Beta\b/i.test(filename))  return 'beta'
+  if (/\(Proto/i.test(filename))   return 'proto'
+  if (/\(Sample\b/i.test(filename)) return 'sample'
+  return 'retail'
+}
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   dat:       { label: 'DAT match',   color: 'var(--success)',   icon: <Database size={11} /> },
   filename:  { label: 'Filename',    color: 'var(--warning)',   icon: <FileQuestion size={11} /> },
   unmatched: { label: 'No platform', color: 'var(--text-muted)', icon: <AlertCircle size={11} /> },
+}
+
+function MultiSelect({ label, options, selected, onChange }: {
+  label: string
+  options: { value: string; label: string }[]
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  if (options.length === 0) return null
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className={`import-filter-pill${selected.size > 0 ? ' active' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        {label}
+        {selected.size > 0 && <span className="import-filter-count">{selected.size}</span>}
+      </button>
+      {open && (
+        <div className="filter-dropdown-panel">
+          {options.map(opt => (
+            <label key={opt.value} className="filter-dropdown-item">
+              <input
+                type="checkbox"
+                checked={selected.has(opt.value)}
+                onChange={() => {
+                  const next = new Set(selected)
+                  if (next.has(opt.value)) next.delete(opt.value)
+                  else next.add(opt.value)
+                  onChange(next)
+                }}
+              />
+              {opt.label}
+            </label>
+          ))}
+          {selected.size > 0 && (
+            <button className="filter-dropdown-clear" onClick={() => { onChange(new Set()); setOpen(false) }}>
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function LibraryImportPage() {
@@ -23,11 +88,15 @@ export default function LibraryImportPage() {
   const [preview, setPreview] = useState<ScanPreview | null>(null)
   const [overrides, setOverrides] = useState<Record<string, number>>({})
   const [result, setResult] = useState<any>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'dat' | 'filename' | 'ambiguous' | 'exists'>('all')
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set())
+  const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set())
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
 
   const { data: platforms = [] } = useQuery({ queryKey: ['platforms'], queryFn: platformsApi.list })
   const { data: recentFolders = [] } = useQuery({ queryKey: ['recent-scan-folders'], queryFn: libraryApi.recentFolders })
 
-  // Poll scan status while scanning
   const { data: scanStatus } = useQuery({
     queryKey: ['scan-status'],
     queryFn: libraryApi.scanStatus,
@@ -35,39 +104,129 @@ export default function LibraryImportPage() {
     enabled: step === 'scanning',
   })
 
-  // When scan completes, move to preview
-  if (step === 'scanning' && scanStatus?.done && !scanStatus.running) {
+  const { data: importStatusData } = useQuery({
+    queryKey: ['import-status'],
+    queryFn: libraryApi.importStatus,
+    refetchInterval: step === 'importing' ? 800 : false,
+  })
+
+  // Recover from a page refresh mid-import
+  useEffect(() => {
+    if (!importStatusData) return
+    if (importStatusData.running && step !== 'importing') {
+      setStep('importing')
+    } else if (importStatusData.done && importStatusData.result && step === 'importing') {
+      setResult(importStatusData.result)
+      setStep('done')
+      qc.invalidateQueries({ queryKey: ['games'] })
+    }
+  }, [importStatusData, step, qc])
+
+  useEffect(() => {
+    if (step !== 'scanning' || !scanStatus?.done || scanStatus.running) return
     if (scanStatus.error) {
+      setScanError(scanStatus.error)
       setStep('path')
     } else if (scanStatus.result) {
       setPreview(scanStatus.result)
       setStep('preview')
     }
-  }
+  }, [scanStatus, step])
+
+  const deleteRecentMutation = useMutation({
+    mutationFn: (path: string) => libraryApi.deleteRecentFolder(path),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['recent-scan-folders'] }),
+  })
 
   const scanMutation = useMutation({
-    mutationFn: () => libraryApi.scanStart(folderPath.trim(), hintPlatformId),
-    onSuccess: () => {
+    mutationFn: (pathOverride?: string) =>
+      libraryApi.scanStart((pathOverride ?? folderPath).trim(), hintPlatformId),
+    onSuccess: (data, pathOverride) => {
+      if (data.error) {
+        setScanError(data.error)
+        return
+      }
+      setScanError(null)
+      if (pathOverride) setFolderPath(pathOverride)
+      setSelectedPlatforms(new Set())
+      setSelectedRegions(new Set())
+      setSelectedTypes(new Set())
       qc.invalidateQueries({ queryKey: ['recent-scan-folders'] })
       setStep('scanning')
     },
   })
 
   const importMutation = useMutation({
-    mutationFn: () => libraryApi.import(folderPath.trim(), {
+    mutationFn: () => libraryApi.importStart(folderPath.trim(), {
       platform_hint_id: hintPlatformId,
       platform_overrides: overrides,
+      selected_paths: filter === 'all' && selectedPlatforms.size === 0 && selectedRegions.size === 0
+        ? undefined
+        : eligiblePaths,
     }),
-    onSuccess: data => {
-      setResult(data)
-      setStep('done')
-      qc.invalidateQueries({ queryKey: ['games'] })
-    },
+    onSuccess: () => setStep('importing'),
   })
 
-  const toImport = preview
-    ? preview.roms.filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path])).length
-    : 0
+  const filteredRoms = preview?.roms.filter(rom => {
+    switch (filter) {
+      case 'dat':       if (rom.match_source !== 'dat') return false; break
+      case 'filename':  if (rom.match_source !== 'filename') return false; break
+      case 'ambiguous': if (rom.platform_id !== null || overrides[rom.path]) return false; break
+      case 'exists':    if (!rom.already_exists) return false; break
+    }
+    if (selectedPlatforms.size > 0) {
+      const pid = String(overrides[rom.path] ?? rom.platform_id ?? '')
+      if (!selectedPlatforms.has(pid)) return false
+    }
+    if (selectedRegions.size > 0) {
+      const romRegions = (rom.region || '').split(',').map(r => r.trim())
+      if (!romRegions.includes('World') && !romRegions.some(r => selectedRegions.has(r))) return false
+    }
+    if (selectedTypes.size > 0 && !selectedTypes.has(getRomType(rom.filename))) return false
+    return true
+  }) ?? []
+
+  const eligiblePaths = filteredRoms
+    .filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path]))
+    .map(r => r.path)
+
+  const toImport = filteredRoms.filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path])).length
+
+  const platformOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    preview?.roms.forEach(r => {
+      if (r.platform_id === null) return
+      const name = r.platform_name ?? platforms.find(p => p.id === r.platform_id)?.name ?? `#${r.platform_id}`
+      seen.set(String(r.platform_id), name)
+    })
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([v, l]) => ({ value: v, label: l }))
+  }, [preview, platforms])
+
+  const regionOptions = useMemo(() => {
+    const regions = new Set<string>()
+    preview?.roms.forEach(r => {
+      if (!r.region || r.region === 'Unknown') return
+      r.region.split(',').forEach(part => { const t = part.trim(); if (t) regions.add(t) })
+    })
+    return [...regions].sort().map(r => ({ value: r, label: r }))
+  }, [preview])
+
+  const typeOptions = useMemo(() => {
+    if (!preview) return []
+    const counts: Record<string, number> = {}
+    preview.roms.forEach(r => {
+      const t = getRomType(r.filename)
+      counts[t] = (counts[t] || 0) + 1
+    })
+    return ([
+      { value: 'retail', label: 'Retail' },
+      { value: 'demo',   label: 'Demo' },
+      { value: 'beta',   label: 'Beta' },
+      { value: 'proto',  label: 'Proto' },
+      { value: 'sample', label: 'Sample' },
+    ] as const).filter(t => counts[t.value] > 0)
+      .map(t => ({ value: t.value, label: `${t.label} (${counts[t.value].toLocaleString()})` }))
+  }, [preview])
 
   const pct = scanStatus?.total
     ? Math.round((scanStatus.processed / scanStatus.total) * 100)
@@ -83,10 +242,10 @@ export default function LibraryImportPage() {
           <input
             className="form-control"
             value={folderPath}
-            onChange={e => setFolderPath(e.target.value)}
+            onChange={e => { setFolderPath(e.target.value); setScanError(null) }}
             placeholder="/home/user/roms"
             autoFocus
-            onKeyDown={e => e.key === 'Enter' && folderPath.trim() && scanMutation.mutate()}
+            onKeyDown={e => e.key === 'Enter' && folderPath.trim() && scanMutation.mutate(undefined)}
           />
           <div className="form-hint">
             Romarr walks the folder recursively. Any subdirectory layout works — filenames and folder names don't need to follow any convention.
@@ -121,24 +280,22 @@ export default function LibraryImportPage() {
           </div>
         </div>
 
-        {scanMutation.isError && (
+        {scanError && (
           <div className="alert alert-danger">
-            <AlertCircle size={14} />
-            {String((scanMutation.error as any)?.response?.data?.detail ?? 'Scan failed')}
+            <AlertCircle size={14} /> {scanError}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn btn-primary"
-            onClick={() => scanMutation.mutate()}
+            onClick={() => scanMutation.mutate(undefined)}
             disabled={!folderPath.trim() || scanMutation.isPending}
           >
             {scanMutation.isPending ? 'Starting…' : <><FolderOpen size={14} /> Scan</>}
           </button>
         </div>
 
-        {/* Recent folders */}
         {recentFolders.length > 0 && (
           <div style={{ marginTop: 32 }}>
             <div className="settings-section-title" style={{ marginBottom: 12 }}>Recent Folders</div>
@@ -147,6 +304,7 @@ export default function LibraryImportPage() {
                 <thead>
                   <tr>
                     <th>Path</th>
+                    <th />
                     <th />
                   </tr>
                 </thead>
@@ -157,10 +315,20 @@ export default function LibraryImportPage() {
                       <td className="col-action">
                         <button
                           className="btn btn-secondary btn-sm"
-                          onClick={() => { setFolderPath(f.path); scanMutation.mutate() }}
+                          onClick={() => scanMutation.mutate(f.path)}
                           disabled={scanMutation.isPending}
                         >
                           <Clock size={12} /> Scan
+                        </button>
+                      </td>
+                      <td className="col-action">
+                        <button
+                          className="btn btn-icon btn-sm"
+                          onClick={() => deleteRecentMutation.mutate(f.path)}
+                          disabled={deleteRecentMutation.isPending}
+                          title="Remove"
+                        >
+                          <X size={13} />
                         </button>
                       </td>
                     </tr>
@@ -212,72 +380,139 @@ export default function LibraryImportPage() {
   )
 
   /* ── Step 3: preview ── */
-  if (step === 'preview' && preview) return (
-    <div className="import-page">
-      <div className="import-stat-strip">
-        {[
-          { label: 'Files scanned',  value: preview.total_files_seen },
-          { label: 'DAT matches',    value: preview.dat_matches,      color: 'var(--success)' },
-          { label: 'Filename guess', value: preview.filename_matches, color: 'var(--warning)' },
-          { label: 'Ambiguous',      value: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
-          { label: 'To import',      value: toImport,                 color: 'var(--accent-hover)' },
-        ].map(s => (
-          <div key={s.label} className="import-stat">
-            <div className="import-stat-value" style={{ color: s.color ?? 'var(--text-white)' }}>{s.value}</div>
-            <div className="import-stat-label">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {preview.ambiguous > 0 && (
-        <div className="alert alert-info" style={{ marginBottom: 16 }}>
-          <AlertCircle size={14} />
-          {preview.ambiguous} file{preview.ambiguous !== 1 ? 's have' : ' has'} an ambiguous extension (e.g. <code>.bin</code>).
-          Assign a platform below or set a Platform Hint and re-scan.
-        </div>
-      )}
-
-      <div className="card" style={{ padding: 0, marginBottom: 20 }}>
-        <table className="import-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Platform</th>
-              <th>Region</th>
-              <th>Identified by</th>
-              <th style={{ textAlign: 'right' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {preview.roms.map((rom, i) => (
-              <ROMRow
-                key={i}
-                rom={rom}
-                platforms={platforms}
-                override={overrides[rom.path]}
-                onOverride={pid => setOverrides(prev => ({ ...prev, [rom.path]: pid }))}
-              />
+  if (step === 'preview' && preview) {
+    const filterDefs = [
+      { key: 'all'      as const, label: 'All',       count: preview.roms.length },
+      { key: 'dat'      as const, label: 'DAT',        count: preview.dat_matches,      color: 'var(--success)' },
+      { key: 'filename' as const, label: 'Filename',   count: preview.filename_matches, color: 'var(--warning)' },
+      { key: 'ambiguous'as const, label: 'Ambiguous',  count: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
+      { key: 'exists'   as const, label: 'Exists',     count: preview.already_imported },
+    ]
+    return (
+      <div className="import-page">
+        <div className="import-toolbar">
+          <button className="btn btn-secondary btn-sm" onClick={() => setStep('path')}>← Back</button>
+          <div className="import-filter-pills">
+            {filterDefs.map(f => (
+              <button
+                key={f.key}
+                className={`import-filter-pill${filter === f.key ? ' active' : ''}`}
+                onClick={() => setFilter(f.key)}
+              >
+                <span style={{ color: filter === f.key ? undefined : f.color }}>{f.label}</span>
+                <span className="import-filter-count">{f.count.toLocaleString()}</span>
+              </button>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+          <MultiSelect
+            label="Platform"
+            options={platformOptions}
+            selected={selectedPlatforms}
+            onChange={setSelectedPlatforms}
+          />
+          <MultiSelect
+            label="Region"
+            options={regionOptions}
+            selected={selectedRegions}
+            onChange={setSelectedRegions}
+          />
+          <MultiSelect
+            label="Type"
+            options={typeOptions}
+            selected={selectedTypes}
+            onChange={setSelectedTypes}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => importMutation.mutate()}
+            disabled={importMutation.isPending || toImport === 0}
+          >
+            {importMutation.isPending
+              ? 'Starting…'
+              : <><ArrowRight size={14} /> Import {toImport.toLocaleString()} ROM{toImport !== 1 ? 's' : ''}</>}
+          </button>
+        </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn btn-secondary" onClick={() => setStep('path')}>Back</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => importMutation.mutate()}
-          disabled={importMutation.isPending || toImport === 0}
-        >
-          {importMutation.isPending
-            ? 'Importing…'
-            : <><ArrowRight size={14} /> Import {toImport} ROM{toImport !== 1 ? 's' : ''}</>}
-        </button>
+        <div className="import-stat-strip">
+          {[
+            { label: 'Files scanned',  value: preview.total_files_seen },
+            { label: 'DAT matches',    value: preview.dat_matches,      color: 'var(--success)' },
+            { label: 'Filename guess', value: preview.filename_matches, color: 'var(--warning)' },
+            { label: 'Ambiguous',      value: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
+            { label: 'Already exists', value: preview.already_imported },
+          ].map(s => (
+            <div key={s.label} className="import-stat">
+              <div className="import-stat-value" style={{ color: s.color ?? 'var(--text-white)' }}>{s.value.toLocaleString()}</div>
+              <div className="import-stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {filter === 'ambiguous' && preview.ambiguous > 0 && (
+          <div className="alert alert-info" style={{ marginBottom: 16 }}>
+            <AlertCircle size={14} />
+            Assign a platform to each file below, or go back and set a Platform Hint and re-scan.
+          </div>
+        )}
+
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <table className="import-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Platform</th>
+                <th>Region</th>
+                <th>Identified by</th>
+                <th style={{ textAlign: 'right' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRoms.map((rom, i) => (
+                <ROMRow
+                  key={i}
+                  rom={rom}
+                  platforms={platforms}
+                  override={overrides[rom.path]}
+                  onOverride={pid => setOverrides(prev => ({ ...prev, [rom.path]: pid }))}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Step 4: importing ── */
+  if (step === 'importing') return (
+    <div className="import-page">
+      <p className="import-page-hint">Importing ROMs…</p>
+      <div className="import-page-form">
+        <div className="card">
+          <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+            Writing games to library — this may take a moment for large collections.
+          </div>
+          <div style={{ height: 6, background: 'rgba(255,255,255,.08)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: '100%',
+              background: 'var(--accent)',
+              borderRadius: 3,
+              animation: 'progress-indeterminate 1.4s ease infinite',
+            }} />
+          </div>
+          {importStatusData?.error && (
+            <div className="alert alert-danger" style={{ marginTop: 16 }}>
+              <AlertCircle size={14} /> {importStatusData.error}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 
-  /* ── Step 4: done ── */
+  /* ── Step 5: done ── */
   return (
     <div className="import-page">
       <div className="import-done">

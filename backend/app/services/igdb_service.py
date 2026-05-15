@@ -162,19 +162,37 @@ def _title_variants(title: str) -> list[str]:
     return seen
 
 
+_IGDB_MIN_INTERVAL = 0.26  # ~4 req/s — IGDB free tier limit
+_last_igdb_request: float = 0.0
+
+
 def _igdb_query(client_id: str, token: str, body: str) -> list:
-    try:
-        resp = httpx.post(
-            "https://api.igdb.com/v4/games",
-            headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
-            content=body.encode(),
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("IGDB request error: %s", exc)
-        return []
+    global _last_igdb_request
+    elapsed = time.monotonic() - _last_igdb_request
+    if elapsed < _IGDB_MIN_INTERVAL:
+        time.sleep(_IGDB_MIN_INTERVAL - elapsed)
+
+    for attempt in range(3):
+        _last_igdb_request = time.monotonic()
+        try:
+            resp = httpx.post(
+                "https://api.igdb.com/v4/games",
+                headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
+                content=body.encode(),
+                timeout=10,
+            )
+            if resp.status_code == 429:
+                wait = 2 ** attempt
+                logger.warning("IGDB rate limited — backing off %ds (attempt %d/3)", wait, attempt + 1)
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("IGDB request error: %s", exc)
+            return []
+    logger.warning("IGDB rate limit not resolved after 3 attempts — skipping query")
+    return []
 
 
 def _run_tiered_search(title: str, igdb_platform_id: int | None) -> tuple[list, list[dict]]:

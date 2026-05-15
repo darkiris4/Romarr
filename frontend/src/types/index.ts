@@ -33,6 +33,7 @@ export interface Game {
   game_modes?: string
   themes?: string
   similar_games?: string
+  tags?: string | null
   added_at: string
   updated_at: string
 }

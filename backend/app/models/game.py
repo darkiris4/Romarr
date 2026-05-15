@@ -36,6 +36,7 @@ class Game(Base):
     game_modes: Mapped[str | None] = mapped_column(String, nullable=True)
     themes: Mapped[str | None] = mapped_column(String, nullable=True)
     similar_games: Mapped[str | None] = mapped_column(String, nullable=True)
+    tags: Mapped[str | None] = mapped_column(String, nullable=True)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

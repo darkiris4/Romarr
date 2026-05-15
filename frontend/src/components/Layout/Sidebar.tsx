@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Gamepad2, Plus, FolderInput,
@@ -8,6 +9,7 @@ import {
   HardDrive, Wifi, Server, FileInput, Plug, Database, Tag, Settings, Monitor, Star,
   Activity, CheckSquare, Archive, RefreshCw, Bell, FileText,
 } from 'lucide-react'
+import { systemApi } from '../../api/system'
 
 interface Child {
   to: string
@@ -74,6 +76,35 @@ const SECTIONS: Section[] = [
   },
 ]
 
+function ScrapeIndicator() {
+  const { data } = useQuery({
+    queryKey: ['scrape-status-sidebar'],
+    queryFn: systemApi.scrapeStatus,
+    refetchInterval: (query) => query.state.data?.running ? 2000 : 15000,
+  })
+
+  if (!data?.running) return null
+
+  const pct = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0
+  const label = data.total > 0
+    ? `${data.processed.toLocaleString()} / ${data.total.toLocaleString()}`
+    : `${data.processed.toLocaleString()} processed`
+
+  return (
+    <div className="sidebar-scrape-indicator" onClick={() => window.location.href = '/system/tasks'} title="Go to Tasks">
+      <div className="sidebar-scrape-header">
+        <RefreshCw size={11} className="sidebar-scrape-spin" />
+        <span>Updating metadata</span>
+        <span className="sidebar-scrape-pct">{pct}%</span>
+      </div>
+      <div className="sidebar-scrape-bar">
+        <div className="sidebar-scrape-fill" style={{ width: data.total > 0 ? `${pct}%` : '100%', animation: data.total > 0 ? 'none' : 'progress-indeterminate 1.4s ease infinite' }} />
+      </div>
+      <div className="sidebar-scrape-sub">{label} · {data.updated} matched · {data.failed} skipped</div>
+    </div>
+  )
+}
+
 export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -108,7 +139,7 @@ export default function Sidebar() {
         Romarr
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" style={{ flex: 1 }}>
         {SECTIONS.map(s => {
           const isOpen = open.has(s.key)
           const isActive = location.pathname.startsWith(s.prefix)
@@ -139,6 +170,10 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      <div className="sidebar-footer">
+        <ScrapeIndicator />
+      </div>
     </aside>
   )
 }

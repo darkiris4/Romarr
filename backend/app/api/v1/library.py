@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...services.library_scanner import scan_folder, import_roms, scan_start, scan_status
+from ...services.library_scanner import scan_folder, import_roms, scan_start, scan_status, import_start as _import_start, import_status as _import_status
 from ...services.dat_manager import scan_dat_dir, dat_status as _dat_status
 from ...services.config_service import get_config, set_config
 from ...config import settings
@@ -25,6 +25,7 @@ class ImportRequest(BaseModel):
     platform_hint_id: int | None = None
     platform_overrides: dict[str, int] = {}
     skip_existing: bool = True
+    selected_paths: list[str] | None = None
 
 
 def _add_recent_folder(path: str):
@@ -51,20 +52,29 @@ def get_recent_folders():
     return json.loads(get_config(_RECENT_FOLDERS_KEY, "[]"))
 
 
+@router.delete("/scan/recent")
+def delete_recent_folder(path: str):
+    existing = json.loads(get_config(_RECENT_FOLDERS_KEY, "[]"))
+    folders = [f for f in existing if f["path"] != path]
+    set_config(_RECENT_FOLDERS_KEY, json.dumps(folders))
+    return {"ok": True}
+
+
+@router.get("/import/status")
+def get_import_status():
+    return _import_status()
+
+
 @router.post("/import")
-def do_import(payload: ImportRequest, db: Session = Depends(get_db)):
-    """Scan and create Game records, then kick off a metadata scrape."""
-    result = import_roms(
-        db,
+def do_import(payload: ImportRequest):
+    """Start a background ROM import. Returns immediately; poll /import/status."""
+    return _import_start(
         payload.path,
         platform_hint_id=payload.platform_hint_id,
         platform_overrides=payload.platform_overrides,
         skip_existing=payload.skip_existing,
+        selected_paths=set(payload.selected_paths) if payload.selected_paths is not None else None,
     )
-    if result.get("created", 0) > 0:
-        from ...services.metadata_scraper import scrape_start
-        scrape_start()
-    return result
 
 
 @router.get("/dat/status")

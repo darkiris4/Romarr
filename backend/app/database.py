@@ -76,6 +76,7 @@ def _migrate():
     _add_column_if_missing("games", "game_modes", "TEXT")
     _add_column_if_missing("games", "themes", "TEXT")
     _add_column_if_missing("games", "similar_games", "TEXT")
+    _add_column_if_missing("games", "tags", "TEXT")
     _seed_platforms()
     _seed_igdb_platform_ids()
 
