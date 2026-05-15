@@ -310,17 +310,32 @@ def fetch_game_metadata_debug(
 
 
 def fetch_enrichment_by_id(igdb_id: int) -> dict | None:
-    """Fetch extended metadata (summary, rating, modes, themes, similar) for a known IGDB ID."""
+    """Fetch extended metadata for a single known IGDB ID."""
+    results = fetch_enrichment_batch([igdb_id])
+    return results.get(igdb_id)
+
+
+def fetch_enrichment_batch(igdb_ids: list[int]) -> dict[int, dict]:
+    """Fetch extended metadata for up to 50 IGDB IDs in one request.
+    Returns a dict keyed by igdb_id."""
+    if not igdb_ids:
+        return {}
     client_id, _ = _credentials()
     token = _get_token()
     if not token:
-        return None
+        return {}
     fields = (
         "fields id, name, first_release_date, cover.image_id,"
         " summary, rating, aggregated_rating, total_rating,"
         " game_modes.name, themes.name,"
         " similar_games.name, similar_games.cover.image_id;"
     )
-    body = f"{fields} where id = {igdb_id}; limit 1;"
+    id_list = ", ".join(str(i) for i in igdb_ids)
+    body = f"{fields} where id = ({id_list}); limit {len(igdb_ids)};"
     results = _igdb_query(client_id, token, body)
-    return _build_metadata(results)
+    out: dict[int, dict] = {}
+    for game in results:
+        meta = _build_metadata([game])
+        if meta:
+            out[game["id"]] = meta
+    return out
