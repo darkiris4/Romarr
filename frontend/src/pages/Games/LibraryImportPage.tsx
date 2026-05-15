@@ -25,9 +25,9 @@ function isStructuralTag(tag: string): boolean {
 const RETAIL_TAG = '__retail__'
 
 function extractContentTags(filename: string): string[] {
-  return [...filename.matchAll(/\(([^)]+)\)/g)]
-    .map(m => m[1].trim())
-    .filter(tag => !isStructuralTag(tag))
+  const roundTags = [...filename.matchAll(/\(([^)]+)\)/g)].map(m => m[1].trim()).filter(tag => !isStructuralTag(tag))
+  const squareTags = [...filename.matchAll(/\[([^\]]+)\]/g)].map(m => m[1].trim())
+  return [...squareTags, ...roundTags]
 }
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
