@@ -1,11 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Gamepad2, Table2, LayoutGrid, AlignJustify, RefreshCw, CheckSquare, Tag, Trash2, Filter, ArrowUpDown, Copy } from 'lucide-react'
+import { Gamepad2, Table2, LayoutGrid, AlignJustify, RefreshCw, CheckSquare, Tag, Trash2, Filter, ArrowUpDown } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
 import { platformsApi } from '../../api/platforms'
-import { libraryApi } from '../../api/library'
 import ConfirmModal from '../../components/ConfirmModal'
 import GamesTable from './GamesTable'
 import GamesPosters from './GamesPosters'
@@ -94,8 +93,6 @@ export default function GamesPage() {
   const filterRegions   = useMemo(() => parseStrs(searchParams, 'regions'),    [searchParams])
   const sortBy = (searchParams.get('sort') as SortKey) || 'name_asc'
 
-  const [dedupResult, setDedupResult] = useState<string | null>(null)
-
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
@@ -150,15 +147,6 @@ export default function GamesPage() {
     onSuccess: () => {
       setUpdateAllDone(true)
       setTimeout(() => setUpdateAllDone(false), 2500)
-    },
-  })
-
-  const dedupMutation = useMutation({
-    mutationFn: () => libraryApi.deduplicate(),
-    onSuccess: ({ removed }) => {
-      qc.invalidateQueries({ queryKey: ['games'] })
-      setDedupResult(removed > 0 ? `Removed ${removed}` : 'None found')
-      setTimeout(() => setDedupResult(null), 3000)
     },
   })
 
@@ -268,16 +256,6 @@ export default function GamesPage() {
             >
               <CheckSquare size={18} />
               <span>Edit Games</span>
-            </button>
-
-            <button
-              className="toolbar-icon-btn"
-              onClick={() => dedupMutation.mutate()}
-              disabled={dedupMutation.isPending || dedupResult !== null}
-              title="Find and remove duplicate game entries"
-            >
-              <Copy size={18} />
-              <span>{dedupResult ?? (dedupMutation.isPending ? 'Running…' : 'Dedupe')}</span>
             </button>
 
             <div className="spacer" />
