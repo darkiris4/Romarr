@@ -86,21 +86,23 @@ function ScrapeIndicator() {
   if (!data?.running) return null
 
   const pct = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0
-  const label = data.total > 0
-    ? `${data.processed.toLocaleString()} / ${data.total.toLocaleString()}`
-    : `${data.processed.toLocaleString()} processed`
+  const isEnriching = data.phase === 'enriching'
+  const heading = isEnriching ? 'Enriching metadata' : 'Updating metadata'
+  const sub = isEnriching
+    ? `${data.processed.toLocaleString()} / ${data.total.toLocaleString()} enriched`
+    : `${data.processed.toLocaleString()} / ${data.total.toLocaleString()} · ${data.updated} matched · ${data.failed} skipped`
 
   return (
     <div className="sidebar-scrape-indicator" onClick={() => window.location.href = '/system/tasks'} title="Go to Tasks">
       <div className="sidebar-scrape-header">
         <RefreshCw size={11} className="sidebar-scrape-spin" />
-        <span>Updating metadata</span>
+        <span>{heading}</span>
         <span className="sidebar-scrape-pct">{pct}%</span>
       </div>
       <div className="sidebar-scrape-bar">
         <div className="sidebar-scrape-fill" style={{ width: data.total > 0 ? `${pct}%` : '100%', animation: data.total > 0 ? 'none' : 'progress-indeterminate 1.4s ease infinite' }} />
       </div>
-      <div className="sidebar-scrape-sub">{label} · {data.updated} matched · {data.failed} skipped</div>
+      <div className="sidebar-scrape-sub">{sub}</div>
     </div>
   )
 }

@@ -30,6 +30,7 @@ _DEBUG_LOG = Path(settings.data_dir) / "scrape_debug.jsonl"
 
 class ScrapeState(TypedDict):
     running: bool
+    phase: str          # 'scraping' | 'enriching'
     total: int
     processed: int
     updated: int
@@ -39,6 +40,7 @@ class ScrapeState(TypedDict):
 
 _state: ScrapeState = {
     "running": False,
+    "phase": "scraping",
     "total": 0,
     "processed": 0,
     "updated": 0,
@@ -73,7 +75,7 @@ def scrape_start() -> dict:
         if _state["running"]:
             return {"already_running": True, "running": True}
         _state.update({
-            "running": True, "done": False, "error": None,
+            "running": True, "phase": "scraping", "done": False, "error": None,
             "total": 0, "processed": 0, "updated": 0, "failed": 0,
         })
 
@@ -178,6 +180,9 @@ def scrape_pending() -> dict:
             .all()
         )
         enriched = 0
+        _state["phase"] = "enriching"
+        _state["total"] = len(to_enrich)
+        _state["processed"] = 0
         _log_entry({"event": "enrich_start", "total": len(to_enrich)})
         for game in to_enrich:
             try:
@@ -196,6 +201,7 @@ def scrape_pending() -> dict:
                     enriched += 1
             except Exception as exc:
                 logger.warning("Enrich failed for igdb_id=%s: %s", game.igdb_id, exc)
+            _state["processed"] += 1
         db.commit()
         _log_entry({"event": "enrich_end", "enriched": enriched})
 

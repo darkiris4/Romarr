@@ -7,12 +7,27 @@ import { platformsApi } from '../../api/platforms'
 
 type Step = 'path' | 'scanning' | 'preview' | 'importing' | 'done'
 
-function getRomType(filename: string): 'retail' | 'demo' | 'beta' | 'proto' | 'sample' {
-  if (/\(Demo\b/i.test(filename))  return 'demo'
-  if (/\(Beta\b/i.test(filename))  return 'beta'
-  if (/\(Proto/i.test(filename))   return 'proto'
-  if (/\(Sample\b/i.test(filename)) return 'sample'
-  return 'retail'
+const KNOWN_REGIONS = new Set([
+  'USA', 'Europe', 'Japan', 'World', 'Australia', 'Brazil', 'Korea', 'China',
+  'Taiwan', 'Spain', 'France', 'Germany', 'Italy', 'Netherlands', 'Asia',
+  'Scandinavia', 'Sweden', 'Norway', 'Denmark', 'Finland', 'Poland', 'Russia',
+  'Canada', 'Mexico', 'Argentina', 'Portugal', 'Greece', 'Turkey', 'Hong Kong',
+  'UK', 'England', 'Latin America', 'South Africa', 'India', 'Unknown',
+])
+
+function isStructuralTag(tag: string): boolean {
+  if (/^Rev\s+\S+$/i.test(tag)) return true
+  if (/^v\d[\d.]*$/i.test(tag)) return true
+  if (/^[A-Z][a-z](?:-[A-Za-z]+)?(?:,[A-Z][a-z](?:-[A-Za-z]+)?)*$/.test(tag)) return true
+  return tag.split(',').map(p => p.trim()).every(p => KNOWN_REGIONS.has(p))
+}
+
+const RETAIL_TAG = '__retail__'
+
+function extractContentTags(filename: string): string[] {
+  return [...filename.matchAll(/\(([^)]+)\)/g)]
+    .map(m => m[1].trim())
+    .filter(tag => !isStructuralTag(tag))
 }
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -182,7 +197,11 @@ export default function LibraryImportPage() {
       const romRegions = (rom.region || '').split(',').map(r => r.trim())
       if (!romRegions.includes('World') && !romRegions.some(r => selectedRegions.has(r))) return false
     }
-    if (selectedTypes.size > 0 && !selectedTypes.has(getRomType(rom.filename))) return false
+    if (selectedTypes.size > 0) {
+      const tags = extractContentTags(rom.filename)
+      const isRetail = tags.length === 0
+      if (!(isRetail && selectedTypes.has(RETAIL_TAG)) && !tags.some(t => selectedTypes.has(t))) return false
+    }
     return true
   }) ?? []
 
@@ -213,19 +232,23 @@ export default function LibraryImportPage() {
 
   const typeOptions = useMemo(() => {
     if (!preview) return []
-    const counts: Record<string, number> = {}
+    const counts = new Map<string, number>()
+    let retailCount = 0
     preview.roms.forEach(r => {
-      const t = getRomType(r.filename)
-      counts[t] = (counts[t] || 0) + 1
+      const tags = extractContentTags(r.filename)
+      if (tags.length === 0) {
+        retailCount++
+      } else {
+        tags.forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1))
+      }
     })
-    return ([
-      { value: 'retail', label: 'Retail' },
-      { value: 'demo',   label: 'Demo' },
-      { value: 'beta',   label: 'Beta' },
-      { value: 'proto',  label: 'Proto' },
-      { value: 'sample', label: 'Sample' },
-    ] as const).filter(t => counts[t.value] > 0)
-      .map(t => ({ value: t.value, label: `${t.label} (${counts[t.value].toLocaleString()})` }))
+    const tagOptions = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag, count]) => ({ value: tag, label: `${tag} (${count.toLocaleString()})` }))
+    return [
+      ...(retailCount > 0 ? [{ value: RETAIL_TAG, label: `Retail (${retailCount.toLocaleString()})` }] : []),
+      ...tagOptions,
+    ]
   }, [preview])
 
   const pct = scanStatus?.total
