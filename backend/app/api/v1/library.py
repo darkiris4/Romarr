@@ -25,7 +25,7 @@ class ImportRequest(BaseModel):
     platform_hint_id: int | None = None
     platform_overrides: dict[str, int] = {}
     skip_existing: bool = True
-    selected_paths: list[str] | None = None
+    selected_keys: list[str] | None = None  # "path::inner_filename" per ROM entry
 
 
 def _add_recent_folder(path: str):
@@ -73,7 +73,7 @@ def do_import(payload: ImportRequest):
         platform_hint_id=payload.platform_hint_id,
         platform_overrides=payload.platform_overrides,
         skip_existing=payload.skip_existing,
-        selected_paths=set(payload.selected_paths) if payload.selected_paths is not None else None,
+        selected_keys=set(payload.selected_keys) if payload.selected_keys is not None else None,
     )
 
 

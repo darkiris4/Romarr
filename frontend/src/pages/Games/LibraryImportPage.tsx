@@ -180,9 +180,9 @@ export default function LibraryImportPage() {
     mutationFn: () => libraryApi.importStart(folderPath.trim(), {
       platform_hint_id: hintPlatformId,
       platform_overrides: overrides,
-      selected_paths: activeFilters.size === 0 && selectedPlatforms.size === 0 && selectedRegions.size === 0 && selectedTypes.size === 0
+      selected_keys: activeFilters.size === 0 && selectedPlatforms.size === 0 && selectedRegions.size === 0 && selectedTypes.size === 0
         ? undefined
-        : eligiblePaths,
+        : eligibleKeys,
     }),
     onSuccess: () => setStep('importing'),
   })
@@ -209,12 +209,12 @@ export default function LibraryImportPage() {
     return true
   }) ?? []
 
-  // Include all resolvable ROMs in selected_paths — the backend re-scans at import
-  // time and does its own fresh already_exists check, so we don't filter by
-  // already_exists here. That avoids stale preview data causing games to be missed.
-  const eligiblePaths = filteredRoms
+  // Use "path::filename" as the unique key per ROM entry so multi-ROM ZIPs are
+  // handled correctly — only the specific inner files the user selected get imported,
+  // not every variant in the ZIP. Backend re-scans and does its own exists check.
+  const eligibleKeys = filteredRoms
     .filter(r => r.platform_id !== null || overrides[r.path])
-    .map(r => r.path)
+    .map(r => `${r.path}::${r.filename}`)
 
   const toImport = filteredRoms.filter(r => !r.already_exists && (r.platform_id !== null || overrides[r.path])).length
 

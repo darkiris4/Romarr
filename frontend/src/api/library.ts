@@ -50,14 +50,14 @@ export const libraryApi = {
 
   importStart: (
     path: string,
-    opts: { platform_hint_id?: number; platform_overrides?: Record<string, number>; skip_existing?: boolean; selected_paths?: string[] }
+    opts: { platform_hint_id?: number; platform_overrides?: Record<string, number>; skip_existing?: boolean; selected_keys?: string[] }
   ) =>
     client.post<{ started?: boolean; already_running?: boolean }>('/library/import', {
       path,
       platform_hint_id: opts.platform_hint_id,
       platform_overrides: opts.platform_overrides ?? {},
       skip_existing: opts.skip_existing ?? true,
-      selected_paths: opts.selected_paths ?? null,
+      selected_keys: opts.selected_keys ?? null,
     }).then(r => r.data),
 
   importStatus: () =>

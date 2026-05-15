@@ -428,13 +428,15 @@ def import_roms(
     platform_hint_id: int | None = None,
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
-    selected_paths: set[str] | None = None,
+    selected_keys: set[str] | None = None,
 ) -> dict:
     """
     Scan and create/update Game records.
 
     platform_overrides: {rom_path: platform_id} — lets the UI assign platforms
                         to ambiguous files before confirming.
+    selected_keys: set of "path::filename" strings identifying exactly which
+                   inner ROM entries to import (handles multi-ROM ZIPs correctly).
     """
     summary = scan_folder(db, folder_path, platform_hint_id)
     overrides = platform_overrides or {}
@@ -443,8 +445,10 @@ def import_roms(
     created = updated = skipped_existing = skipped_ambiguous = 0
 
     for rom in summary.roms:
-        if selected_paths is not None and rom.path not in selected_paths:
-            continue
+        if selected_keys is not None:
+            key = f"{rom.path}::{rom.filename}"
+            if key not in selected_keys:
+                continue
 
         # Apply manual override if provided
         if rom.path in overrides:
@@ -511,7 +515,7 @@ def import_start(
     platform_hint_id: int | None = None,
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
-    selected_paths: set[str] | None = None,
+    selected_keys: set[str] | None = None,
 ) -> dict:
     """Start a ROM import in a background thread. Returns immediately."""
     with _import_lock:
@@ -529,7 +533,7 @@ def import_start(
                 platform_hint_id=platform_hint_id,
                 platform_overrides=platform_overrides,
                 skip_existing=skip_existing,
-                selected_paths=selected_paths,
+                selected_keys=selected_keys,
             )
             if result.get("created", 0) > 0:
                 from .metadata_scraper import scrape_start
