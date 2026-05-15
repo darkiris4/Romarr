@@ -104,7 +104,11 @@ export default function LibraryImportPage() {
   const [overrides, setOverrides] = useState<Record<string, number>>({})
   const [result, setResult] = useState<any>(null)
   const [scanError, setScanError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'new' | 'dat' | 'filename' | 'ambiguous' | 'exists'>('all')
+  type FilterKey = 'new' | 'dat' | 'filename' | 'ambiguous' | 'exists'
+  const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set())
+  function toggleFilter(key: FilterKey) {
+    setActiveFilters(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
+  }
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set())
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set())
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
@@ -163,6 +167,7 @@ export default function LibraryImportPage() {
       }
       setScanError(null)
       if (pathOverride) setFolderPath(pathOverride)
+      setActiveFilters(new Set())
       setSelectedPlatforms(new Set())
       setSelectedRegions(new Set())
       setSelectedTypes(new Set())
@@ -175,7 +180,7 @@ export default function LibraryImportPage() {
     mutationFn: () => libraryApi.importStart(folderPath.trim(), {
       platform_hint_id: hintPlatformId,
       platform_overrides: overrides,
-      selected_paths: filter === 'all' && selectedPlatforms.size === 0 && selectedRegions.size === 0
+      selected_paths: activeFilters.size === 0 && selectedPlatforms.size === 0 && selectedRegions.size === 0 && selectedTypes.size === 0
         ? undefined
         : eligiblePaths,
     }),
@@ -183,13 +188,11 @@ export default function LibraryImportPage() {
   })
 
   const filteredRoms = preview?.roms.filter(rom => {
-    switch (filter) {
-      case 'new':       if (rom.already_exists) return false; break
-      case 'dat':       if (rom.match_source !== 'dat') return false; break
-      case 'filename':  if (rom.match_source !== 'filename') return false; break
-      case 'ambiguous': if (rom.platform_id !== null || overrides[rom.path]) return false; break
-      case 'exists':    if (!rom.already_exists) return false; break
-    }
+    if (activeFilters.has('new')       && rom.already_exists) return false
+    if (activeFilters.has('exists')    && !rom.already_exists) return false
+    if (activeFilters.has('dat')       && rom.match_source !== 'dat') return false
+    if (activeFilters.has('filename')  && rom.match_source !== 'filename') return false
+    if (activeFilters.has('ambiguous') && (rom.platform_id !== null || overrides[rom.path])) return false
     if (selectedPlatforms.size > 0) {
       const pid = String(overrides[rom.path] ?? rom.platform_id ?? '')
       if (!selectedPlatforms.has(pid)) return false
@@ -405,29 +408,38 @@ export default function LibraryImportPage() {
 
   /* ── Step 3: preview ── */
   if (step === 'preview' && preview) {
-    const filterDefs = [
-      { key: 'all'      as const, label: 'All',       count: preview.roms.length },
-      { key: 'new'      as const, label: 'New',        count: preview.to_import,        color: 'var(--accent)' },
-      { key: 'dat'      as const, label: 'DAT',        count: preview.dat_matches,      color: 'var(--success)' },
-      { key: 'filename' as const, label: 'Filename',   count: preview.filename_matches, color: 'var(--warning)' },
-      { key: 'ambiguous'as const, label: 'Ambiguous',  count: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
-      { key: 'exists'   as const, label: 'Exists',     count: preview.already_imported },
+    const filterDefs: { key: FilterKey; label: string; count: number; color?: string }[] = [
+      { key: 'new',       label: 'New',       count: preview.to_import,        color: 'var(--accent)' },
+      { key: 'dat',       label: 'DAT',       count: preview.dat_matches,      color: 'var(--success)' },
+      { key: 'filename',  label: 'Filename',  count: preview.filename_matches, color: 'var(--warning)' },
+      { key: 'ambiguous', label: 'Ambiguous', count: preview.ambiguous,        color: preview.ambiguous ? 'var(--warning)' : undefined },
+      { key: 'exists',    label: 'Exists',    count: preview.already_imported },
     ]
     return (
       <div className="import-page">
         <div className="import-toolbar">
           <button className="btn btn-secondary btn-sm" onClick={() => setStep('path')}>← Back</button>
           <div className="import-filter-pills">
-            {filterDefs.map(f => (
-              <button
-                key={f.key}
-                className={`import-filter-pill${filter === f.key ? ' active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                <span style={{ color: filter === f.key ? undefined : f.color }}>{f.label}</span>
-                <span className="import-filter-count">{f.count.toLocaleString()}</span>
-              </button>
-            ))}
+            <button
+              className={`import-filter-pill${activeFilters.size === 0 ? ' active' : ''}`}
+              onClick={() => setActiveFilters(new Set())}
+            >
+              <span>All</span>
+              <span className="import-filter-count">{preview.roms.length.toLocaleString()}</span>
+            </button>
+            {filterDefs.map(f => {
+              const isActive = activeFilters.has(f.key)
+              return (
+                <button
+                  key={f.key}
+                  className={`import-filter-pill${isActive ? ' active' : ''}`}
+                  onClick={() => toggleFilter(f.key)}
+                >
+                  <span style={{ color: isActive ? undefined : f.color }}>{f.label}</span>
+                  <span className="import-filter-count">{f.count.toLocaleString()}</span>
+                </button>
+              )
+            })}
           </div>
           <MultiSelect
             label="Platform"
@@ -474,7 +486,7 @@ export default function LibraryImportPage() {
           ))}
         </div>
 
-        {filter === 'ambiguous' && preview.ambiguous > 0 && (
+        {activeFilters.has('ambiguous') && preview.ambiguous > 0 && (
           <div className="alert alert-info" style={{ marginBottom: 16 }}>
             <AlertCircle size={14} />
             Assign a platform to each file below, or go back and set a Platform Hint and re-scan.
