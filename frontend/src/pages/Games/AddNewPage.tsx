@@ -48,11 +48,24 @@ export default function AddNewPage() {
 
   const enabledPlatforms = platforms.filter(p => p.enabled)
 
+  // Platforms that match the selected IGDB game's platform list; falls back to all enabled.
+  const confirmPlatforms = selected?.platform_ids?.length
+    ? enabledPlatforms.filter(p => p.igdb_platform_id != null && selected.platform_ids.includes(p.igdb_platform_id!))
+    : enabledPlatforms
+  const displayPlatforms = confirmPlatforms.length > 0 ? confirmPlatforms : enabledPlatforms
+
   useEffect(() => {
     if (enabledPlatforms.length && !platformId) {
       setPlatformId(enabledPlatforms[0].id.toString())
     }
   }, [enabledPlatforms.length])
+
+  // Auto-select first matching platform when a game is selected
+  useEffect(() => {
+    if (selected && displayPlatforms.length > 0) {
+      setPlatformId(displayPlatforms[0].id.toString())
+    }
+  }, [selected?.igdb_id])
 
   useEffect(() => {
     if (initialQ) handleSearch(initialQ)
@@ -217,7 +230,7 @@ export default function AddNewPage() {
               <label className="form-label">Platform</label>
               <select className="form-control" value={platformId} onChange={e => setPlatformId(e.target.value)}>
                 <option value="">— Select —</option>
-                {enabledPlatforms.map(p => (
+                {displayPlatforms.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>

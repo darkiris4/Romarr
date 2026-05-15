@@ -7,6 +7,7 @@ export interface Platform {
   folder_name: string
   extensions: string
   enabled: boolean
+  igdb_platform_id?: number | null
   created_at: string
   updated_at: string
 }
@@ -45,6 +46,7 @@ export interface IgdbSearchResult {
   release_year?: number
   summary?: string
   platforms: string[]
+  platform_ids: number[]
   rating?: number
 }
 
