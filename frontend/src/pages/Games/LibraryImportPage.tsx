@@ -560,11 +560,9 @@ export default function LibraryImportPage() {
         <CheckCircle size={56} style={{ color: 'var(--success)', marginBottom: 20 }} />
         <div className="import-done-title">Import complete</div>
         <div className="import-done-stats">
-          <div>{result.created} game{result.created !== 1 ? 's' : ''} added</div>
-          {result.dat_matches > 0 && <div style={{ color: 'var(--success)' }}>{result.dat_matches} identified via DAT hash</div>}
-          {result.filename_matches > 0 && <div style={{ color: 'var(--warning)' }}>{result.filename_matches} identified via filename</div>}
-          {result.skipped_existing > 0 && <div style={{ color: 'var(--text-muted)' }}>{result.skipped_existing} already existed</div>}
-          {result.skipped_ambiguous > 0 && <div style={{ color: 'var(--text-muted)' }}>{result.skipped_ambiguous} skipped (ambiguous platform)</div>}
+          <div>{result.created.toLocaleString()} game{result.created !== 1 ? 's' : ''} added</div>
+          {result.skipped_existing > 0 && <div style={{ color: 'var(--text-muted)' }}>{result.skipped_existing.toLocaleString()} already existed — skipped</div>}
+          {result.skipped_ambiguous > 0 && <div style={{ color: 'var(--warning)' }}>{result.skipped_ambiguous.toLocaleString()} skipped — no platform assigned</div>}
         </div>
         <button className="btn btn-primary" style={{ marginTop: 28 }} onClick={() => navigate('/games')}>
           Go to Library
