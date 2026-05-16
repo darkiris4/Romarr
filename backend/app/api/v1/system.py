@@ -32,14 +32,24 @@ def system_status():
 
 @router.get("/tasks")
 def list_tasks():
-    from ...services.scheduler import scheduler
+    from ...services.scheduler import scheduler, get_job_history
 
+    history = get_job_history()
     jobs = []
     for job in scheduler.get_jobs():
         next_run = job.next_run_time
+        interval_secs = None
+        try:
+            interval_secs = int(job.trigger.interval.total_seconds())
+        except Exception:
+            pass
+        hist = history.get(job.id, {})
         jobs.append({
             "id": job.id,
             "name": job.name or job.id,
+            "interval": interval_secs,
+            "lastExecution": hist.get("last_execution"),
+            "lastDuration": hist.get("last_duration"),
             "nextExecution": next_run.isoformat() if next_run else None,
         })
     return jobs

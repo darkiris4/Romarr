@@ -1,33 +1,72 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Play } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 import { systemApi } from '../../api/system'
-import { format } from 'date-fns'
+
+const TASK_META: Record<string, { label: string }> = {
+  poll_downloads:  { label: 'Refresh Monitored Downloads' },
+  search_wanted:   { label: 'Wanted Search' },
+  scrape_metadata: { label: 'Scrape Metadata' },
+  deduplicate:     { label: 'Deduplicate Library' },
+  check_health:    { label: 'Check Health' },
+  backup:          { label: 'Backup' },
+  housekeeping:    { label: 'Housekeeping' },
+}
+
+function formatInterval(seconds: number | null): string {
+  if (!seconds) return '—'
+  if (seconds < 60) return `${seconds} seconds`
+  if (seconds < 3600) return `${Math.round(seconds / 60)} minutes`
+  if (seconds < 86400) return `${Math.round(seconds / 3600)} hours`
+  return `${Math.round(seconds / 86400)} days`
+}
+
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds === undefined) return '—'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return '—'
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true })
+  } catch {
+    return iso
+  }
+}
 
 export default function TasksPage() {
   const qc = useQueryClient()
-  const { data: tasks = [], isLoading } = useQuery({ queryKey: ['tasks'], queryFn: systemApi.tasks })
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: systemApi.tasks,
+    refetchInterval: 10_000,
+  })
 
   const triggerMutation = useMutation({
     mutationFn: systemApi.triggerTask,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    onSuccess: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ['tasks'] }), 1500)
+    },
   })
 
   if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
 
-  const TASK_LABELS: Record<string, string> = {
-    poll_downloads: 'Refresh Downloads',
-    search_wanted: 'Search Wanted',
-  }
-
   return (
     <div>
-      <div className="settings-section-title" style={{ marginBottom: 16 }}>Scheduled Tasks</div>
+      <div className="settings-section-title" style={{ marginBottom: 16 }}>Scheduled</div>
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Task</th>
+                <th>Name</th>
+                <th>Interval</th>
+                <th>Last Execution</th>
+                <th>Last Duration</th>
                 <th>Next Execution</th>
                 <th className="col-actions" />
               </tr>
@@ -35,16 +74,20 @@ export default function TasksPage() {
             <tbody>
               {tasks.map(t => (
                 <tr key={t.id}>
-                  <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>{TASK_LABELS[t.id] ?? t.name}</td>
-                  <td className="text-muted">
-                    {t.nextExecution ? format(new Date(t.nextExecution), 'MMM d, HH:mm:ss') : '—'}
+                  <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
+                    {TASK_META[t.id]?.label ?? t.name}
                   </td>
+                  <td className="text-muted">{formatInterval(t.interval ?? null)}</td>
+                  <td className="text-muted">{formatRelative(t.lastExecution ?? null)}</td>
+                  <td className="text-muted">{formatDuration(t.lastDuration ?? null)}</td>
+                  <td className="text-muted">{formatRelative(t.nextExecution ?? null)}</td>
                   <td>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
                         className="btn-icon"
                         title="Run now"
                         onClick={() => triggerMutation.mutate(t.id)}
+                        disabled={triggerMutation.isPending}
                       >
                         <Play size={14} />
                       </button>

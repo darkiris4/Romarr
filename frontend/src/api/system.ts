@@ -17,7 +17,14 @@ export interface EventsResponse {
 
 export const systemApi = {
   status: () => client.get<SystemStatus>('/system/status').then(r => r.data),
-  tasks: () => client.get<Array<{ id: string; name: string; nextExecution: string | null }>>('/system/tasks').then(r => r.data),
+  tasks: () => client.get<Array<{
+    id: string
+    name: string
+    interval: number | null
+    lastExecution: string | null
+    lastDuration: number | null
+    nextExecution: string | null
+  }>>('/system/tasks').then(r => r.data),
   triggerTask: (id: string) => client.post(`/system/tasks/${id}/trigger`),
   scrape: () => client.post('/system/scrape').then(r => r.data),
   scrapeStatus: () => client.get<{
