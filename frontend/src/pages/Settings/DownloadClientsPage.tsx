@@ -75,10 +75,21 @@ function ClientModal({
   })
 
   async function handleTest() {
-    if (!initial) return
     setTesting(true)
+    setTestResult(null)
     try {
-      const result = await downloadClientsApi.test(initial.id)
+      const result = initial
+        ? await downloadClientsApi.test(initial.id)
+        : await downloadClientsApi.testInline({
+            implementation: impl,
+            host,
+            port,
+            use_ssl: useSsl,
+            url_base: urlBase,
+            username,
+            password,
+            api_key: apiKey,
+          })
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -216,11 +227,9 @@ function ClientModal({
           </div>
         </div>
         <div className="modal-footer">
-          {initial && (
-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing}>
-              {testing ? 'Testing…' : 'Test'}
-            </button>
-          )}
+          <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !host}>
+            {testing ? 'Testing…' : 'Test'}
+          </button>
           <div className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
