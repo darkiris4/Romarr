@@ -2,7 +2,7 @@ import platform
 import sys
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, UploadFile
 from pydantic import BaseModel
 
 from ...config import settings
@@ -150,7 +150,7 @@ def list_backups():
     if not backup_dir.exists():
         return []
 
-    files = sorted(backup_dir.glob("romarr_*.db"), reverse=True)
+    files = sorted(backup_dir.glob("romarr_backup_*.zip"), reverse=True)
     result = []
     for f in files:
         stat = f.stat()
@@ -169,6 +169,30 @@ def create_backup():
     return {"message": "Backup created"}
 
 
+@router.post("/backup/restore")
+async def restore_from_upload(file: UploadFile):
+    import io
+    import zipfile
+    from pathlib import Path
+    from fastapi import HTTPException
+    from ...config import settings
+    from ...services.event_service import log_event
+
+    content = await file.read()
+    db_path = Path(settings.data_dir) / "romarr.db"
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            if "romarr.db" not in zf.namelist():
+                raise HTTPException(status_code=400, detail="ZIP does not contain romarr.db")
+            db_path.write_bytes(zf.read("romarr.db"))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid backup file")
+
+    log_event("Backup", f"Database restored from uploaded file ({file.filename})")
+    return {"message": "Restored. Restart the application to apply changes."}
+
+
 @router.get("/backup/{filename}")
 def download_backup(filename: str):
     from pathlib import Path
@@ -176,7 +200,6 @@ def download_backup(filename: str):
     from fastapi.responses import FileResponse
     from ...config import settings
 
-    # Prevent path traversal
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
 
@@ -184,7 +207,12 @@ def download_backup(filename: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    return FileResponse(path, media_type="application/octet-stream", filename=filename)
+    return FileResponse(
+        path,
+        media_type="application/zip",
+        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/backup/{filename}", status_code=204)
@@ -205,7 +233,7 @@ def delete_backup(filename: str):
 
 @router.post("/backup/{filename}/restore")
 def restore_backup(filename: str):
-    import shutil
+    import zipfile
     from pathlib import Path
     from fastapi import HTTPException
     from ...config import settings
@@ -219,7 +247,9 @@ def restore_backup(filename: str):
         raise HTTPException(status_code=404, detail="Backup not found")
 
     db_path = Path(settings.data_dir) / "romarr.db"
-    shutil.copy2(backup_path, db_path)
+    with zipfile.ZipFile(backup_path) as zf:
+        db_path.write_bytes(zf.read("romarr.db"))
+
     log_event("Backup", f"Database restored from {filename}")
     return {"message": "Restored. Restart the application to apply changes."}
 

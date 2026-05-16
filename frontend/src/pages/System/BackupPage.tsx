@@ -71,15 +71,23 @@ export default function BackupPage() {
 
   const restoreMutation = useMutation({
     mutationFn: systemApi.restoreBackup,
-    onSuccess: (data: { message: string }) => {
+    onSuccess: (data) => {
       setConfirmRestore(null)
       setRestoreMsg(data.message)
     },
   })
 
+  const uploadRestoreMutation = useMutation({
+    mutationFn: systemApi.restoreFromUpload,
+    onSuccess: (data) => setRestoreMsg(data.message),
+  })
+
   function handleFileRestore(e: React.ChangeEvent<HTMLInputElement>) {
-    // TODO: upload and restore from local file
-    if (e.target.files?.[0]) alert('Restore from local file upload coming soon.')
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    uploadRestoreMutation.mutate(formData)
     e.target.value = ''
   }
 
@@ -108,7 +116,7 @@ export default function BackupPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".db"
+          accept=".zip"
           style={{ display: 'none' }}
           onChange={handleFileRestore}
         />
@@ -149,6 +157,7 @@ export default function BackupPage() {
                     <td>
                       <a
                         href={systemApi.backupDownloadUrl(b.name)}
+                        download={b.name}
                         style={{ color: 'var(--text-white)', textDecoration: 'none' }}
                         onMouseOver={e => (e.currentTarget.style.color = 'var(--accent)')}
                         onMouseOut={e => (e.currentTarget.style.color = 'var(--text-white)')}

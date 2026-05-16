@@ -124,7 +124,7 @@ def _check_health():
 
 
 def _backup():
-    import shutil
+    import zipfile
     from pathlib import Path
     from ..config import settings
     from .event_service import log_event
@@ -137,11 +137,12 @@ def _backup():
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    dest = backup_dir / f"romarr_{stamp}.db"
-    shutil.copy2(db_path, dest)
+    dest = backup_dir / f"romarr_backup_v0.1.0_{stamp}.zip"
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.write(db_path, "romarr.db")
 
     # Keep last 5 backups
-    backups = sorted(backup_dir.glob("romarr_*.db"))
+    backups = sorted(backup_dir.glob("romarr_backup_*.zip"))
     for old in backups[:-5]:
         old.unlink(missing_ok=True)
 

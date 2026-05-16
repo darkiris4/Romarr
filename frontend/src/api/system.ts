@@ -46,6 +46,10 @@ export const systemApi = {
   backups: () => client.get<Array<{ name: string; size: number; time: string }>>('/system/backup').then(r => r.data),
   createBackup: () => client.post('/system/backup').then(r => r.data),
   deleteBackup: (name: string): Promise<void> => client.delete(`/system/backup/${name}`).then(() => undefined),
-  restoreBackup: (name: string) => client.post(`/system/backup/${name}/restore`).then(r => r.data),
+  restoreBackup: (name: string) => client.post<{ message: string }>(`/system/backup/${name}/restore`).then(r => r.data),
+  restoreFromUpload: (formData: FormData) =>
+    client.post<{ message: string }>('/system/backup/restore', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data),
   backupDownloadUrl: (name: string) => `/api/v1/system/backup/${name}`,
 }
