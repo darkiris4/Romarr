@@ -39,3 +39,11 @@ class QueueItem(Base):
     game: Mapped["Game"] = relationship("Game", back_populates="queue_items")
     download_client: Mapped["DownloadClient | None"] = relationship("DownloadClient")
     indexer: Mapped["Indexer | None"] = relationship("Indexer")
+
+    @property
+    def indexer_name(self) -> str | None:
+        return self.indexer.name if self.indexer else None
+
+    @property
+    def download_client_name(self) -> str | None:
+        return self.download_client.name if self.download_client else None

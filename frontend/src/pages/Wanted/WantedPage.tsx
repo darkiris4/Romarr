@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookX, RotateCcw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { BookX, RotateCcw, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
-import { Gamepad2 } from 'lucide-react'
+import client from '../../api/client'
+import type { Game } from '../../types'
 
 export default function WantedPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: games = [], isLoading } = useQuery({
     queryKey: ['wanted-missing'],
-    queryFn: () => gamesApi.list({ status: 'wanted' }),
+    queryFn: () => client.get<Game[]>('/wanted/missing').then((r) => r.data),
   })
 
   const searchMutation = useMutation({
@@ -73,7 +76,11 @@ export default function WantedPage() {
                       </div>
                     )}
                   </td>
-                  <td style={{ fontWeight: 500, color: 'var(--text-white)' }}>{game.title}</td>
+                  <td>
+                    <span className="activity-game-link" onClick={() => navigate(`/games/${game.id}`)}>
+                      {game.title}
+                    </span>
+                  </td>
                   <td className="text-muted">{game.platform?.name ?? '—'}</td>
                   <td className="text-muted">{game.region}</td>
                   <td className="text-muted">{game.release_year ?? '—'}</td>

@@ -60,6 +60,19 @@ export interface ReleaseResult {
   protocol: string
   link: string
   publish_date?: string
+  grabbed_at?: string
+  rejections: string[]
+}
+
+export interface BlocklistItem {
+  id: number
+  game_id: number
+  game?: { id: number; title: string }
+  source_title: string
+  indexer: string
+  protocol: string
+  reason: string
+  added_at: string
 }
 
 export type IndexerProtocol = 'newznab' | 'torznab'
@@ -94,6 +107,8 @@ export interface DownloadClient {
   category: string
   priority: number
   enabled: boolean
+  remove_completed: boolean
+  remove_failed: boolean
   created_at: string
   updated_at: string
 }
@@ -117,7 +132,9 @@ export interface QueueItem {
   progress: number
   download_id?: string
   download_client_id?: number
+  download_client_name?: string
   indexer_id?: number
+  indexer_name?: string
   protocol: string
   added_at: string
   estimated_completion?: string
@@ -127,6 +144,7 @@ export interface QueueItem {
 export type HistoryEventType =
   | 'grabbed'
   | 'downloadComplete'
+  | 'downloadFailed'
   | 'importFailed'
   | 'imported'
   | 'deleted'
@@ -140,7 +158,7 @@ export interface HistoryItem {
   source_title: string
   indexer: string
   download_client: string
-  data: string
+  data: Record<string, unknown>
   date: string
 }
 
@@ -159,6 +177,13 @@ export interface SystemStatus {
     branch: string
     os: string
   }
+}
+
+export interface RemotePathMapping {
+  id: number
+  host: string
+  remote_path: string
+  local_path: string
 }
 
 export interface TestResult {

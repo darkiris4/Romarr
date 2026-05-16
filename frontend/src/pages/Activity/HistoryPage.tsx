@@ -1,33 +1,36 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { List } from 'lucide-react'
+import { List, RefreshCw, Info, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { historyApi } from '../../api/history'
-import type { HistoryEventType } from '../../types'
+import type { HistoryEventType, HistoryItem } from '../../types'
 
 const EVENT_META: Record<string, { label: string; color: string }> = {
-  grabbed: { label: 'Grabbed', color: 'var(--accent-hover)' },
-  downloadComplete: { label: 'Download Complete', color: 'var(--info)' },
-  imported: { label: 'Imported', color: 'var(--success)' },
-  importFailed: { label: 'Import Failed', color: 'var(--danger)' },
-  deleted: { label: 'Deleted', color: 'var(--text-muted)' },
-  ignored: { label: 'Ignored', color: 'var(--text-muted)' },
+  grabbed:         { label: 'Grabbed',           color: 'var(--accent-hover)' },
+  downloadComplete:{ label: 'Download Complete',  color: 'var(--info)' },
+  downloadFailed:  { label: 'Download Failed',    color: 'var(--danger)' },
+  importFailed:    { label: 'Import Failed',      color: 'var(--danger)' },
+  imported:        { label: 'Imported',           color: 'var(--success)' },
+  deleted:         { label: 'Deleted',            color: 'var(--text-muted)' },
+  ignored:         { label: 'Ignored',            color: 'var(--text-muted)' },
 }
 
 const FILTERS: { label: string; value: HistoryEventType | '' }[] = [
-  { label: 'All', value: '' },
-  { label: 'Grabbed', value: 'grabbed' },
-  { label: 'Imported', value: 'imported' },
-  { label: 'Failed', value: 'importFailed' },
-  { label: 'Deleted', value: 'deleted' },
+  { label: 'All',               value: '' },
+  { label: 'Grabbed',           value: 'grabbed' },
+  { label: 'Imported',          value: 'imported' },
+  { label: 'Download Failed',   value: 'downloadFailed' },
+  { label: 'Import Failed',     value: 'importFailed' },
+  { label: 'Deleted',           value: 'deleted' },
 ]
 
 export default function HistoryPage() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<HistoryEventType | ''>('')
+  const [detail, setDetail] = useState<HistoryItem | null>(null)
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['history', filter],
     queryFn: () => historyApi.list({ event_type: filter || undefined, limit: 250 }),
   })
@@ -38,6 +41,9 @@ export default function HistoryPage() {
         <span className="activity-title">History</span>
         <span className="activity-count">{items.length}</span>
         <div className="activity-filters">
+          <button className="btn-icon" title="Refresh" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw size={14} className={isFetching ? 'spin' : ''} />
+          </button>
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -71,6 +77,7 @@ export default function HistoryPage() {
                 <th>Indexer</th>
                 <th>Client</th>
                 <th>Date</th>
+                <th style={{ width: 32 }} />
               </tr>
             </thead>
             <tbody>
@@ -79,6 +86,7 @@ export default function HistoryPage() {
                   label: item.event_type,
                   color: 'var(--text-muted)',
                 }
+                const hasData = item.data && Object.keys(item.data).length > 0
                 return (
                   <tr key={item.id}>
                     <td>
@@ -105,6 +113,17 @@ export default function HistoryPage() {
                     <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>
                       {format(new Date(item.date), 'MMM d, yyyy HH:mm')}
                     </td>
+                    <td>
+                      {hasData && (
+                        <button
+                          className="btn-icon"
+                          title="Details"
+                          onClick={() => setDetail(item)}
+                        >
+                          <Info size={13} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -112,6 +131,34 @@ export default function HistoryPage() {
           </table>
         </div>
       )}
+
+      {detail && <HistoryDetailModal item={detail} onClose={() => setDetail(null)} />}
+    </div>
+  )
+}
+
+function HistoryDetailModal({ item, onClose }: { item: HistoryItem; onClose: () => void }) {
+  const meta = EVENT_META[item.event_type] ?? { label: item.event_type, color: 'var(--text-muted)' }
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span style={{ color: meta.color }}>{meta.label}</span>
+          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="modal-body">
+          <table className="activity-table" style={{ fontSize: 13 }}>
+            <tbody>
+              {Object.entries(item.data).map(([k, v]) => (
+                <tr key={k}>
+                  <td style={{ color: 'var(--text-muted)', width: '35%', fontFamily: 'monospace', fontSize: 12 }}>{k}</td>
+                  <td style={{ wordBreak: 'break-all' }}>{String(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

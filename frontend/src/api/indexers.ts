@@ -9,4 +9,6 @@ export const indexersApi = {
     client.put<Indexer>(`/indexers/${id}`, data).then((r) => r.data),
   delete: (id: number) => client.delete(`/indexers/${id}`),
   test: (id: number) => client.post<TestResult>(`/indexers/${id}/test`).then((r) => r.data),
+  testConnection: (url: string, apiKey: string) =>
+    client.post<TestResult>('/indexers/test', { url, api_key: apiKey }).then((r) => r.data),
 }

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
+import { getStatusColor } from '../../utils/gameStatus'
 import type { Game } from '../../types'
 
 interface Props {
@@ -52,6 +53,8 @@ export default function GamesPosters({
                 <Gamepad2 size={32} />
               </div>
             )}
+
+            <div className="poster-status-bar" style={{ background: getStatusColor(game) }} />
 
             {!selecting && (
               <div className="poster-hover-actions" onClick={(e) => e.stopPropagation()}>

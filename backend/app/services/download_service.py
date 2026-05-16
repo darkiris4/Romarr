@@ -23,6 +23,8 @@ class ClientStatus:
     size: int
     size_downloaded: int
     error: str | None = None
+    not_found: bool = False   # True when item is absent from client (vs explicitly reported failed)
+    encrypted: bool = False   # SABnzbd detected a password-protected archive
 
 
 class BaseDownloadClient(ABC):
@@ -43,6 +45,10 @@ class BaseDownloadClient(ABC):
     @abstractmethod
     async def remove(self, download_id: str, delete_data: bool = False) -> None:
         """Remove download from client."""
+
+    @abstractmethod
+    async def file_path(self, download_id: str) -> str | None:
+        """Return the local filesystem path of the downloaded content (file or directory)."""
 
     @abstractmethod
     async def test(self) -> tuple[bool, str]:
@@ -86,16 +92,38 @@ class QBittorrentClient(BaseDownloadClient):
             data = resp.json()
         if not data:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                not_found=True,
             )
         t = data[0]
+        # Full state map sourced from Radarr's QBittorrent.cs (develop branch)
         state_map = {
-            "downloading": QueueStatus.DOWNLOADING,
-            "stalledDL": QueueStatus.DOWNLOADING,
-            "uploading": QueueStatus.COMPLETED,
-            "stalledUP": QueueStatus.COMPLETED,
-            "pausedDL": QueueStatus.PAUSED,
-            "error": QueueStatus.FAILED,
+            # Completed / seeding — all forms mean the download finished
+            "uploading":      QueueStatus.COMPLETED,
+            "stalledUP":      QueueStatus.COMPLETED,
+            "pausedUP":       QueueStatus.COMPLETED,
+            "stoppedUP":      QueueStatus.COMPLETED,
+            "queuedUP":       QueueStatus.COMPLETED,
+            "forcedUP":       QueueStatus.COMPLETED,
+            # Active download
+            "downloading":    QueueStatus.DOWNLOADING,
+            "forcedDL":       QueueStatus.DOWNLOADING,
+            "moving":         QueueStatus.DOWNLOADING,
+            # Stalled but may resume — treat as downloading, not a failure
+            "stalledDL":      QueueStatus.DOWNLOADING,
+            # Queued / checking states
+            "queuedDL":           QueueStatus.QUEUED,
+            "checkingDL":         QueueStatus.QUEUED,
+            "checkingUP":         QueueStatus.QUEUED,
+            "checkingResumeData": QueueStatus.QUEUED,
+            "metaDL":             QueueStatus.QUEUED,
+            "forcedMetaDL":       QueueStatus.QUEUED,
+            # Paused
+            "pausedDL":   QueueStatus.PAUSED,
+            "stoppedDL":  QueueStatus.PAUSED,
+            # Explicit failures
+            "error":        QueueStatus.FAILED,
+            "missingFiles": QueueStatus.FAILED,
         }
         return ClientStatus(
             download_id=download_id,
@@ -111,6 +139,19 @@ class QBittorrentClient(BaseDownloadClient):
                 f"{self.base_url}/api/v2/torrents/delete",
                 data={"hashes": download_id, "deleteFiles": str(delete_data).lower()},
             )
+
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            await self._login(http)
+            resp = await http.get(
+                f"{self.base_url}/api/v2/torrents/info", params={"hashes": download_id}
+            )
+            data = resp.json()
+        if not data:
+            return None
+        t = data[0]
+        # content_path = full path to file (single) or root dir (multi); added in Web API v2.8.4
+        return t.get("content_path") or (t.get("save_path", "").rstrip("/") + "/" + t.get("name", ""))
 
     async def test(self) -> tuple[bool, str]:
         try:
@@ -140,33 +181,95 @@ class SABnzbdClient(BaseDownloadClient):
                 },
             )
             data = resp.json()
-        return data.get("nzo_ids", ["unknown"])[0]
+        nzo_ids = data.get("nzo_ids") or []
+        if not nzo_ids:
+            raise ValueError(f"SABnzbd did not return an nzo_id (response: {data})")
+        return nzo_ids[0]
+
+    # Full queue status map sourced from Radarr's Sabnzbd.cs (develop branch)
+    _QUEUE_STATUS_MAP = {
+        "Downloading":  QueueStatus.DOWNLOADING,
+        "Verifying":    QueueStatus.DOWNLOADING,
+        "Repairing":    QueueStatus.DOWNLOADING,
+        "Extracting":   QueueStatus.DOWNLOADING,
+        "Moving":       QueueStatus.DOWNLOADING,
+        "Queued":       QueueStatus.QUEUED,
+        "Grabbing":     QueueStatus.QUEUED,
+        "Propagating":  QueueStatus.QUEUED,
+        "Completed":    QueueStatus.COMPLETED,
+        "Failed":       QueueStatus.FAILED,
+        "Paused":       QueueStatus.PAUSED,
+    }
 
     async def status(self, download_id: str) -> ClientStatus:
         async with httpx.AsyncClient(timeout=15) as http:
+            # Check active queue first
             resp = await http.get(
                 self._api_url,
                 params={"mode": "queue", "apikey": self.client.api_key, "output": "json"},
             )
             data = resp.json()
-        for slot in data.get("queue", {}).get("slots", []):
-            if slot["nzo_id"] == download_id:
-                status_map = {
-                    "Downloading": QueueStatus.DOWNLOADING,
-                    "Completed": QueueStatus.COMPLETED,
-                    "Failed": QueueStatus.FAILED,
-                    "Paused": QueueStatus.PAUSED,
-                }
-                size = int(float(slot.get("mb", 0)) * 1024 * 1024)
-                left = int(float(slot.get("mbleft", 0)) * 1024 * 1024)
-                return ClientStatus(
-                    download_id=download_id,
-                    status=status_map.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
-                    size=size,
-                    size_downloaded=size - left,
-                )
+            for slot in data.get("queue", {}).get("slots", []):
+                if slot.get("nzo_id") == download_id:
+                    size = int(float(slot.get("mb", 0)) * 1024 * 1024)
+                    left = int(float(slot.get("mbleft", 0)) * 1024 * 1024)
+                    # SABnzbd marks password-protected archives with an "ENCRYPTED /" prefix
+                    title = slot.get("filename", "") or slot.get("cat", "")
+                    encrypted = title.startswith("ENCRYPTED /")
+                    return ClientStatus(
+                        download_id=download_id,
+                        status=self._QUEUE_STATUS_MAP.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
+                        size=size,
+                        size_downloaded=size - left,
+                        encrypted=encrypted,
+                    )
+
+            # Not in active queue — check history.
+            # SABnzbd moves items to history during post-processing (Extracting,
+            # Verifying, Moving, etc.) before they are truly complete.
+            # Radarr pattern: only treat history items as COMPLETED when the status
+            # is explicitly "Completed"; anything else is still in progress.
+            hist = await http.get(
+                self._api_url,
+                params={
+                    "mode": "history",
+                    "apikey": self.client.api_key,
+                    "output": "json",
+                    "limit": 100,
+                },
+            )
+            for slot in hist.json().get("history", {}).get("slots", []):
+                if slot.get("nzo_id") == download_id:
+                    hist_status = slot.get("status", "")
+                    size = int(float(slot.get("mb", 0)) * 1024 * 1024)
+                    if hist_status == "Failed":
+                        return ClientStatus(
+                            download_id=download_id,
+                            status=QueueStatus.FAILED,
+                            size=size,
+                            size_downloaded=size,
+                            error=slot.get("fail_message") or None,
+                        )
+                    if hist_status == "Completed":
+                        return ClientStatus(
+                            download_id=download_id,
+                            status=QueueStatus.COMPLETED,
+                            size=size,
+                            size_downloaded=size,
+                        )
+                    # Post-processing in progress (Extracting, Verifying, Repairing,
+                    # Moving, Running, etc.) — still not ready for import.
+                    return ClientStatus(
+                        download_id=download_id,
+                        status=QueueStatus.DOWNLOADING,
+                        size=size,
+                        size_downloaded=size,
+                    )
+
+        # Gone from both queue and history — may be a transient gap (auto-clean, API error)
         return ClientStatus(
-            download_id=download_id, status=QueueStatus.COMPLETED, size=0, size_downloaded=0
+            download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+            not_found=True,
         )
 
     async def remove(self, download_id: str, delete_data: bool = False) -> None:
@@ -182,6 +285,22 @@ class SABnzbdClient(BaseDownloadClient):
                     "output": "json",
                 },
             )
+
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            resp = await http.get(
+                self._api_url,
+                params={
+                    "mode": "history",
+                    "apikey": self.client.api_key,
+                    "output": "json",
+                    "limit": 100,
+                },
+            )
+            for slot in resp.json().get("history", {}).get("slots", []):
+                if slot.get("nzo_id") == download_id:
+                    return slot.get("storage")
+        return None
 
     async def test(self) -> tuple[bool, str]:
         try:
@@ -239,7 +358,8 @@ class TransmissionClient(BaseDownloadClient):
         torrents = result.get("arguments", {}).get("torrents", [])
         if not torrents:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                not_found=True,
             )
         t = torrents[0]
         status_map = {
@@ -265,6 +385,21 @@ class TransmissionClient(BaseDownloadClient):
                 "torrent-remove",
                 {"ids": [int(download_id)], "delete-local-data": delete_data},
             )
+
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            result = await self._rpc(
+                http,
+                "torrent-get",
+                {"ids": [int(download_id)], "fields": ["downloadDir", "name"]},
+            )
+        torrents = result.get("arguments", {}).get("torrents", [])
+        if not torrents:
+            return None
+        t = torrents[0]
+        download_dir = t.get("downloadDir", "").rstrip("/")
+        name = t.get("name", "")
+        return f"{download_dir}/{name}" if download_dir and name else None
 
     async def test(self) -> tuple[bool, str]:
         try:

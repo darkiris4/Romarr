@@ -22,6 +22,7 @@ class IndexerCreate(IndexerBase):
 
 class IndexerUpdate(BaseModel):
     name: str | None = None
+    protocol: IndexerProtocol | None = None
     url: str | None = None
     api_key: str | None = None
     categories: str | None = None

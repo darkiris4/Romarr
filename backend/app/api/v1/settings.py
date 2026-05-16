@@ -1,12 +1,16 @@
+import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...database import get_db
+from ...models.remote_path_mapping import RemotePathMapping
 from ...models.root_folder import RootFolder
+from ...services.config_service import get_config, set_config
 
 router = APIRouter()
 
@@ -67,3 +71,110 @@ def delete_root_folder(folder_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Root folder not found")
     db.delete(folder)
     db.commit()
+
+
+# ── Remote Path Mappings ──────────────────────────────────────────────────────
+
+class RemotePathMappingCreate(BaseModel):
+    host: str
+    remote_path: str
+    local_path: str
+
+
+class RemotePathMappingOut(BaseModel):
+    id: int
+    host: str
+    remote_path: str
+    local_path: str
+    model_config = {"from_attributes": True}
+
+
+@router.get("/remote-path-mappings", response_model=list[RemotePathMappingOut])
+def list_remote_path_mappings(db: Session = Depends(get_db)):
+    return db.query(RemotePathMapping).order_by(RemotePathMapping.host, RemotePathMapping.remote_path).all()
+
+
+@router.post("/remote-path-mappings", response_model=RemotePathMappingOut, status_code=201)
+def add_remote_path_mapping(payload: RemotePathMappingCreate, db: Session = Depends(get_db)):
+    m = RemotePathMapping(
+        host=payload.host.strip(),
+        remote_path=payload.remote_path.strip(),
+        local_path=payload.local_path.strip(),
+    )
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.put("/remote-path-mappings/{mapping_id}", response_model=RemotePathMappingOut)
+def update_remote_path_mapping(
+    mapping_id: int, payload: RemotePathMappingCreate, db: Session = Depends(get_db)
+):
+    m = db.query(RemotePathMapping).filter_by(id=mapping_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    m.host = payload.host.strip()
+    m.remote_path = payload.remote_path.strip()
+    m.local_path = payload.local_path.strip()
+    db.commit()
+    return m
+
+
+@router.delete("/remote-path-mappings/{mapping_id}", status_code=204)
+def delete_remote_path_mapping(mapping_id: int, db: Session = Depends(get_db)):
+    m = db.query(RemotePathMapping).filter_by(id=mapping_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    db.delete(m)
+    db.commit()
+
+
+# ── Profiles ──────────────────────────────────────────────────────────────────
+
+_DEFAULT_PROFILE: dict[str, Any] = {
+    "regions": [
+        {"code": "USA", "label": "USA", "enabled": True},
+        {"code": "Europe", "label": "Europe", "enabled": True},
+        {"code": "World", "label": "World", "enabled": True},
+        {"code": "Japan", "label": "Japan", "enabled": True},
+        {"code": "Australia", "label": "Australia", "enabled": True},
+    ],
+    "formats": [
+        {"label": ".zip", "enabled": True},
+        {"label": ".7z", "enabled": True},
+        {"label": ".rar", "enabled": True},
+        {"label": ".nes", "enabled": True},
+        {"label": ".sfc", "enabled": True},
+        {"label": ".smc", "enabled": True},
+        {"label": ".gba", "enabled": True},
+        {"label": ".nds", "enabled": True},
+        {"label": ".3ds", "enabled": True},
+        {"label": ".iso", "enabled": True},
+        {"label": ".bin", "enabled": True},
+        {"label": ".cue", "enabled": True},
+        {"label": ".chd", "enabled": True},
+        {"label": ".rom", "enabled": False},
+    ],
+    "prefer_no_intro": True,
+    "prefer_verified": True,
+    "skip_hacks": False,
+    "skip_unlicensed": False,
+}
+
+
+@router.get("/profile")
+def get_profile() -> dict:
+    raw = get_config("profile")
+    if not raw:
+        return _DEFAULT_PROFILE
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return _DEFAULT_PROFILE
+
+
+@router.put("/profile", status_code=200)
+def save_profile(payload: dict) -> dict:
+    set_config("profile", json.dumps(payload))
+    return payload

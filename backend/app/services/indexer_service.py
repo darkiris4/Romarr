@@ -6,6 +6,8 @@ Prowlarr compatibility: point the indexer URL at your Prowlarr instance
 the same Newznab/Torznab protocol transparently.
 """
 
+import logging
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -13,6 +15,54 @@ from datetime import datetime
 import httpx
 
 from ..models.indexer import Indexer, IndexerProtocol
+
+logger = logging.getLogger(__name__)
+
+# Patterns that conclusively identify a video/TV release rather than a ROM
+_VIDEO_RE = re.compile(
+    r"""
+    \b(
+        \d{3,4}p           |   # 720p, 1080p, 2160p
+        4K | UHD            |
+        Blu-?Ray | BDRIP    |
+        WEB-?DL | WEBRip    |
+        HDTV | PDTV         |
+        DVDRip | DVDScr     |
+        x26[45] | HEVC      |
+        H\.26[45]           |
+        XviD | DivX         |
+        S\d{1,2}E\d{1,2}        # S01E03 TV episode pattern
+    )\b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+# Patterns that identify a music/audio release rather than a ROM
+_AUDIO_RE = re.compile(
+    r"""
+    \b(
+        MP3 | FLAC | AAC | OGG | OPUS | WMA | ALAC |   # audio codecs
+        OST | Soundtrack                             |   # soundtrack labels
+        WEB-MP3 | WEB-FLAC | CD-MP3                 |   # scene audio formats
+        \d+kbps | \d+K-MP3                          |   # bitrate markers
+        Discography | Album | EP \b | Single \b     |   # release types
+        Vinyl | Cassette                                 # physical formats
+    )\b
+    |
+    ^VA-                    # "VA-" (Various Artists) prefix used in scene music releases
+    |
+    -\d{4}-[A-Z0-9]+$      # scene music tag: -YYYY-GROUP at end (e.g. -2017-DDASMP3)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def _looks_like_video(title: str) -> bool:
+    return bool(_VIDEO_RE.search(title))
+
+
+def _looks_like_audio(title: str) -> bool:
+    return bool(_AUDIO_RE.search(title))
 
 
 @dataclass
@@ -46,11 +96,20 @@ async def search_indexer(
     if categories:
         params["cat"] = ",".join(str(c) for c in categories)
 
+    url = f"{indexer.url.rstrip('/')}/api"
+    logger.info("Searching indexer '%s': GET %s params=%s", indexer.name, url, params)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(f"{indexer.url.rstrip('/')}/api", params=params)
+        resp = await client.get(url, params=params)
         resp.raise_for_status()
 
-    return _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
+    logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
+    results = _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
+    before = len(results)
+    results = [r for r in results if not _looks_like_video(r.title) and not _looks_like_audio(r.title)]
+    filtered = before - len(results)
+    if filtered:
+        logger.info("Filtered %d non-ROM result(s) from indexer '%s'", filtered, indexer.name)
+    return results
 
 
 async def test_indexer(indexer: Indexer) -> tuple[bool, str]:
@@ -76,7 +135,15 @@ def _parse_newznab_xml(
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
+        logger.warning("Failed to parse XML response: %s", xml_text[:300])
         return []
+
+    # Newznab/Torznab error element — surface as exception so callers can report it
+    error_el = root.find(".//error")
+    if error_el is not None:
+        code = error_el.get("code", "?")
+        desc = error_el.get("description", "unknown error")
+        raise ValueError(f"Indexer returned error {code}: {desc}")
 
     results: list[SearchResult] = []
     for item in root.findall(".//item"):

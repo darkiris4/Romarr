@@ -44,17 +44,28 @@ export default function AddNewPage() {
     queryFn: () => gamesApi.list({}),
   })
 
-  const libraryIgdbIds = new Set(libraryGames.map((g) => g.igdb_id).filter(Boolean))
-
   const enabledPlatforms = platforms.filter((p) => p.enabled)
 
-  // Platforms that match the selected IGDB game's platform list; falls back to all enabled.
-  const confirmPlatforms = selected?.platform_ids?.length
+  // Map igdb_id → set of platform_ids already in the library
+  const libraryByIgdb = new Map<number, number[]>()
+  for (const g of libraryGames) {
+    if (g.igdb_id == null) continue
+    const existing = libraryByIgdb.get(g.igdb_id) ?? []
+    existing.push(g.platform_id)
+    libraryByIgdb.set(g.igdb_id, existing)
+  }
+
+  // Platforms that match the selected IGDB game; falls back to all enabled.
+  const igdbMatchedPlatforms = selected?.platform_ids?.length
     ? enabledPlatforms.filter(
         (p) => p.igdb_platform_id != null && selected.platform_ids.includes(p.igdb_platform_id!)
       )
     : enabledPlatforms
-  const displayPlatforms = confirmPlatforms.length > 0 ? confirmPlatforms : enabledPlatforms
+  const basePlatforms = igdbMatchedPlatforms.length > 0 ? igdbMatchedPlatforms : enabledPlatforms
+
+  // Exclude platforms where this game is already in the library.
+  const ownedPlatformIds = selected ? (libraryByIgdb.get(selected.igdb_id) ?? []) : []
+  const displayPlatforms = basePlatforms.filter((p) => !ownedPlatformIds.includes(p.id))
 
   useEffect(() => {
     if (enabledPlatforms.length && !platformId) {
@@ -169,17 +180,26 @@ export default function AddNewPage() {
           ) : (
             <div className="igdb-results igdb-results--page">
               {results.map((r) => {
-                const inLibrary = libraryIgdbIds.has(r.igdb_id)
-                const existingGame = inLibrary
-                  ? libraryGames.find((g) => g.igdb_id === r.igdb_id)
-                  : null
+                const ownedIds = libraryByIgdb.get(r.igdb_id) ?? []
+                const ownedGames = libraryGames.filter(
+                  (g) => g.igdb_id === r.igdb_id && ownedIds.includes(g.platform_id)
+                )
+                // IGDB-matched platforms that haven't been added yet
+                const availableCount = (r.platform_ids?.length
+                  ? enabledPlatforms.filter(
+                      (p) => p.igdb_platform_id != null && r.platform_ids.includes(p.igdb_platform_id!) && !ownedIds.includes(p.id)
+                    )
+                  : enabledPlatforms.filter((p) => !ownedIds.includes(p.id))
+                ).length
+                const fullyOwned = ownedIds.length > 0 && availableCount === 0
+
                 return (
                   <div
                     key={r.igdb_id}
-                    className={`igdb-result-row${inLibrary ? ' igdb-result-row--in-library' : ''}`}
+                    className={`igdb-result-row${fullyOwned ? ' igdb-result-row--in-library' : ''}`}
                     onClick={() =>
-                      inLibrary && existingGame
-                        ? navigate(`/games/${existingGame.id}`)
+                      fullyOwned && ownedGames[0]
+                        ? navigate(`/games/${ownedGames[0].id}`)
                         : (setSelected(r), setStep('confirm'), setError(''))
                     }
                   >
@@ -208,7 +228,16 @@ export default function AddNewPage() {
                             <span className="detail-rating-label">rating</span>
                           </div>
                         )}
-                        {inLibrary && <span className="igdb-result-in-library">In Library</span>}
+                        {ownedGames.map((g) => (
+                          <span
+                            key={g.id}
+                            className="igdb-result-in-library"
+                            title="Click to view"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/games/${g.id}`) }}
+                          >
+                            {g.platform?.name ?? 'In Library'}
+                          </span>
+                        ))}
                       </div>
                       <div className="igdb-result-year">
                         {r.release_year ?? ''}

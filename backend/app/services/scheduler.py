@@ -174,7 +174,7 @@ def _register_jobs():
 
     scheduler.add_job(
         poll_downloads,
-        trigger=IntervalTrigger(seconds=30),
+        trigger=IntervalTrigger(seconds=5),
         id="poll_downloads",
         replace_existing=True,
         max_instances=1,

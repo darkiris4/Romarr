@@ -183,8 +183,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <img src="/favicon.png" alt="Romarr" style={{ width: 36, height: 36 }} />
-        Romarr
+        <img src="/logo.png" alt="Romarr" style={{ height: 60, width: 'auto' }} />
       </div>
 
       <nav className="sidebar-nav" style={{ flex: 1 }}>

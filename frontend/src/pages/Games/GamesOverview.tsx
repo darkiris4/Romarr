@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import StatusBadge from '../../components/StatusBadge'
+import { getStatusColor } from '../../utils/gameStatus'
 import type { Game } from '../../types'
 
 interface Props {
@@ -52,7 +53,7 @@ export default function GamesOverview({
             )}
 
             {selecting ? (
-              <div style={{ flexShrink: 0 }}>
+              <div className="overview-cover-wrap">
                 {game.cover_url ? (
                   <img src={game.cover_url} alt={game.title} className="overview-cover" />
                 ) : (
@@ -60,9 +61,10 @@ export default function GamesOverview({
                     <Gamepad2 size={22} />
                   </div>
                 )}
+                <div className="poster-status-bar" style={{ background: getStatusColor(game) }} />
               </div>
             ) : (
-              <Link to={`/games/${game.id}`} style={{ flexShrink: 0 }}>
+              <Link to={`/games/${game.id}`} className="overview-cover-wrap">
                 {game.cover_url ? (
                   <img src={game.cover_url} alt={game.title} className="overview-cover" />
                 ) : (
@@ -70,6 +72,7 @@ export default function GamesOverview({
                     <Gamepad2 size={22} />
                   </div>
                 )}
+                <div className="poster-status-bar" style={{ background: getStatusColor(game) }} />
               </Link>
             )}
 

@@ -1,4 +1,8 @@
-# <img src="frontend/public/favicon.png" alt="" width="36" style="vertical-align:middle;" /> Romarr
+<p align="center">
+  <img src="frontend/public/logo.png" alt="Romarr" height="120" />
+</p>
+
+# Romarr
 
 > A Sonarr/Radarr-style automated ROM manager for retro game collections.
 

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, CheckCircle, XCircle, X, Server } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, XCircle, X, Server, ArrowRightLeft, Pencil } from 'lucide-react'
 import { downloadClientsApi } from '../../api/downloadClients'
-import type { DownloadClient, DownloadClientType } from '../../types'
+import { settingsApi } from '../../api/settings'
+import type { DownloadClient, DownloadClientType, RemotePathMapping } from '../../types'
 
 const CLIENT_DEFAULTS: Record<DownloadClientType, { port: number; urlBase: string }> = {
   qbittorrent: { port: 8080, urlBase: '' },
@@ -30,6 +31,8 @@ function ClientModal({
   const [password, setPassword] = useState(initial?.password ?? '')
   const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
   const [category, setCategory] = useState(initial?.category ?? 'romarr')
+  const [removeCompleted, setRemoveCompleted] = useState(initial?.remove_completed ?? false)
+  const [removeFailed, setRemoveFailed] = useState(initial?.remove_failed ?? true)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -53,6 +56,8 @@ function ClientModal({
             category,
             enabled: true,
             priority: 0,
+            remove_completed: removeCompleted,
+            remove_failed: removeFailed,
           })
         : downloadClientsApi.create({
             name,
@@ -67,6 +72,8 @@ function ClientModal({
             category,
             enabled: true,
             priority: 0,
+            remove_completed: removeCompleted,
+            remove_failed: removeFailed,
           }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['download-clients'] })
@@ -75,10 +82,21 @@ function ClientModal({
   })
 
   async function handleTest() {
-    if (!initial) return
     setTesting(true)
+    setTestResult(null)
     try {
-      const result = await downloadClientsApi.test(initial.id)
+      const result = initial
+        ? await downloadClientsApi.test(initial.id)
+        : await downloadClientsApi.testInline({
+            implementation: impl,
+            host,
+            port,
+            use_ssl: useSsl,
+            url_base: urlBase,
+            username,
+            password,
+            api_key: apiKey,
+          })
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -214,13 +232,39 @@ function ClientModal({
               <span className="toggle-slider" />
             </label>
           </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Remove Completed</div>
+              <div className="text-muted text-sm">Remove imported downloads from download client history</div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={removeCompleted}
+                onChange={(e) => setRemoveCompleted(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Remove Failed</div>
+              <div className="text-muted text-sm">Remove failed downloads from download client history</div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={removeFailed}
+                onChange={(e) => setRemoveFailed(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
         </div>
         <div className="modal-footer">
-          {initial && (
-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing}>
-              {testing ? 'Testing…' : 'Test'}
-            </button>
-          )}
+          <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !host}>
+            {testing ? 'Testing…' : 'Test'}
+          </button>
           <div className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
@@ -234,6 +278,150 @@ function ClientModal({
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const EMPTY_MAPPING: Omit<RemotePathMapping, 'id'> = { host: '', remote_path: '', local_path: '' }
+
+function RemotePathMappingsSection() {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<RemotePathMapping | 'new' | null>(null)
+  const [form, setForm] = useState(EMPTY_MAPPING)
+
+  const { data: mappings = [] } = useQuery({
+    queryKey: ['remote-path-mappings'],
+    queryFn: settingsApi.listRemotePathMappings,
+  })
+
+  // Reuse the already-cached download clients list
+  const { data: clients = [] } = useQuery({
+    queryKey: ['download-clients'],
+    queryFn: downloadClientsApi.list,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: (p: Omit<RemotePathMapping, 'id'>) => settingsApi.addRemotePathMapping(p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }); setEditing(null) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...p }: RemotePathMapping) => settingsApi.updateRemotePathMapping(id, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }); setEditing(null) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => settingsApi.deleteRemotePathMapping(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }),
+  })
+
+  function openNew() { setForm(EMPTY_MAPPING); setEditing('new') }
+  function openEdit(m: RemotePathMapping) { setForm({ host: m.host, remote_path: m.remote_path, local_path: m.local_path }); setEditing(m) }
+  function handleSave() {
+    if (!form.host || !form.remote_path || !form.local_path) return
+    if (editing === 'new') addMutation.mutate(form)
+    else if (editing) updateMutation.mutate({ ...form, id: editing.id })
+  }
+
+  const isSaving = addMutation.isPending || updateMutation.isPending
+
+  return (
+    <div style={{ marginTop: 36 }}>
+      <div className="settings-section-title">Remote Path Mappings</div>
+      <div className="alert alert-info" style={{ marginTop: 12 }}>
+        Remote Path Mappings are very rarely required. If Romarr and your download client are on the same system it is better to match your paths.
+      </div>
+
+      <div className="page-toolbar" style={{ marginBottom: 16 }}>
+        <div className="spacer" />
+        <button className="btn btn-primary" onClick={openNew}>
+          <Plus size={14} /> Add Mapping
+        </button>
+      </div>
+
+      {mappings.length === 0 && editing === null ? (
+        <div className="empty-state" style={{ padding: '24px 0' }}>
+          <ArrowRightLeft size={32} />
+          <p>No remote path mappings</p>
+          <small>Add a mapping if Romarr can't reach the download client's file paths directly.</small>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Host</th>
+                  <th>Remote Path</th>
+                  <th>Local Path</th>
+                  <th className="col-actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {mappings.map((m) => (
+                  <tr key={m.id}>
+                    <td className="text-sm">{m.host}</td>
+                    <td className="text-muted text-sm">{m.remote_path}</td>
+                    <td className="text-muted text-sm">{m.local_path}</td>
+                    <td>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <button className="btn-icon" title="Edit" onClick={() => openEdit(m)}>
+                          <Pencil size={13} />
+                        </button>
+                        <button className="btn-icon" title="Delete" onClick={() => deleteMutation.mutate(m.id)}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {editing !== null && (
+                  <tr>
+                    <td>
+                      <select
+                        className="form-control form-control-sm"
+                        value={form.host}
+                        onChange={(e) => setForm({ ...form, host: e.target.value })}
+                      >
+                        <option value="">— select client —</option>
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.host}>
+                            {c.name} ({c.host})
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        className="form-control form-control-sm"
+                        placeholder="/media/sabnzb/"
+                        value={form.remote_path}
+                        onChange={(e) => setForm({ ...form, remote_path: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="form-control form-control-sm"
+                        placeholder="/mnt/downloads/"
+                        value={form.local_path}
+                        onChange={(e) => setForm({ ...form, local_path: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={isSaving}>
+                          {isSaving ? '…' : 'Save'}
+                        </button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => setEditing(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -335,6 +523,8 @@ export default function DownloadClientsPage() {
           onSaved={() => setModal(null)}
         />
       )}
+
+      <RemotePathMappingsSection />
     </div>
   )
 }

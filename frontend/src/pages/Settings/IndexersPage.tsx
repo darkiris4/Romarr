@@ -17,6 +17,7 @@ function IndexerModal({
   const [protocol, setProtocol] = useState<'newznab' | 'torznab'>(initial?.protocol ?? 'torznab')
   const [url, setUrl] = useState(initial?.url ?? '')
   const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
+  const [categories, setCategories] = useState(initial?.categories ?? '')
   const [priority, setPriority] = useState(initial?.priority ?? 25)
   const enabled = initial?.enabled ?? true
   const [testing, setTesting] = useState(false)
@@ -32,6 +33,7 @@ function IndexerModal({
             protocol,
             url,
             api_key: apiKey,
+            categories,
             priority,
             enabled,
           })
@@ -42,7 +44,7 @@ function IndexerModal({
             api_key: apiKey,
             priority,
             enabled,
-            categories: '',
+            categories,
           }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['indexers'] })
@@ -51,10 +53,9 @@ function IndexerModal({
   })
 
   async function handleTest() {
-    if (!initial) return
     setTesting(true)
     try {
-      const result = await indexersApi.test(initial.id)
+      const result = await indexersApi.testConnection(url, apiKey)
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -131,13 +132,24 @@ function IndexerModal({
               onChange={(e) => setApiKey(e.target.value)}
             />
           </div>
+          <div className="form-group">
+            <label className="form-label">Categories</label>
+            <input
+              className="form-control"
+              value={categories}
+              onChange={(e) => setCategories(e.target.value)}
+              placeholder="e.g. 1000, 1010"
+            />
+            <div className="form-hint">
+              Comma-separated Newznab/Torznab category IDs to filter search results. Leave blank
+              for all categories.
+            </div>
+          </div>
         </div>
         <div className="modal-footer">
-          {initial && (
-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing}>
-              {testing ? 'Testing…' : 'Test'}
-            </button>
-          )}
+          <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !url}>
+            {testing ? 'Testing…' : 'Test'}
+          </button>
           <div className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
