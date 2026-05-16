@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Trash2, Bell } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import { systemApi } from '../../api/system'
 
 const PER_PAGE = 50
 
 function formatTime(iso: string) {
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true })
+    return format(new Date(iso), 'h:mmaaa')
   } catch {
     return iso
   }
@@ -73,23 +73,23 @@ export default function EventsPage() {
             <table className="activity-table">
               <thead>
                 <tr>
-                  <th style={{ width: 160 }}>Component</th>
+                  <th style={{ width: 80 }}>Time</th>
+                  <th style={{ width: 200 }}>Component</th>
                   <th>Message</th>
-                  <th style={{ width: 160 }}>Time</th>
                 </tr>
               </thead>
               <tbody>
                 {data.events.map(ev => (
                   <tr key={ev.id}>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }} title={ev.created_at}>
+                      {formatTime(ev.created_at)}
+                    </td>
                     <td>
                       <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid rgba(123,104,238,.25)' }}>
                         {ev.component}
                       </span>
                     </td>
                     <td style={{ color: 'var(--text-primary)' }}>{ev.message}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }} title={ev.created_at}>
-                      {formatTime(ev.created_at)}
-                    </td>
                   </tr>
                 ))}
               </tbody>
