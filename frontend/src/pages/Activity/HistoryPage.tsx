@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { List } from 'lucide-react'
+import { List, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { historyApi } from '../../api/history'
 import type { HistoryEventType } from '../../types'
@@ -27,7 +27,7 @@ export default function HistoryPage() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<HistoryEventType | ''>('')
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['history', filter],
     queryFn: () => historyApi.list({ event_type: filter || undefined, limit: 250 }),
   })
@@ -38,6 +38,9 @@ export default function HistoryPage() {
         <span className="activity-title">History</span>
         <span className="activity-count">{items.length}</span>
         <div className="activity-filters">
+          <button className="btn-icon" title="Refresh" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw size={14} className={isFetching ? 'spin' : ''} />
+          </button>
           {FILTERS.map((f) => (
             <button
               key={f.value}

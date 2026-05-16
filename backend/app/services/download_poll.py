@@ -15,7 +15,11 @@ async def poll_downloads():
     try:
         active = (
             db.query(QueueItem)
-            .filter(QueueItem.status.in_([QueueStatus.QUEUED, QueueStatus.DOWNLOADING]))
+            .filter(QueueItem.status.in_([
+                QueueStatus.QUEUED,
+                QueueStatus.DOWNLOADING,
+                QueueStatus.IMPORT_PENDING,
+            ]))
             .all()
         )
         for item in active:

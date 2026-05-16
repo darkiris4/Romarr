@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Trash2, Clock } from 'lucide-react'
+import { Trash2, Clock, RefreshCw } from 'lucide-react'
 import { queueApi } from '../../api/queue'
 import type { QueueItem } from '../../types'
 
@@ -25,7 +25,7 @@ export default function QueuePage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['queue'],
     queryFn: queueApi.list,
     refetchInterval: 10_000,
@@ -41,6 +41,10 @@ export default function QueuePage() {
       <div className="activity-toolbar">
         <span className="activity-title">Queue</span>
         <span className="activity-count">{items.length}</span>
+        <div className="spacer" />
+        <button className="btn-icon" title="Refresh" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw size={14} className={isFetching ? 'spin' : ''} />
+        </button>
       </div>
 
       {isLoading ? (
