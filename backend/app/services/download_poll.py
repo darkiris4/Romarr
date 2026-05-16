@@ -21,17 +21,18 @@ logger = logging.getLogger(__name__)
 _prev_sample: dict[int, tuple[int, float]] = {}
 
 _not_found_streak: dict[int, int] = {}
-_NOT_FOUND_THRESHOLD = 5       # ~25 s — client keeps history, missing = probably gone
-_NOT_FOUND_THRESHOLD_CLEAN = 2 # ~10 s — client auto-removes, missing = probably done
+_NOT_FOUND_THRESHOLD = 5  # ~25 s — client keeps history, missing = probably gone
+_NOT_FOUND_THRESHOLD_CLEAN = 2  # ~10 s — client auto-removes, missing = probably done
 # Radarr pattern: newly grabbed items may not appear in client queue immediately
 # (client is still fetching/processing the NZB/torrent file).  Skip not-found
 # handling until the item is old enough for absence to be meaningful.
-_GRAB_GRACE_SECONDS = 300      # 5 minutes
+_GRAB_GRACE_SECONDS = 300  # 5 minutes
 
 
 def _refresh_eta(item, cs) -> None:
     """Update estimated_completion from current download speed; clear when not downloading."""
     from ..models.queue_item import QueueStatus as QS
+
     if cs.not_found or cs.size <= 0 or cs.size_downloaded <= 0 or cs.status != QS.DOWNLOADING:
         _prev_sample.pop(item.id, None)
         item.estimated_completion = None
@@ -63,10 +64,14 @@ async def poll_downloads():
                 joinedload(QueueItem.download_client),
                 joinedload(QueueItem.indexer),
             )
-            .filter(QueueItem.status.in_([
-                QueueStatus.QUEUED,
-                QueueStatus.DOWNLOADING,
-            ]))
+            .filter(
+                QueueItem.status.in_(
+                    [
+                        QueueStatus.QUEUED,
+                        QueueStatus.DOWNLOADING,
+                    ]
+                )
+            )
             .all()
         )
 
@@ -90,7 +95,7 @@ async def poll_downloads():
                     item.status = QueueStatus.FAILED
                     item.error_message = "Encrypted / password-protected archive"
                     failed_items.append(item)
-                    log_event("Download", f"Encrypted archive detected, failing: \"{item.title}\"")
+                    log_event("Download", f'Encrypted archive detected, failing: "{item.title}"')
                     status_logged = True
                 elif cs.not_found:
                     # Item absent from client — either a transient API gap or the
@@ -104,7 +109,8 @@ async def poll_downloads():
                     if age_s < _GRAB_GRACE_SECONDS:
                         logger.debug(
                             "Queue item %d not found in client but within grace period (%ds old), skipping",
-                            item.id, int(age_s),
+                            item.id,
+                            int(age_s),
                         )
                         continue
                     # Grace period expired — use streak counter.
@@ -123,7 +129,9 @@ async def poll_downloads():
                     if streak < threshold:
                         logger.debug(
                             "Queue item %d not found in client (%d/%d), holding status",
-                            item.id, streak, threshold,
+                            item.id,
+                            streak,
+                            threshold,
                         )
                         continue
                     _not_found_streak.pop(item.id, None)
@@ -131,13 +139,14 @@ async def poll_downloads():
                         item.status = QueueStatus.IMPORT_PENDING
                         log_event(
                             "Download",
-                            f"Download complete (auto-removed by client), import pending: \"{item.title}\"",
+                            f'Download complete (auto-removed by client), import pending: "{item.title}"',
                         )
                         status_logged = True
                     else:
                         logger.warning(
                             "Queue item %d absent from client for %d consecutive polls — marking failed",
-                            item.id, streak,
+                            item.id,
+                            streak,
                         )
                         item.status = QueueStatus.FAILED
                         failed_items.append(item)
@@ -154,11 +163,11 @@ async def poll_downloads():
 
                 if item.status != prev_status and not status_logged:
                     if item.status == QueueStatus.DOWNLOADING:
-                        log_event("Download", f"Downloading \"{item.title}\"")
+                        log_event("Download", f'Downloading "{item.title}"')
                     elif item.status == QueueStatus.IMPORT_PENDING:
-                        log_event("Download", f"Download complete, import pending: \"{item.title}\"")
+                        log_event("Download", f'Download complete, import pending: "{item.title}"')
                     elif item.status == QueueStatus.FAILED:
-                        log_event("Download", f"Download failed: \"{item.title}\"")
+                        log_event("Download", f'Download failed: "{item.title}"')
             except Exception as exc:
                 logger.warning("Poll error for queue item %d: %s", item.id, exc)
 

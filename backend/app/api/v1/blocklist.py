@@ -24,7 +24,9 @@ def add_to_blocklist(payload: BlocklistCreate, db: Session = Depends(get_db)):
     db.add(item)
     db.commit()
     db.refresh(item)
-    return db.query(BlocklistItem).options(joinedload(BlocklistItem.game)).filter_by(id=item.id).one()
+    return (
+        db.query(BlocklistItem).options(joinedload(BlocklistItem.game)).filter_by(id=item.id).one()
+    )
 
 
 @router.delete("/{item_id}", status_code=204)

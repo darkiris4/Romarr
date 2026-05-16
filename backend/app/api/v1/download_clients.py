@@ -60,7 +60,7 @@ def create_client(payload: DownloadClientCreate, db: Session = Depends(get_db)):
     db.add(client)
     db.commit()
     db.refresh(client)
-    log_event("DownloadClient", f"Added download client \"{client.name}\" ({client.implementation})")
+    log_event("DownloadClient", f'Added download client "{client.name}" ({client.implementation})')
     return client
 
 
@@ -73,7 +73,7 @@ def update_client(client_id: int, payload: DownloadClientUpdate, db: Session = D
         setattr(client, key, value)
     db.commit()
     db.refresh(client)
-    log_event("DownloadClient", f"Updated download client \"{client.name}\"")
+    log_event("DownloadClient", f'Updated download client "{client.name}"')
     return client
 
 
@@ -82,7 +82,7 @@ def delete_client(client_id: int, db: Session = Depends(get_db)):
     client = db.query(DownloadClient).filter_by(id=client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Download client not found")
-    log_event("DownloadClient", f"Deleted download client \"{client.name}\"")
+    log_event("DownloadClient", f'Deleted download client "{client.name}"')
     db.delete(client)
     db.commit()
 

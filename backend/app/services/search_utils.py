@@ -54,8 +54,7 @@ PLATFORM_HINTS: dict[str, tuple[str, str]] = {
 }
 
 PLATFORM_PATTERNS: dict[str, re.Pattern] = {
-    key: re.compile(pat, re.IGNORECASE)
-    for key, (_, pat) in PLATFORM_HINTS.items()
+    key: re.compile(pat, re.IGNORECASE) for key, (_, pat) in PLATFORM_HINTS.items()
 }
 
 

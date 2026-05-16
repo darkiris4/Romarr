@@ -75,6 +75,7 @@ def delete_root_folder(folder_id: int, db: Session = Depends(get_db)):
 
 # ── Remote Path Mappings ──────────────────────────────────────────────────────
 
+
 class RemotePathMappingCreate(BaseModel):
     host: str
     remote_path: str
@@ -91,7 +92,11 @@ class RemotePathMappingOut(BaseModel):
 
 @router.get("/remote-path-mappings", response_model=list[RemotePathMappingOut])
 def list_remote_path_mappings(db: Session = Depends(get_db)):
-    return db.query(RemotePathMapping).order_by(RemotePathMapping.host, RemotePathMapping.remote_path).all()
+    return (
+        db.query(RemotePathMapping)
+        .order_by(RemotePathMapping.host, RemotePathMapping.remote_path)
+        .all()
+    )
 
 
 @router.post("/remote-path-mappings", response_model=RemotePathMappingOut, status_code=201)

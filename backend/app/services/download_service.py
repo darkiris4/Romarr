@@ -23,8 +23,8 @@ class ClientStatus:
     size: int
     size_downloaded: int
     error: str | None = None
-    not_found: bool = False   # True when item is absent from client (vs explicitly reported failed)
-    encrypted: bool = False   # SABnzbd detected a password-protected archive
+    not_found: bool = False  # True when item is absent from client (vs explicitly reported failed)
+    encrypted: bool = False  # SABnzbd detected a password-protected archive
 
 
 class BaseDownloadClient(ABC):
@@ -92,37 +92,40 @@ class QBittorrentClient(BaseDownloadClient):
             data = resp.json()
         if not data:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                download_id=download_id,
+                status=QueueStatus.FAILED,
+                size=0,
+                size_downloaded=0,
                 not_found=True,
             )
         t = data[0]
         # Full state map sourced from Radarr's QBittorrent.cs (develop branch)
         state_map = {
             # Completed / seeding — all forms mean the download finished
-            "uploading":      QueueStatus.COMPLETED,
-            "stalledUP":      QueueStatus.COMPLETED,
-            "pausedUP":       QueueStatus.COMPLETED,
-            "stoppedUP":      QueueStatus.COMPLETED,
-            "queuedUP":       QueueStatus.COMPLETED,
-            "forcedUP":       QueueStatus.COMPLETED,
+            "uploading": QueueStatus.COMPLETED,
+            "stalledUP": QueueStatus.COMPLETED,
+            "pausedUP": QueueStatus.COMPLETED,
+            "stoppedUP": QueueStatus.COMPLETED,
+            "queuedUP": QueueStatus.COMPLETED,
+            "forcedUP": QueueStatus.COMPLETED,
             # Active download
-            "downloading":    QueueStatus.DOWNLOADING,
-            "forcedDL":       QueueStatus.DOWNLOADING,
-            "moving":         QueueStatus.DOWNLOADING,
+            "downloading": QueueStatus.DOWNLOADING,
+            "forcedDL": QueueStatus.DOWNLOADING,
+            "moving": QueueStatus.DOWNLOADING,
             # Stalled but may resume — treat as downloading, not a failure
-            "stalledDL":      QueueStatus.DOWNLOADING,
+            "stalledDL": QueueStatus.DOWNLOADING,
             # Queued / checking states
-            "queuedDL":           QueueStatus.QUEUED,
-            "checkingDL":         QueueStatus.QUEUED,
-            "checkingUP":         QueueStatus.QUEUED,
+            "queuedDL": QueueStatus.QUEUED,
+            "checkingDL": QueueStatus.QUEUED,
+            "checkingUP": QueueStatus.QUEUED,
             "checkingResumeData": QueueStatus.QUEUED,
-            "metaDL":             QueueStatus.QUEUED,
-            "forcedMetaDL":       QueueStatus.QUEUED,
+            "metaDL": QueueStatus.QUEUED,
+            "forcedMetaDL": QueueStatus.QUEUED,
             # Paused
-            "pausedDL":   QueueStatus.PAUSED,
-            "stoppedDL":  QueueStatus.PAUSED,
+            "pausedDL": QueueStatus.PAUSED,
+            "stoppedDL": QueueStatus.PAUSED,
             # Explicit failures
-            "error":        QueueStatus.FAILED,
+            "error": QueueStatus.FAILED,
             "missingFiles": QueueStatus.FAILED,
         }
         return ClientStatus(
@@ -151,7 +154,9 @@ class QBittorrentClient(BaseDownloadClient):
             return None
         t = data[0]
         # content_path = full path to file (single) or root dir (multi); added in Web API v2.8.4
-        return t.get("content_path") or (t.get("save_path", "").rstrip("/") + "/" + t.get("name", ""))
+        return t.get("content_path") or (
+            t.get("save_path", "").rstrip("/") + "/" + t.get("name", "")
+        )
 
     async def test(self) -> tuple[bool, str]:
         try:
@@ -188,17 +193,17 @@ class SABnzbdClient(BaseDownloadClient):
 
     # Full queue status map sourced from Radarr's Sabnzbd.cs (develop branch)
     _QUEUE_STATUS_MAP = {
-        "Downloading":  QueueStatus.DOWNLOADING,
-        "Verifying":    QueueStatus.DOWNLOADING,
-        "Repairing":    QueueStatus.DOWNLOADING,
-        "Extracting":   QueueStatus.DOWNLOADING,
-        "Moving":       QueueStatus.DOWNLOADING,
-        "Queued":       QueueStatus.QUEUED,
-        "Grabbing":     QueueStatus.QUEUED,
-        "Propagating":  QueueStatus.QUEUED,
-        "Completed":    QueueStatus.COMPLETED,
-        "Failed":       QueueStatus.FAILED,
-        "Paused":       QueueStatus.PAUSED,
+        "Downloading": QueueStatus.DOWNLOADING,
+        "Verifying": QueueStatus.DOWNLOADING,
+        "Repairing": QueueStatus.DOWNLOADING,
+        "Extracting": QueueStatus.DOWNLOADING,
+        "Moving": QueueStatus.DOWNLOADING,
+        "Queued": QueueStatus.QUEUED,
+        "Grabbing": QueueStatus.QUEUED,
+        "Propagating": QueueStatus.QUEUED,
+        "Completed": QueueStatus.COMPLETED,
+        "Failed": QueueStatus.FAILED,
+        "Paused": QueueStatus.PAUSED,
     }
 
     async def status(self, download_id: str) -> ClientStatus:
@@ -218,7 +223,9 @@ class SABnzbdClient(BaseDownloadClient):
                     encrypted = title.startswith("ENCRYPTED /")
                     return ClientStatus(
                         download_id=download_id,
-                        status=self._QUEUE_STATUS_MAP.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
+                        status=self._QUEUE_STATUS_MAP.get(
+                            slot.get("status", ""), QueueStatus.DOWNLOADING
+                        ),
                         size=size,
                         size_downloaded=size - left,
                         encrypted=encrypted,
@@ -268,7 +275,10 @@ class SABnzbdClient(BaseDownloadClient):
 
         # Gone from both queue and history — may be a transient gap (auto-clean, API error)
         return ClientStatus(
-            download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+            download_id=download_id,
+            status=QueueStatus.FAILED,
+            size=0,
+            size_downloaded=0,
             not_found=True,
         )
 
@@ -358,7 +368,10 @@ class TransmissionClient(BaseDownloadClient):
         torrents = result.get("arguments", {}).get("torrents", [])
         if not torrents:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                download_id=download_id,
+                status=QueueStatus.FAILED,
+                size=0,
+                size_downloaded=0,
                 not_found=True,
             )
         t = torrents[0]

@@ -27,6 +27,7 @@ def list_queue(db: Session = Depends(get_db)):
 async def manual_poll():
     """Trigger an immediate download status poll outside the scheduler cycle."""
     from ...services.download_poll import poll_downloads
+
     await poll_downloads()
 
 

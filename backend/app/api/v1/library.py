@@ -143,10 +143,12 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
         results = scan_dat_dir(db)
         matched = next((r for r in results if r.get("file") == file.filename), None)
 
-    platform_name = matched.get("platform_name") if matched and matched.get("status") == "loaded" else None
+    platform_name = (
+        matched.get("platform_name") if matched and matched.get("status") == "loaded" else None
+    )
     log_event(
         "DAT",
-        f"Uploaded \"{file.filename}\""
+        f'Uploaded "{file.filename}"'
         + (f" → {platform_name}" if platform_name else " (unmatched)")
         + (" — platform created" if platform_created else ""),
     )
@@ -177,7 +179,7 @@ def delete_dat(filename: str, db: Session = Depends(get_db)):
     if platform and platform.id in _DAT_INDEX:
         del _DAT_INDEX[platform.id]
 
-    log_event("DAT", f"Deleted \"{filename}\"")
+    log_event("DAT", f'Deleted "{filename}"')
     target.unlink()
 
 

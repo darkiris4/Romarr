@@ -105,7 +105,9 @@ async def search_indexer(
     logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
     results = _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
     before = len(results)
-    results = [r for r in results if not _looks_like_video(r.title) and not _looks_like_audio(r.title)]
+    results = [
+        r for r in results if not _looks_like_video(r.title) and not _looks_like_audio(r.title)
+    ]
     filtered = before - len(results)
     if filtered:
         logger.info("Filtered %d non-ROM result(s) from indexer '%s'", filtered, indexer.name)

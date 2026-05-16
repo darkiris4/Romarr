@@ -69,7 +69,7 @@ def create_game(payload: GameCreate, db: Session = Depends(get_db)):
     db.refresh(game)
     full = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game.id).one()
     platform_name = full.platform.name if full.platform else "Unknown"
-    log_event("Library", f"Added \"{game.title}\" ({platform_name})")
+    log_event("Library", f'Added "{game.title}" ({platform_name})')
     return full
 
 
@@ -127,7 +127,7 @@ def update_game(game_id: int, payload: GameUpdate, db: Session = Depends(get_db)
     updates = payload.model_dump(exclude_none=True)
     if "monitored" in updates and updates["monitored"] != game.monitored:
         state = "Monitored" if updates["monitored"] else "Unmonitored"
-        log_event("Library", f"\"{game.title}\" set to {state}")
+        log_event("Library", f'"{game.title}" set to {state}')
     for key, value in updates.items():
         setattr(game, key, value)
     db.commit()
@@ -139,11 +139,9 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    log_event("Library", f"Deleted \"{game.title}\"")
+    log_event("Library", f'Deleted "{game.title}"')
     db.delete(game)
     db.commit()
-
-
 
 
 @router.get("/{game_id}/search")
@@ -173,8 +171,7 @@ async def manual_search(
 
     # Blocklist rejections for this game keyed by release title
     blocklisted: dict[str, str] = {
-        b.source_title: b.reason
-        for b in db.query(BlocklistItem).filter_by(game_id=game_id).all()
+        b.source_title: b.reason for b in db.query(BlocklistItem).filter_by(game_id=game_id).all()
     }
 
     indexers = db.query(Indexer).filter_by(enabled=True).all()
@@ -182,11 +179,7 @@ async def manual_search(
     indexer_errors: list[dict] = []
     for indexer in indexers:
         try:
-            cats = [
-                int(c)
-                for c in (indexer.categories or "").split(",")
-                if c.strip().isdigit()
-            ]
+            cats = [int(c) for c in (indexer.categories or "").split(",") if c.strip().isdigit()]
             results = await search_indexer(indexer, query, categories=cats or None)
             all_results.extend(
                 [
@@ -221,13 +214,14 @@ async def manual_search(
             if removed:
                 logger.info(
                     "Platform filter removed %d cross-platform result(s) for '%s'",
-                    removed, platform_no_intro,
+                    removed,
+                    platform_no_intro,
                 )
 
     all_results.sort(key=lambda r: r["seeders"] or 0, reverse=True)
     log_event(
         "Search",
-        f"Manual search for \"{game.title}\" (query: \"{query}\") — "
+        f'Manual search for "{game.title}" (query: "{query}") — '
         f"{len(all_results)} result(s) across {len(indexers)} indexer(s)",
     )
     return {"results": all_results, "errors": indexer_errors, "query": query}
@@ -264,26 +258,30 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         protocol=payload.protocol,
     )
     db.add(item)
-    db.add(HistoryItem(
-        game_id=game_id,
-        event_type=HistoryEventType.GRABBED,
-        source_title=payload.title,
-        indexer=payload.indexer,
-        download_client=client_model.name,
-        data=json.dumps({
-            "download_id": download_id,
-            "protocol": payload.protocol,
-            "size": payload.size,
-            "indexer_id": payload.indexer_id,
-        }),
-    ))
+    db.add(
+        HistoryItem(
+            game_id=game_id,
+            event_type=HistoryEventType.GRABBED,
+            source_title=payload.title,
+            indexer=payload.indexer,
+            download_client=client_model.name,
+            data=json.dumps(
+                {
+                    "download_id": download_id,
+                    "protocol": payload.protocol,
+                    "size": payload.size,
+                    "indexer_id": payload.indexer_id,
+                }
+            ),
+        )
+    )
     game.status = GameStatus.GRABBED
     db.commit()
     db.refresh(item)
 
     log_event(
         "Grab",
-        f"Grabbed \"{payload.title}\" for \"{game.title}\" via {client_model.name} "
+        f'Grabbed "{payload.title}" for "{game.title}" via {client_model.name} '
         f"({payload.protocol}, download_id={download_id})",
     )
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}
