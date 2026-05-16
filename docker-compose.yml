@@ -1,28 +1,25 @@
-version: "3.9"
-
 services:
   romarr:
     image: ghcr.io/darkiris4/romarr:latest
-    container_name: romarr
-    restart: unless-stopped
+    # container_name: romarr
+    # restart: unless-stopped
     environment:
       - DATABASE_URL=sqlite:////app/data/romarr.db
       - DATA_DIR=/app/data
       - ROM_LIBRARY_PATH=/library
-      - LOG_LEVEL=INFO
-      # Optional — IGDB credentials
-      - IGDB_CLIENT_ID=${IGDB_CLIENT_ID:-}
-      - IGDB_CLIENT_SECRET=${IGDB_CLIENT_SECRET:-}
+      # - LOG_LEVEL=INFO
+      # - IGDB_CLIENT_ID=
+      # - IGDB_CLIENT_SECRET=
     volumes:
       - romarr-data:/app/data
       - ${ROM_LIBRARY_PATH:-./library}:/library
     ports:
       - "${ROMARR_PORT:-7878}:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/system/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/system/status"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
 
 volumes:
   romarr-data:
