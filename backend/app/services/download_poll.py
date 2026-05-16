@@ -49,24 +49,37 @@ async def poll_downloads():
                 item.size_downloaded = cs.size_downloaded
 
                 if cs.not_found:
-                    # Item absent from client — could be a transient API error or
-                    # SABnzbd auto-cleaning history before we polled COMPLETED.
-                    # Only treat as failure after several consecutive misses.
-                    streak = _not_found_streak.get(item.id, 0) + 1
-                    _not_found_streak[item.id] = streak
-                    if streak < _NOT_FOUND_THRESHOLD:
-                        logger.debug(
-                            "Queue item %d not found in client (%d/%d), holding status",
-                            item.id, streak, _NOT_FOUND_THRESHOLD,
+                    # Item absent from client — either a transient API gap or the
+                    # client auto-cleaned it after completion.
+                    #
+                    # Radarr pattern: when the client is configured to remove
+                    # completed downloads (remove_completed=True), a missing item
+                    # is almost certainly done — treat it as completed rather than
+                    # failed.  Otherwise fall back to a streak counter so a single
+                    # transient miss doesn't trigger the failure cascade.
+                    if item.download_client.remove_completed:
+                        _not_found_streak.pop(item.id, None)
+                        item.status = QueueStatus.IMPORT_PENDING
+                        log_event(
+                            "Download",
+                            f"Download complete (auto-removed by client), import pending: \"{item.title}\"",
                         )
-                        continue
-                    logger.warning(
-                        "Queue item %d absent from client for %d consecutive polls — marking failed",
-                        item.id, streak,
-                    )
-                    _not_found_streak.pop(item.id, None)
-                    item.status = QueueStatus.FAILED
-                    failed_items.append(item)
+                    else:
+                        streak = _not_found_streak.get(item.id, 0) + 1
+                        _not_found_streak[item.id] = streak
+                        if streak < _NOT_FOUND_THRESHOLD:
+                            logger.debug(
+                                "Queue item %d not found in client (%d/%d), holding status",
+                                item.id, streak, _NOT_FOUND_THRESHOLD,
+                            )
+                            continue
+                        logger.warning(
+                            "Queue item %d absent from client for %d consecutive polls — marking failed",
+                            item.id, streak,
+                        )
+                        _not_found_streak.pop(item.id, None)
+                        item.status = QueueStatus.FAILED
+                        failed_items.append(item)
                 elif cs.status == QueueStatus.COMPLETED:
                     _not_found_streak.pop(item.id, None)
                     item.status = QueueStatus.IMPORT_PENDING
