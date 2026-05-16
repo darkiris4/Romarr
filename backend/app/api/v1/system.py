@@ -55,6 +55,12 @@ def list_tasks():
     return jobs
 
 
+@router.get("/tasks/queue")
+def task_queue():
+    from ...services.scheduler import get_task_queue
+    return get_task_queue()
+
+
 @router.post("/tasks/{task_id}/trigger")
 def trigger_task(task_id: str):
     from ...services.scheduler import scheduler

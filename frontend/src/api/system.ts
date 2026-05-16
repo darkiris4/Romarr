@@ -26,6 +26,14 @@ export const systemApi = {
     nextExecution: string | null
   }>>('/system/tasks').then(r => r.data),
   triggerTask: (id: string) => client.post(`/system/tasks/${id}/trigger`),
+  taskQueue: () => client.get<Array<{
+    id: string
+    queued: string
+    started: string
+    ended: string | null
+    duration: number | null
+    status: 'running' | 'completed' | 'failed'
+  }>>('/system/tasks/queue').then(r => r.data),
   scrape: () => client.post('/system/scrape').then(r => r.data),
   scrapeStatus: () => client.get<{
     running: boolean; phase: string; done: boolean; total: number

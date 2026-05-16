@@ -19,7 +19,10 @@ scheduler = AsyncIOScheduler()
 
 _job_start_times: dict[str, datetime] = {}
 _job_history: dict[str, dict] = {}
+_task_queue: list[dict] = []  # execution history, most recent last, capped at 100
 _lock = threading.Lock()
+
+_QUEUE_CAP = 100
 
 
 def get_job_history() -> dict[str, dict]:
@@ -27,9 +30,25 @@ def get_job_history() -> dict[str, dict]:
         return dict(_job_history)
 
 
+def get_task_queue() -> list[dict]:
+    with _lock:
+        return list(reversed(_task_queue))
+
+
 def _on_job_submitted(event):
     with _lock:
-        _job_start_times[event.job_id] = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        _job_start_times[event.job_id] = now
+        _task_queue.append({
+            "id": event.job_id,
+            "queued": now.isoformat(),
+            "started": now.isoformat(),
+            "ended": None,
+            "duration": None,
+            "status": "running",
+        })
+        if len(_task_queue) > _QUEUE_CAP:
+            _task_queue.pop(0)
 
 
 def _on_job_finished(event):
@@ -41,6 +60,13 @@ def _on_job_finished(event):
             "last_execution": now.isoformat(),
             "last_duration": round(duration, 3),
         }
+        status = "failed" if getattr(event, "exception", None) else "completed"
+        for entry in reversed(_task_queue):
+            if entry["id"] == event.job_id and entry["ended"] is None:
+                entry["ended"] = now.isoformat()
+                entry["duration"] = round(duration, 3)
+                entry["status"] = status
+                break
 
 
 def start():
