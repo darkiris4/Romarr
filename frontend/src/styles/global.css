@@ -1546,6 +1546,10 @@ select.form-control {
   border-radius: 4px;
   padding: 2px 7px;
   flex-shrink: 0;
+  cursor: pointer;
+}
+.igdb-result-in-library:hover {
+  background: rgba(61, 214, 140, 0.22);
 }
 
 .igdb-result-summary {
