@@ -27,7 +27,6 @@ async def poll_downloads():
             .filter(QueueItem.status.in_([
                 QueueStatus.QUEUED,
                 QueueStatus.DOWNLOADING,
-                QueueStatus.IMPORT_PENDING,
             ]))
             .all()
         )
