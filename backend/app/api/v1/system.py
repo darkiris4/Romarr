@@ -14,19 +14,62 @@ _start_time = datetime.utcnow()
 
 @router.get("/status")
 def system_status():
+    import os
+    import shutil
+    from pathlib import Path
+    from ...database import SessionLocal
+    from ...models.indexer import Indexer
+    from ...models.download_client import DownloadClient
+    from ...services.igdb_service import _credentials
+
+    db = SessionLocal()
+    try:
+        indexer_count = db.query(Indexer).count()
+        client_count = db.query(DownloadClient).count()
+    finally:
+        db.close()
+
+    igdb_client_id, igdb_client_secret = _credentials()
+    igdb_configured = bool(igdb_client_id and igdb_client_secret)
+
+    health_issues = []
+    if not igdb_configured:
+        health_issues.append("IGDB credentials not configured — metadata scraping will not work")
+    if not indexer_count:
+        health_issues.append("No indexers configured — automatic searching will not work")
+    if not client_count:
+        health_issues.append("No download client configured — grabbing releases will not work")
+
+    data_path = Path(settings.data_dir).resolve()
+    library_path = Path(settings.rom_library_path).resolve()
+
+    def disk_info(p: Path):
+        try:
+            usage = shutil.disk_usage(p)
+            return {"path": str(p), "free": usage.free, "total": usage.total}
+        except Exception:
+            return {"path": str(p), "free": None, "total": None}
+
+    uptime_seconds = int((datetime.utcnow() - _start_time).total_seconds())
+
     return {
-        "appName": settings.app_name,
-        "version": "0.1.0",
-        "buildTime": "2025-01-01T00:00:00Z",
-        "startupTime": _start_time.isoformat(),
-        "runtimeVersion": sys.version,
-        "osName": platform.system(),
-        "osVersion": platform.release(),
-        "isDebug": False,
-        "isProduction": True,
-        "branch": "main",
-        "authentication": "none",
-        "sqliteVersion": _sqlite_version(),
+        "health": health_issues,
+        "disk": [
+            disk_info(data_path),
+            disk_info(library_path),
+        ],
+        "about": {
+            "version": "0.1.0",
+            "python": sys.version.split(" ")[0],
+            "docker": Path("/.dockerenv").exists(),
+            "sqliteVersion": _sqlite_version(),
+            "appDataDirectory": str(data_path),
+            "startupDirectory": os.getcwd(),
+            "startupTime": _start_time.isoformat() + "Z",
+            "uptimeSeconds": uptime_seconds,
+            "branch": "main",
+            "os": f"{platform.system()} {platform.release()}",
+        },
     }
 
 

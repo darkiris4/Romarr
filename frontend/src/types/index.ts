@@ -133,13 +133,20 @@ export interface HistoryItem {
 }
 
 export interface SystemStatus {
-  appName: string
-  version: string
-  startupTime: string
-  runtimeVersion: string
-  osName: string
-  osVersion: string
-  sqliteVersion: string
+  health: string[]
+  disk: Array<{ path: string; free: number | null; total: number | null }>
+  about: {
+    version: string
+    python: string
+    docker: boolean
+    sqliteVersion: string
+    appDataDirectory: string
+    startupDirectory: string
+    startupTime: string
+    uptimeSeconds: number
+    branch: string
+    os: string
+  }
 }
 
 export interface TestResult {
