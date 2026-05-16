@@ -20,6 +20,7 @@ backend/data/*.db-wal
 backend/data/logs/
 backend/data/*.jsonl
 backend/data/dats/
+backend/data/backups/
 
 # Node
 frontend/node_modules/
