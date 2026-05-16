@@ -31,7 +31,7 @@ export default function QueuePage() {
   const { data: items = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['queue'],
     queryFn: queueApi.list,
-    refetchInterval: 10_000,
+    refetchInterval: 5_000,
   })
 
   async function handleRefresh() {
@@ -57,6 +57,7 @@ export default function QueuePage() {
       setImportResult({ id, ok: true, msg: `Imported to ${res.data.destination}` })
       qc.invalidateQueries({ queryKey: ['queue'] })
       qc.invalidateQueries({ queryKey: ['games'] })
+      qc.invalidateQueries({ queryKey: ['game', res.data.game_id] })
     },
     onError: (err: unknown, id) => {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Import failed'

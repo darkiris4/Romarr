@@ -125,25 +125,17 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
     shutil.move(str(rom_file), str(dest))
     logger.info("Moved '%s' → '%s'", rom_file, dest)
 
-    # CRC32 for the moved file
-    crc32: str | None = None
-    try:
-        entries = _rom_entries(dest)
-        if entries:
-            crc32 = entries[0][0]
-    except Exception as exc:
-        logger.warning("CRC32 computation failed for %s: %s", dest, exc)
-
+    # Update game record immediately so the UI reflects the import without waiting for CRC32
     game.rom_path = str(dest)
     game.status = GameStatus.IMPORTED
-    if crc32:
-        game.checksum_crc32 = crc32
 
     client_name = item.download_client.name if item.download_client else ""
     indexer_name = item.indexer.name if item.indexer else ""
+    game_id = game.id
+    game_title = game.title
 
     db.add(HistoryItem(
-        game_id=game.id,
+        game_id=game_id,
         event_type=HistoryEventType.IMPORTED,
         source_title=item.title,
         indexer=indexer_name,
@@ -152,12 +144,35 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
     db.delete(item)
     db.commit()
 
-    log_event("Import", f"Imported \"{rom_file.name}\" for \"{game.title}\" → {dest}")
+    log_event("Import", f"Imported \"{rom_file.name}\" for \"{game_title}\" → {dest}")
+
+    # CRC32 is computed in the background — large ROMs (10GB+) can take 30-60s on a network share
+    def _compute_crc32():
+        from ..database import SessionLocal
+        try:
+            entries = _rom_entries(dest)
+            if not entries:
+                return
+            crc32 = entries[0][0]
+            bg_db = SessionLocal()
+            try:
+                g = bg_db.query(Game).filter_by(id=game_id).first()
+                if g:
+                    g.checksum_crc32 = crc32
+                    bg_db.commit()
+                    logger.info("CRC32 computed for '%s': %s", dest.name, crc32)
+            finally:
+                bg_db.close()
+        except Exception as exc:
+            logger.warning("Background CRC32 failed for %s: %s", dest, exc)
+
+    import threading
+    threading.Thread(target=_compute_crc32, daemon=True).start()
 
     return {
         "success": True,
         "destination": str(dest),
         "filename": rom_file.name,
-        "crc32": crc32,
-        "game_id": game.id,
+        "crc32": None,
+        "game_id": game_id,
     }
