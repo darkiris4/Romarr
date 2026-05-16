@@ -141,6 +141,12 @@ def _normalize_title(title: str) -> str:
     return title
 
 
+def _sanitize_query(q: str) -> str:
+    """Strip characters that Newznab/Solr backends treat as query syntax."""
+    q = re.sub(r'[:\!\?"#]', " ", q)
+    return re.sub(r"\s{2,}", " ", q).strip()
+
+
 # Maps no_intro_name → (query_keyword, release_title_pattern)
 # query_keyword: short term appended to the search query to narrow indexer results
 # release_title_pattern: regex that identifies this platform in release title strings
@@ -208,6 +214,8 @@ async def manual_search(
     query = q if q else _normalize_title(game.title)
     if not q and platform_hint:
         query = f"{query} {platform_hint[0]}"
+    if not q:
+        query = _sanitize_query(query)
 
     # Grab history for this game keyed by release title
     grabbed: dict[str, str] = {
