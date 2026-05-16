@@ -54,7 +54,10 @@ export default function ProfilesPage() {
   function addFormat() {
     const ext = newFormat.trim().replace(/^\.?/, '.')
     if (!ext || ext === '.') return
-    if (formats.some((f) => f.label === ext)) { setNewFormat(''); return }
+    if (formats.some((f) => f.label === ext)) {
+      setNewFormat('')
+      return
+    }
     setFormats((prev) => [...prev, { id: nextFormatId++, label: ext, enabled: true }])
     setNewFormat('')
   }

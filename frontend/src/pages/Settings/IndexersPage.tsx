@@ -141,8 +141,8 @@ function IndexerModal({
               placeholder="e.g. 1000, 1010"
             />
             <div className="form-hint">
-              Comma-separated Newznab/Torznab category IDs to filter search results. Leave blank
-              for all categories.
+              Comma-separated Newznab/Torznab category IDs to filter search results. Leave blank for
+              all categories.
             </div>
           </div>
         </div>

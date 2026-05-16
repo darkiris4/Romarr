@@ -235,7 +235,9 @@ function ClientModal({
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Remove Completed</div>
-              <div className="text-muted text-sm">Remove imported downloads from download client history</div>
+              <div className="text-muted text-sm">
+                Remove imported downloads from download client history
+              </div>
             </div>
             <label className="toggle">
               <input
@@ -249,7 +251,9 @@ function ClientModal({
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Remove Failed</div>
-              <div className="text-muted text-sm">Remove failed downloads from download client history</div>
+              <div className="text-muted text-sm">
+                Remove failed downloads from download client history
+              </div>
             </div>
             <label className="toggle">
               <input
@@ -302,19 +306,31 @@ function RemotePathMappingsSection() {
 
   const addMutation = useMutation({
     mutationFn: (p: Omit<RemotePathMapping, 'id'>) => settingsApi.addRemotePathMapping(p),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }); setEditing(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['remote-path-mappings'] })
+      setEditing(null)
+    },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, ...p }: RemotePathMapping) => settingsApi.updateRemotePathMapping(id, p),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }); setEditing(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['remote-path-mappings'] })
+      setEditing(null)
+    },
   })
   const deleteMutation = useMutation({
     mutationFn: (id: number) => settingsApi.deleteRemotePathMapping(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['remote-path-mappings'] }),
   })
 
-  function openNew() { setForm(EMPTY_MAPPING); setEditing('new') }
-  function openEdit(m: RemotePathMapping) { setForm({ host: m.host, remote_path: m.remote_path, local_path: m.local_path }); setEditing(m) }
+  function openNew() {
+    setForm(EMPTY_MAPPING)
+    setEditing('new')
+  }
+  function openEdit(m: RemotePathMapping) {
+    setForm({ host: m.host, remote_path: m.remote_path, local_path: m.local_path })
+    setEditing(m)
+  }
   function handleSave() {
     if (!form.host || !form.remote_path || !form.local_path) return
     if (editing === 'new') addMutation.mutate(form)
@@ -327,7 +343,8 @@ function RemotePathMappingsSection() {
     <div style={{ marginTop: 36 }}>
       <div className="settings-section-title">Remote Path Mappings</div>
       <div className="alert alert-info" style={{ marginTop: 12 }}>
-        Remote Path Mappings are very rarely required. If Romarr and your download client are on the same system it is better to match your paths.
+        Remote Path Mappings are very rarely required. If Romarr and your download client are on the
+        same system it is better to match your paths.
       </div>
 
       <div className="page-toolbar" style={{ marginBottom: 16 }}>
@@ -341,7 +358,9 @@ function RemotePathMappingsSection() {
         <div className="empty-state" style={{ padding: '24px 0' }}>
           <ArrowRightLeft size={32} />
           <p>No remote path mappings</p>
-          <small>Add a mapping if Romarr can't reach the download client's file paths directly.</small>
+          <small>
+            Add a mapping if Romarr can't reach the download client's file paths directly.
+          </small>
         </div>
       ) : (
         <div className="card" style={{ padding: 0 }}>
@@ -366,7 +385,11 @@ function RemotePathMappingsSection() {
                         <button className="btn-icon" title="Edit" onClick={() => openEdit(m)}>
                           <Pencil size={13} />
                         </button>
-                        <button className="btn-icon" title="Delete" onClick={() => deleteMutation.mutate(m.id)}>
+                        <button
+                          className="btn-icon"
+                          title="Delete"
+                          onClick={() => deleteMutation.mutate(m.id)}
+                        >
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -407,10 +430,17 @@ function RemotePathMappingsSection() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-                        <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={isSaving}>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={handleSave}
+                          disabled={isSaving}
+                        >
                           {isSaving ? '…' : 'Save'}
                         </button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => setEditing(null)}>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => setEditing(null)}
+                        >
                           Cancel
                         </button>
                       </div>

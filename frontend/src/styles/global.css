@@ -1717,25 +1717,46 @@ select.form-control {
 
 /* Column widths */
 .release-table th:nth-child(1),
-.release-table td:nth-child(1) { width: 52px; }   /* Source */
+.release-table td:nth-child(1) {
+  width: 52px;
+} /* Source */
 .release-table th:nth-child(2),
-.release-table td:nth-child(2) { width: 48px; }   /* Age */
+.release-table td:nth-child(2) {
+  width: 48px;
+} /* Age */
 .release-table th:nth-child(3),
-.release-table td:nth-child(3) { min-width: 200px; } /* Title — grows */
+.release-table td:nth-child(3) {
+  min-width: 200px;
+} /* Title — grows */
 .release-table th:nth-child(4),
-.release-table td:nth-child(4) { width: 110px; }  /* Indexer */
+.release-table td:nth-child(4) {
+  width: 110px;
+} /* Indexer */
 .release-table th:nth-child(5),
-.release-table td:nth-child(5) { width: 90px; }   /* History */
+.release-table td:nth-child(5) {
+  width: 90px;
+} /* History */
 .release-table th:nth-child(6),
-.release-table td:nth-child(6) { width: 72px; }   /* Size */
+.release-table td:nth-child(6) {
+  width: 72px;
+} /* Size */
 .release-table th:nth-child(7),
-.release-table td:nth-child(7) { width: 76px; }   /* Peers */
+.release-table td:nth-child(7) {
+  width: 76px;
+} /* Peers */
 .release-table th:nth-child(8),
-.release-table td:nth-child(8) { width: 90px; }   /* Region */
+.release-table td:nth-child(8) {
+  width: 90px;
+} /* Region */
 .release-table th:nth-child(9),
-.release-table td:nth-child(9) { width: 90px; }   /* Rejections */
+.release-table td:nth-child(9) {
+  width: 90px;
+} /* Rejections */
 .release-table th:nth-child(10),
-.release-table td:nth-child(10) { width: 80px; text-align: right; } /* Grab */
+.release-table td:nth-child(10) {
+  width: 80px;
+  text-align: right;
+} /* Grab */
 
 .release-title {
   color: var(--text-white);
@@ -1753,9 +1774,13 @@ select.form-control {
 
 .release-age,
 .release-indexer,
-.release-region { white-space: nowrap; }
+.release-region {
+  white-space: nowrap;
+}
 
-.release-history { white-space: nowrap; }
+.release-history {
+  white-space: nowrap;
+}
 
 .history-grabbed {
   display: inline-flex;

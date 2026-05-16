@@ -83,21 +83,36 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
     let av: number | string, bv: number | string
     switch (sort) {
       case 'seeders':
-        av = a.seeders ?? -1; bv = b.seeders ?? -1; break
+        av = a.seeders ?? -1
+        bv = b.seeders ?? -1
+        break
       case 'size':
-        av = a.size; bv = b.size; break
+        av = a.size
+        bv = b.size
+        break
       case 'age':
-        av = a.publish_date ?? ''; bv = b.publish_date ?? ''; break
+        av = a.publish_date ?? ''
+        bv = b.publish_date ?? ''
+        break
       case 'indexer':
-        av = a.indexer; bv = b.indexer; break
+        av = a.indexer
+        bv = b.indexer
+        break
       case 'protocol':
-        av = a.protocol; bv = b.protocol; break
+        av = a.protocol
+        bv = b.protocol
+        break
       case 'history':
-        av = a.grabbed_at ?? ''; bv = b.grabbed_at ?? ''; break
+        av = a.grabbed_at ?? ''
+        bv = b.grabbed_at ?? ''
+        break
       case 'region':
-        av = parseRegion(a.title); bv = parseRegion(b.title); break
+        av = parseRegion(a.title)
+        bv = parseRegion(b.title)
+        break
       default:
-        av = a.title; bv = b.title
+        av = a.title
+        bv = b.title
     }
     if (av < bv) return dir === 'asc' ? -1 : 1
     if (av > bv) return dir === 'asc' ? 1 : -1
@@ -114,14 +129,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
     right?: boolean
   }) {
     return (
-      <th
-        className={`sortable${right ? ' col-right' : ''}`}
-        onClick={() => toggleSort(col)}
-      >
+      <th className={`sortable${right ? ' col-right' : ''}`} onClick={() => toggleSort(col)}>
         {children}
-        {sort === col && (
-          dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />
-        )}
+        {sort === col && (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)}
       </th>
     )
   }
@@ -153,7 +163,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
           {!isLoading && !isError && searchErrors.length > 0 && results.length === 0 && (
             <div className="search-modal-status" style={{ color: 'var(--danger)' }}>
               {searchErrors.map((e, i) => (
-                <div key={i}><strong>{e.indexer}:</strong> {e.error}</div>
+                <div key={i}>
+                  <strong>{e.indexer}:</strong> {e.error}
+                </div>
               ))}
             </div>
           )}
@@ -162,12 +174,18 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
               <thead>
                 <tr>
                   <Th col="protocol">Source</Th>
-                  <Th col="age" right>Age</Th>
+                  <Th col="age" right>
+                    Age
+                  </Th>
                   <Th col="title">Title</Th>
                   <Th col="indexer">Indexer</Th>
                   <Th col="history">History</Th>
-                  <Th col="size" right>Size</Th>
-                  <Th col="seeders" right>Peers</Th>
+                  <Th col="size" right>
+                    Size
+                  </Th>
+                  <Th col="seeders" right>
+                    Peers
+                  </Th>
                   <Th col="region">Region</Th>
                   <th>Rejections</th>
                   <th />
@@ -182,10 +200,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                   return (
                     <tr
                       key={i}
-                      className={[
-                        isGrabbed ? 'row-grabbed' : '',
-                        rejected ? 'row-rejected' : '',
-                      ]
+                      className={[isGrabbed ? 'row-grabbed' : '', rejected ? 'row-rejected' : '']
                         .filter(Boolean)
                         .join(' ')}
                     >
@@ -194,7 +209,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                           {r.protocol === 'torznab' ? 'TOR' : 'NZB'}
                         </span>
                       </td>
-                      <td className="col-right text-muted release-age">{formatAge(r.publish_date)}</td>
+                      <td className="col-right text-muted release-age">
+                        {formatAge(r.publish_date)}
+                      </td>
                       <td className="release-title" title={r.title}>
                         <span className="release-title-text">{r.title}</span>
                         {r.link && (
@@ -212,7 +229,10 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                       <td className="text-muted release-indexer">{r.indexer}</td>
                       <td className="release-history">
                         {r.grabbed_at ? (
-                          <span className="history-grabbed" title={new Date(r.grabbed_at).toLocaleString()}>
+                          <span
+                            className="history-grabbed"
+                            title={new Date(r.grabbed_at).toLocaleString()}
+                          >
                             <Clock size={11} /> {formatAge(r.grabbed_at)} ago
                           </span>
                         ) : (
@@ -228,9 +248,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                         ) : (
                           <span className="text-muted">—</span>
                         )}
-                        {r.leechers != null && (
-                          <span className="text-muted"> / {r.leechers}</span>
-                        )}
+                        {r.leechers != null && <span className="text-muted"> / {r.leechers}</span>}
                       </td>
                       <td className="text-muted release-region">{region}</td>
                       <td>
@@ -244,7 +262,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                       </td>
                       <td className="col-action">
                         {isGrabbed ? (
-                          <span className="text-success" style={{ fontSize: 12 }}>Grabbed!</span>
+                          <span className="text-success" style={{ fontSize: 12 }}>
+                            Grabbed!
+                          </span>
                         ) : (
                           <button
                             className="btn btn-primary btn--sm"
@@ -265,14 +285,17 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <span className="text-muted" style={{ fontSize: 12 }}>
-            {results.length > 0 && `${results.length} release${results.length !== 1 ? 's' : ''} found`}
+            {results.length > 0 &&
+              `${results.length} release${results.length !== 1 ? 's' : ''} found`}
             {searchErrors.length > 0 && results.length > 0 && (
               <span style={{ color: 'var(--danger)', marginLeft: 8 }}>
                 {searchErrors.length} indexer{searchErrors.length !== 1 ? 's' : ''} failed
               </span>
             )}
           </span>
-          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>

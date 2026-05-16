@@ -185,11 +185,15 @@ export default function AddNewPage() {
                   (g) => g.igdb_id === r.igdb_id && ownedIds.includes(g.platform_id)
                 )
                 // IGDB-matched platforms that haven't been added yet
-                const availableCount = (r.platform_ids?.length
-                  ? enabledPlatforms.filter(
-                      (p) => p.igdb_platform_id != null && r.platform_ids.includes(p.igdb_platform_id!) && !ownedIds.includes(p.id)
-                    )
-                  : enabledPlatforms.filter((p) => !ownedIds.includes(p.id))
+                const availableCount = (
+                  r.platform_ids?.length
+                    ? enabledPlatforms.filter(
+                        (p) =>
+                          p.igdb_platform_id != null &&
+                          r.platform_ids.includes(p.igdb_platform_id!) &&
+                          !ownedIds.includes(p.id)
+                      )
+                    : enabledPlatforms.filter((p) => !ownedIds.includes(p.id))
                 ).length
                 const fullyOwned = ownedIds.length > 0 && availableCount === 0
 
@@ -233,7 +237,10 @@ export default function AddNewPage() {
                             key={g.id}
                             className="igdb-result-in-library"
                             title="Click to view"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/games/${g.id}`) }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/games/${g.id}`)
+                            }}
                           >
                             {g.platform?.name ?? 'In Library'}
                           </span>

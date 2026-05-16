@@ -77,7 +77,10 @@ export default function WantedPage() {
                     )}
                   </td>
                   <td>
-                    <span className="activity-game-link" onClick={() => navigate(`/games/${game.id}`)}>
+                    <span
+                      className="activity-game-link"
+                      onClick={() => navigate(`/games/${game.id}`)}
+                    >
                       {game.title}
                     </span>
                   </td>

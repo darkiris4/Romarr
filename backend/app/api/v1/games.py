@@ -9,17 +9,21 @@ logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
+from ...models.blocklist import BlocklistItem
 from ...models.download_client import DownloadClient
 from ...models.game import Game, GameStatus
+from ...models.history import HistoryEventType, HistoryItem
 from ...models.indexer import Indexer
 from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.game import GameCreate, GameOut, GameUpdate
-from ...models.blocklist import BlocklistItem
-from ...models.history import HistoryEventType, HistoryItem
 from ...services.download_service import get_client
 from ...services.event_service import log_event
 from ...services.indexer_service import search_indexer
-from ...services.search_utils import PLATFORM_HINTS, normalize_title, other_platform_re, sanitize_query
+from ...services.search_utils import (
+    normalize_title,
+    other_platform_re,
+    sanitize_query,
+)
 
 
 class GrabPayload(BaseModel):
@@ -153,7 +157,6 @@ async def manual_search(
         raise HTTPException(status_code=404, detail="Game not found")
 
     platform_no_intro = game.platform.no_intro_name if game.platform else None
-    platform_hint = PLATFORM_HINTS.get(platform_no_intro) if platform_no_intro else None
 
     query = q if q else sanitize_query(normalize_title(game.title))
 

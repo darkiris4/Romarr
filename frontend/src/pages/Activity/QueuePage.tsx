@@ -42,7 +42,12 @@ export default function QueuePage() {
 
   const [isPolling, setIsPolling] = useState(false)
 
-  const { data: items = [], isLoading, isFetching, refetch } = useQuery({
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['queue'],
     queryFn: queueApi.list,
     refetchInterval: 5_000,
@@ -63,7 +68,9 @@ export default function QueuePage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['queue'] }),
   })
 
-  const [importResult, setImportResult] = useState<{ id: number; ok: boolean; msg: string } | null>(null)
+  const [importResult, setImportResult] = useState<{ id: number; ok: boolean; msg: string } | null>(
+    null
+  )
 
   const importMutation = useMutation({
     mutationFn: (id: number) => queueApi.importItem(id),
@@ -74,7 +81,9 @@ export default function QueuePage() {
       qc.invalidateQueries({ queryKey: ['game', res.data.game_id] })
     },
     onError: (err: unknown, id) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Import failed'
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Import failed'
       setImportResult({ id, ok: false, msg })
     },
   })
@@ -85,16 +94,25 @@ export default function QueuePage() {
         <span className="activity-title">Queue</span>
         <span className="activity-count">{items.length}</span>
         <div className="spacer" />
-        <button className="btn-icon" title="Refresh" onClick={handleRefresh} disabled={isPolling || isFetching}>
+        <button
+          className="btn-icon"
+          title="Refresh"
+          onClick={handleRefresh}
+          disabled={isPolling || isFetching}
+        >
           <RefreshCw size={14} className={isPolling || isFetching ? 'spin' : ''} />
         </button>
       </div>
 
       {importResult && (
-        <div className={`queue-import-result queue-import-result--${importResult.ok ? 'ok' : 'err'}`}>
+        <div
+          className={`queue-import-result queue-import-result--${importResult.ok ? 'ok' : 'err'}`}
+        >
           {importResult.ok ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
           <span>{importResult.msg}</span>
-          <button className="btn-icon" onClick={() => setImportResult(null)}>×</button>
+          <button className="btn-icon" onClick={() => setImportResult(null)}>
+            ×
+          </button>
         </div>
       )}
 

@@ -3,9 +3,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
 from ...models.game import Game, GameStatus
-from ...models.download_client import DownloadClient
-from ...models.indexer import Indexer
-from ...models.platform import Platform
 from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.queue_item import QueueItemOut
 

@@ -44,14 +44,16 @@ export const settingsApi = {
   addRemotePathMapping: (payload: Omit<RemotePathMapping, 'id'>): Promise<RemotePathMapping> =>
     client.post('/settings/remote-path-mappings', payload).then((r) => r.data),
 
-  updateRemotePathMapping: (id: number, payload: Omit<RemotePathMapping, 'id'>): Promise<RemotePathMapping> =>
+  updateRemotePathMapping: (
+    id: number,
+    payload: Omit<RemotePathMapping, 'id'>
+  ): Promise<RemotePathMapping> =>
     client.put(`/settings/remote-path-mappings/${id}`, payload).then((r) => r.data),
 
   deleteRemotePathMapping: (id: number): Promise<void> =>
     client.delete(`/settings/remote-path-mappings/${id}`).then(() => undefined),
 
-  getProfile: (): Promise<Profile> =>
-    client.get('/settings/profile').then((r) => r.data),
+  getProfile: (): Promise<Profile> => client.get('/settings/profile').then((r) => r.data),
 
   saveProfile: (profile: Profile): Promise<Profile> =>
     client.put('/settings/profile', profile).then((r) => r.data),

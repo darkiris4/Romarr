@@ -24,10 +24,11 @@ export const gamesApi = {
 
   search: (id: number, q?: string) =>
     client
-      .get<{ results: ReleaseResult[]; errors: { indexer: string; error: string }[]; query: string }>(
-        `/games/${id}/search`,
-        { params: q ? { q } : undefined }
-      )
+      .get<{
+        results: ReleaseResult[]
+        errors: { indexer: string; error: string }[]
+        query: string
+      }>(`/games/${id}/search`, { params: q ? { q } : undefined })
       .then((r) => r.data),
 
   grab: (

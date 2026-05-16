@@ -7,22 +7,22 @@ import { historyApi } from '../../api/history'
 import type { HistoryEventType, HistoryItem } from '../../types'
 
 const EVENT_META: Record<string, { label: string; color: string }> = {
-  grabbed:         { label: 'Grabbed',           color: 'var(--accent-hover)' },
-  downloadComplete:{ label: 'Download Complete',  color: 'var(--info)' },
-  downloadFailed:  { label: 'Download Failed',    color: 'var(--danger)' },
-  importFailed:    { label: 'Import Failed',      color: 'var(--danger)' },
-  imported:        { label: 'Imported',           color: 'var(--success)' },
-  deleted:         { label: 'Deleted',            color: 'var(--text-muted)' },
-  ignored:         { label: 'Ignored',            color: 'var(--text-muted)' },
+  grabbed: { label: 'Grabbed', color: 'var(--accent-hover)' },
+  downloadComplete: { label: 'Download Complete', color: 'var(--info)' },
+  downloadFailed: { label: 'Download Failed', color: 'var(--danger)' },
+  importFailed: { label: 'Import Failed', color: 'var(--danger)' },
+  imported: { label: 'Imported', color: 'var(--success)' },
+  deleted: { label: 'Deleted', color: 'var(--text-muted)' },
+  ignored: { label: 'Ignored', color: 'var(--text-muted)' },
 }
 
 const FILTERS: { label: string; value: HistoryEventType | '' }[] = [
-  { label: 'All',               value: '' },
-  { label: 'Grabbed',           value: 'grabbed' },
-  { label: 'Imported',          value: 'imported' },
-  { label: 'Download Failed',   value: 'downloadFailed' },
-  { label: 'Import Failed',     value: 'importFailed' },
-  { label: 'Deleted',           value: 'deleted' },
+  { label: 'All', value: '' },
+  { label: 'Grabbed', value: 'grabbed' },
+  { label: 'Imported', value: 'imported' },
+  { label: 'Download Failed', value: 'downloadFailed' },
+  { label: 'Import Failed', value: 'importFailed' },
+  { label: 'Deleted', value: 'deleted' },
 ]
 
 export default function HistoryPage() {
@@ -30,7 +30,12 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState<HistoryEventType | ''>('')
   const [detail, setDetail] = useState<HistoryItem | null>(null)
 
-  const { data: items = [], isLoading, isFetching, refetch } = useQuery({
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['history', filter],
     queryFn: () => historyApi.list({ event_type: filter || undefined, limit: 250 }),
   })
@@ -41,7 +46,12 @@ export default function HistoryPage() {
         <span className="activity-title">History</span>
         <span className="activity-count">{items.length}</span>
         <div className="activity-filters">
-          <button className="btn-icon" title="Refresh" onClick={() => refetch()} disabled={isFetching}>
+          <button
+            className="btn-icon"
+            title="Refresh"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
             <RefreshCw size={14} className={isFetching ? 'spin' : ''} />
           </button>
           {FILTERS.map((f) => (
@@ -144,14 +154,25 @@ function HistoryDetailModal({ item, onClose }: { item: HistoryItem; onClose: () 
       <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span style={{ color: meta.color }}>{meta.label}</span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
         <div className="modal-body">
           <table className="activity-table" style={{ fontSize: 13 }}>
             <tbody>
               {Object.entries(item.data).map(([k, v]) => (
                 <tr key={k}>
-                  <td style={{ color: 'var(--text-muted)', width: '35%', fontFamily: 'monospace', fontSize: 12 }}>{k}</td>
+                  <td
+                    style={{
+                      color: 'var(--text-muted)',
+                      width: '35%',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    }}
+                  >
+                    {k}
+                  </td>
                   <td style={{ wordBreak: 'break-all' }}>{String(v)}</td>
                 </tr>
               ))}

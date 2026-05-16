@@ -5,8 +5,11 @@ import type { BlocklistItem } from '../../types'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -61,7 +64,16 @@ export default function BlocklistPage() {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td style={{ fontWeight: 500 }}>{item.game?.title ?? '—'}</td>
-                  <td className="text-muted" style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.source_title}>
+                  <td
+                    className="text-muted"
+                    style={{
+                      maxWidth: 300,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={item.source_title}
+                  >
                     {item.source_title}
                   </td>
                   <td className="text-muted">{item.indexer || '—'}</td>
