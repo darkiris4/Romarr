@@ -15,7 +15,7 @@
 
 ## What is Romarr?
 
-Romarr automates the acquisition, organisation, and metadata enrichment of ROM files for retro gaming. It follows the same workflow as Sonarr and Radarr:
+Romarr automates the management, organisation, and metadata enrichment of ROM files for retro gaming. It follows the same workflow as Sonarr and Radarr:
 
 1. Add games to a **Wanted list** (manually or via list integrations)
 2. Romarr searches configured **Newznab/Torznab indexers** (or Prowlarr)
@@ -166,6 +166,11 @@ Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) bef
 - [Open a PR](../../compare)
 
 ---
+
+## Legal
+
+> [!IMPORTANT]
+> Romarr is a tool for managing and enriching a ROM collection. Users are solely responsible for ensuring they have the legal right to possess any ROM files used with this software. The authors do not condone copyright infringement.
 
 ## License
 
