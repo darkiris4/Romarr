@@ -60,7 +60,7 @@ def system_status():
             disk_info(library_path),
         ],
         "about": {
-            "version": "0.1.0",
+            "version": "1.0.0-alpha",
             "python": sys.version.split(" ")[0],
             "docker": Path("/.dockerenv").exists(),
             "sqliteVersion": _sqlite_version(),
