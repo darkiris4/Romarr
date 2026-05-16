@@ -128,13 +128,13 @@ export default function TasksPage() {
                 </tr>
               </thead>
               <tbody>
-                {queue.length === 0 ? (
+                {queue.slice(0, 10).length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
                       No tasks have run yet
                     </td>
                   </tr>
-                ) : queue.map((entry, i) => (
+                ) : queue.slice(0, 10).map((entry, i) => (
                   <tr key={i}>
                     <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
                       {TASK_META[entry.id]?.label ?? entry.id}
