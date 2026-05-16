@@ -8,6 +8,26 @@ export interface RootFolder {
   unmapped_folders: number
 }
 
+export interface RegionItem {
+  code: string
+  label: string
+  enabled: boolean
+}
+
+export interface FormatItem {
+  label: string
+  enabled: boolean
+}
+
+export interface Profile {
+  regions: RegionItem[]
+  formats: FormatItem[]
+  prefer_no_intro: boolean
+  prefer_verified: boolean
+  skip_hacks: boolean
+  skip_unlicensed: boolean
+}
+
 export const settingsApi = {
   listRootFolders: (): Promise<RootFolder[]> =>
     client.get('/settings/root-folders').then((r) => r.data),
@@ -29,4 +49,10 @@ export const settingsApi = {
 
   deleteRemotePathMapping: (id: number): Promise<void> =>
     client.delete(`/settings/remote-path-mappings/${id}`).then(() => undefined),
+
+  getProfile: (): Promise<Profile> =>
+    client.get('/settings/profile').then((r) => r.data),
+
+  saveProfile: (profile: Profile): Promise<Profile> =>
+    client.put('/settings/profile', profile).then((r) => r.data),
 }

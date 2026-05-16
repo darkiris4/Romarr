@@ -90,6 +90,8 @@ def _migrate():
     _add_column_if_missing("games", "similar_games", "TEXT")
     _add_column_if_missing("games", "tags", "TEXT")
     _add_column_if_missing("games", "igdb_searched_at", "DATETIME")
+    _add_column_if_missing("download_clients", "remove_completed", "BOOLEAN DEFAULT 0")
+    _add_column_if_missing("download_clients", "remove_failed", "BOOLEAN DEFAULT 1")
     _seed_platforms()
     _seed_igdb_platform_ids()
 

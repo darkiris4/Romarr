@@ -31,6 +31,8 @@ function ClientModal({
   const [password, setPassword] = useState(initial?.password ?? '')
   const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
   const [category, setCategory] = useState(initial?.category ?? 'romarr')
+  const [removeCompleted, setRemoveCompleted] = useState(initial?.remove_completed ?? false)
+  const [removeFailed, setRemoveFailed] = useState(initial?.remove_failed ?? true)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -54,6 +56,8 @@ function ClientModal({
             category,
             enabled: true,
             priority: 0,
+            remove_completed: removeCompleted,
+            remove_failed: removeFailed,
           })
         : downloadClientsApi.create({
             name,
@@ -68,6 +72,8 @@ function ClientModal({
             category,
             enabled: true,
             priority: 0,
+            remove_completed: removeCompleted,
+            remove_failed: removeFailed,
           }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['download-clients'] })
@@ -222,6 +228,34 @@ function ClientModal({
                 type="checkbox"
                 checked={useSsl}
                 onChange={(e) => setUseSsl(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Remove Completed</div>
+              <div className="text-muted text-sm">Remove imported downloads from download client history</div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={removeCompleted}
+                onChange={(e) => setRemoveCompleted(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Remove Failed</div>
+              <div className="text-muted text-sm">Remove failed downloads from download client history</div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={removeFailed}
+                onChange={(e) => setRemoveFailed(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>

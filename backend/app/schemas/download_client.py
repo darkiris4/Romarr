@@ -18,6 +18,8 @@ class DownloadClientBase(BaseModel):
     category: str = "romarr"
     priority: int = 0
     enabled: bool = True
+    remove_completed: bool = False
+    remove_failed: bool = True
 
 
 class DownloadClientCreate(DownloadClientBase):
@@ -36,6 +38,8 @@ class DownloadClientUpdate(BaseModel):
     category: str | None = None
     priority: int | None = None
     enabled: bool | None = None
+    remove_completed: bool | None = None
+    remove_failed: bool | None = None
 
 
 class DownloadClientOut(DownloadClientBase):

@@ -107,6 +107,8 @@ export interface DownloadClient {
   category: string
   priority: number
   enabled: boolean
+  remove_completed: boolean
+  remove_failed: boolean
   created_at: string
   updated_at: string
 }

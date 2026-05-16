@@ -1,54 +1,49 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GripVertical, Plus, X } from 'lucide-react'
+import { settingsApi } from '../../api/settings'
+import type { Profile, FormatItem, RegionItem } from '../../api/settings'
 
-interface FormatItem {
-  id: number
-  label: string
-  enabled: boolean
-}
-interface RegionItem {
-  id: number
-  label: string
-  code: string
-  enabled: boolean
+let nextFormatId = 1000
+
+function toFormatItems(formats: FormatItem[]): (FormatItem & { id: number })[] {
+  return formats.map((f, i) => ({ ...f, id: i + 1 }))
 }
 
-const DEFAULT_FORMATS: FormatItem[] = [
-  { id: 1, label: '.zip', enabled: true },
-  { id: 2, label: '.7z', enabled: true },
-  { id: 3, label: '.rar', enabled: true },
-  { id: 4, label: '.nes', enabled: true },
-  { id: 5, label: '.sfc', enabled: true },
-  { id: 6, label: '.smc', enabled: true },
-  { id: 7, label: '.gba', enabled: true },
-  { id: 8, label: '.nds', enabled: true },
-  { id: 9, label: '.3ds', enabled: true },
-  { id: 10, label: '.iso', enabled: true },
-  { id: 11, label: '.bin', enabled: true },
-  { id: 12, label: '.cue', enabled: true },
-  { id: 13, label: '.chd', enabled: true },
-  { id: 14, label: '.rom', enabled: false },
-]
-
-const DEFAULT_REGIONS: RegionItem[] = [
-  { id: 1, label: 'USA', code: 'USA', enabled: true },
-  { id: 2, label: 'Europe', code: 'Europe', enabled: true },
-  { id: 3, label: 'World', code: 'World', enabled: true },
-  { id: 4, label: 'Japan', code: 'Japan', enabled: true },
-  { id: 5, label: 'Australia', code: 'Australia', enabled: true },
-]
-
-let nextFormatId = 100
+function toRegionItems(regions: RegionItem[]): (RegionItem & { id: number })[] {
+  return regions.map((r, i) => ({ ...r, id: i + 1 }))
+}
 
 export default function ProfilesPage() {
-  const [formats, setFormats] = useState<FormatItem[]>(DEFAULT_FORMATS)
-  const [regions, setRegions] = useState<RegionItem[]>(DEFAULT_REGIONS)
-  const [newFormat, setNewFormat] = useState('')
+  const qc = useQueryClient()
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: settingsApi.getProfile,
+  })
+
+  const [formats, setFormats] = useState<(FormatItem & { id: number })[]>([])
+  const [regions, setRegions] = useState<(RegionItem & { id: number })[]>([])
   const [preferVerified, setPreferVerified] = useState(true)
   const [preferNoIntro, setPreferNoIntro] = useState(true)
   const [skipHacks, setSkipHacks] = useState(false)
   const [skipUnlicensed, setSkipUnlicensed] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [newFormat, setNewFormat] = useState('')
+
+  useEffect(() => {
+    if (!profile) return
+    setFormats(toFormatItems(profile.formats))
+    setRegions(toRegionItems(profile.regions))
+    setPreferVerified(profile.prefer_verified)
+    setPreferNoIntro(profile.prefer_no_intro)
+    setSkipHacks(profile.skip_hacks)
+    setSkipUnlicensed(profile.skip_unlicensed)
+  }, [profile])
+
+  const saveMutation = useMutation({
+    mutationFn: (p: Profile) => settingsApi.saveProfile(p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+  })
 
   function toggleFormat(id: number) {
     setFormats((prev) => prev.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f)))
@@ -59,10 +54,7 @@ export default function ProfilesPage() {
   function addFormat() {
     const ext = newFormat.trim().replace(/^\.?/, '.')
     if (!ext || ext === '.') return
-    if (formats.some((f) => f.label === ext)) {
-      setNewFormat('')
-      return
-    }
+    if (formats.some((f) => f.label === ext)) { setNewFormat(''); return }
     setFormats((prev) => [...prev, { id: nextFormatId++, label: ext, enabled: true }])
     setNewFormat('')
   }
@@ -70,7 +62,6 @@ export default function ProfilesPage() {
   function toggleRegion(id: number) {
     setRegions((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)))
   }
-
   function moveRegion(id: number, dir: -1 | 1) {
     setRegions((prev) => {
       const idx = prev.findIndex((r) => r.id === id)
@@ -85,9 +76,22 @@ export default function ProfilesPage() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    saveMutation.mutate({
+      formats: formats.map(({ label, enabled }) => ({ label, enabled })),
+      regions: regions.map(({ code, label, enabled }) => ({ code, label, enabled })),
+      prefer_no_intro: preferNoIntro,
+      prefer_verified: preferVerified,
+      skip_hacks: skipHacks,
+      skip_unlicensed: skipUnlicensed,
+    })
   }
+
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
 
   const enabledFormats = formats.filter((f) => f.enabled)
   const enabledRegions = regions.filter((r) => r.enabled)
@@ -100,7 +104,8 @@ export default function ProfilesPage() {
         searching.
       </div>
 
-      {saved && <div className="alert alert-success">Settings saved.</div>}
+      {saveMutation.isSuccess && <div className="alert alert-success">Settings saved.</div>}
+      {saveMutation.isError && <div className="alert alert-danger">Failed to save settings.</div>}
 
       <form onSubmit={handleSave}>
         {/* ── Release Preferences ── */}
@@ -198,8 +203,7 @@ export default function ProfilesPage() {
                 >
                   {f.label}
                 </button>
-                {/* allow removing custom entries only */}
-                {f.id >= 100 && (
+                {f.id >= 1000 && (
                   <button
                     type="button"
                     className="format-chip-remove"
@@ -304,8 +308,8 @@ export default function ProfilesPage() {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
-          <button type="submit" className="btn btn-primary">
-            Save Changes
+          <button type="submit" className="btn btn-primary" disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </form>
