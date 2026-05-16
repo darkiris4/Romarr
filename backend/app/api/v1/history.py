@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
+from ...models.game import Game
 from ...models.history import HistoryEventType, HistoryItem
 from ...schemas.history import HistoryItemOut
 
@@ -16,7 +17,7 @@ def list_history(
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    q = db.query(HistoryItem).options(joinedload(HistoryItem.game).joinedload("platform"))
+    q = db.query(HistoryItem).options(joinedload(HistoryItem.game).joinedload(Game.platform))
     if event_type:
         q = q.filter(HistoryItem.event_type == event_type)
     if game_id:
