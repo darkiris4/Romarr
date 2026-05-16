@@ -141,14 +141,10 @@ textarea {
 .sidebar-logo {
   display: flex;
   align-items: center;
-  height: var(--header-height); /* aligns with topbar */
-  padding: 0 24px;
+  justify-content: center;
+  height: var(--header-height);
+  padding: 0 16px;
   background: var(--bg-topbar);
-  color: var(--text-white);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  gap: 10px;
   flex-shrink: 0;
 }
 
