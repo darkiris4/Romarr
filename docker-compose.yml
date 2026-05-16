@@ -2,9 +2,6 @@ version: "3.9"
 
 services:
   romarr:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: ghcr.io/darkiris4/romarr:latest
     container_name: romarr
     restart: unless-stopped
