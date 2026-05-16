@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...models.indexer import Indexer
 from ...schemas.indexer import IndexerCreate, IndexerOut, IndexerTestResult, IndexerUpdate
+from ...services.event_service import log_event
 from ...services.indexer_service import test_indexer
 
 router = APIRouter()
@@ -34,6 +35,7 @@ def create_indexer(payload: IndexerCreate, db: Session = Depends(get_db)):
     db.add(indexer)
     db.commit()
     db.refresh(indexer)
+    log_event("Indexer", f"Added indexer \"{indexer.name}\" ({indexer.protocol})")
     return indexer
 
 
@@ -46,6 +48,7 @@ def update_indexer(indexer_id: int, payload: IndexerUpdate, db: Session = Depend
         setattr(indexer, key, value)
     db.commit()
     db.refresh(indexer)
+    log_event("Indexer", f"Updated indexer \"{indexer.name}\"")
     return indexer
 
 
@@ -54,6 +57,7 @@ def delete_indexer(indexer_id: int, db: Session = Depends(get_db)):
     indexer = db.query(Indexer).filter_by(id=indexer_id).first()
     if not indexer:
         raise HTTPException(status_code=404, detail="Indexer not found")
+    log_event("Indexer", f"Deleted indexer \"{indexer.name}\"")
     db.delete(indexer)
     db.commit()
 

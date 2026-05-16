@@ -9,6 +9,7 @@ from ...database import get_db
 from ...services.config_service import get_config, set_config
 from ...services.dat_manager import dat_status as _dat_status
 from ...services.dat_manager import scan_dat_dir
+from ...services.event_service import log_event
 from ...services.library_scanner import import_start as _import_start
 from ...services.library_scanner import import_status as _import_status
 from ...services.library_scanner import scan_start, scan_status
@@ -142,12 +143,17 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
         results = scan_dat_dir(db)
         matched = next((r for r in results if r.get("file") == file.filename), None)
 
+    platform_name = matched.get("platform_name") if matched and matched.get("status") == "loaded" else None
+    log_event(
+        "DAT",
+        f"Uploaded \"{file.filename}\""
+        + (f" → {platform_name}" if platform_name else " (unmatched)")
+        + (" — platform created" if platform_created else ""),
+    )
     return {
         "filename": file.filename,
         "size": len(contents),
-        "matched_platform": matched.get("platform_name")
-        if matched and matched.get("status") == "loaded"
-        else None,
+        "matched_platform": platform_name,
         "status": matched.get("status", "unmatched") if matched else "unmatched",
         "platform_created": platform_created,
     }
@@ -171,6 +177,7 @@ def delete_dat(filename: str, db: Session = Depends(get_db)):
     if platform and platform.id in _DAT_INDEX:
         del _DAT_INDEX[platform.id]
 
+    log_event("DAT", f"Deleted \"{filename}\"")
     target.unlink()
 
 
