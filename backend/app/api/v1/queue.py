@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
+from ...models.game import Game
+from ...models.platform import Platform
 from ...models.queue_item import QueueItem
 from ...schemas.queue_item import QueueItemOut
 
@@ -12,7 +14,7 @@ router = APIRouter()
 def list_queue(db: Session = Depends(get_db)):
     return (
         db.query(QueueItem)
-        .options(joinedload(QueueItem.game).joinedload("platform"))
+        .options(joinedload(QueueItem.game).joinedload(Game.platform))
         .order_by(QueueItem.added_at.desc())
         .all()
     )
