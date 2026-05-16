@@ -62,7 +62,10 @@ def create_game(payload: GameCreate, db: Session = Depends(get_db)):
     db.add(game)
     db.commit()
     db.refresh(game)
-    return db.query(Game).options(joinedload(Game.platform)).filter_by(id=game.id).one()
+    full = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game.id).one()
+    platform_name = full.platform.name if full.platform else "Unknown"
+    log_event("Library", f"Added \"{game.title}\" ({platform_name})")
+    return full
 
 
 class BulkDeletePayload(BaseModel):
@@ -116,7 +119,11 @@ def update_game(game_id: int, payload: GameUpdate, db: Session = Depends(get_db)
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    for key, value in payload.model_dump(exclude_none=True).items():
+    updates = payload.model_dump(exclude_none=True)
+    if "monitored" in updates and updates["monitored"] != game.monitored:
+        state = "Monitored" if updates["monitored"] else "Unmonitored"
+        log_event("Library", f"\"{game.title}\" set to {state}")
+    for key, value in updates.items():
         setattr(game, key, value)
     db.commit()
     return db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).one()
@@ -127,6 +134,7 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    log_event("Library", f"Deleted \"{game.title}\"")
     db.delete(game)
     db.commit()
 
