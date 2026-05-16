@@ -143,7 +143,85 @@ def clear_events():
 
 @router.get("/backup")
 def list_backups():
-    return []
+    from pathlib import Path
+    from ...config import settings
+
+    backup_dir = Path(settings.data_dir) / "backups"
+    if not backup_dir.exists():
+        return []
+
+    files = sorted(backup_dir.glob("romarr_*.db"), reverse=True)
+    result = []
+    for f in files:
+        stat = f.stat()
+        result.append({
+            "name": f.name,
+            "size": stat.st_size,
+            "time": datetime.utcfromtimestamp(stat.st_mtime).isoformat() + "Z",
+        })
+    return result
+
+
+@router.post("/backup")
+def create_backup():
+    from ...services.scheduler import _backup
+    _backup()
+    return {"message": "Backup created"}
+
+
+@router.get("/backup/{filename}")
+def download_backup(filename: str):
+    from pathlib import Path
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
+    from ...config import settings
+
+    # Prevent path traversal
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    path = Path(settings.data_dir) / "backups" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Backup not found")
+
+    return FileResponse(path, media_type="application/octet-stream", filename=filename)
+
+
+@router.delete("/backup/{filename}", status_code=204)
+def delete_backup(filename: str):
+    from pathlib import Path
+    from fastapi import HTTPException
+    from ...config import settings
+
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    path = Path(settings.data_dir) / "backups" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Backup not found")
+
+    path.unlink()
+
+
+@router.post("/backup/{filename}/restore")
+def restore_backup(filename: str):
+    import shutil
+    from pathlib import Path
+    from fastapi import HTTPException
+    from ...config import settings
+    from ...services.event_service import log_event
+
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    backup_path = Path(settings.data_dir) / "backups" / filename
+    if not backup_path.exists():
+        raise HTTPException(status_code=404, detail="Backup not found")
+
+    db_path = Path(settings.data_dir) / "romarr.db"
+    shutil.copy2(backup_path, db_path)
+    log_event("Backup", f"Database restored from {filename}")
+    return {"message": "Restored. Restart the application to apply changes."}
 
 
 def _sqlite_version() -> str:
