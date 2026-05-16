@@ -22,18 +22,11 @@ const DEFAULT_FORMATS: FormatItem[] = [
 ]
 
 const DEFAULT_REGIONS: RegionItem[] = [
-  { id: 1, label: 'USA',        code: 'USA',      enabled: true },
-  { id: 2, label: 'Europe',     code: 'Europe',   enabled: true },
-  { id: 3, label: 'World',      code: 'World',    enabled: true },
-  { id: 4, label: 'Japan',      code: 'Japan',    enabled: true },
-  { id: 5, label: 'Australia',  code: 'Australia',enabled: true },
-  { id: 6, label: 'Germany',    code: 'Germany',  enabled: false },
-  { id: 7, label: 'France',     code: 'France',   enabled: false },
-  { id: 8, label: 'Spain',      code: 'Spain',    enabled: false },
-  { id: 9, label: 'Italy',      code: 'Italy',    enabled: false },
-  { id: 10, label: 'Korea',     code: 'Korea',    enabled: false },
-  { id: 11, label: 'China',     code: 'China',    enabled: false },
-  { id: 12, label: 'Brazil',    code: 'Brazil',   enabled: false },
+  { id: 1, label: 'USA',       code: 'USA',       enabled: true },
+  { id: 2, label: 'Europe',    code: 'Europe',    enabled: true },
+  { id: 3, label: 'World',     code: 'World',     enabled: true },
+  { id: 4, label: 'Japan',     code: 'Japan',     enabled: true },
+  { id: 5, label: 'Australia', code: 'Australia', enabled: true },
 ]
 
 let nextFormatId = 100
