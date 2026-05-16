@@ -10,13 +10,13 @@ const SHORT_DATE_FORMATS = [
 
 const LONG_DATE_FORMATS = [
   { value: 'EEEE, MMMM d, yyyy', label: 'Wednesday, May 13, 2026' },
-  { value: 'MMMM d, yyyy',        label: 'May 13, 2026' },
-  { value: 'd MMMM yyyy',         label: '13 May 2026' },
+  { value: 'MMMM d, yyyy', label: 'May 13, 2026' },
+  { value: 'd MMMM yyyy', label: '13 May 2026' },
 ]
 
 const TIME_FORMATS = [
-  { value: 'HH:mm',       label: '24-hour  (14:30)' },
-  { value: 'h:mm a',      label: '12-hour  (2:30 PM)' },
+  { value: 'HH:mm', label: '24-hour  (14:30)' },
+  { value: 'h:mm a', label: '12-hour  (2:30 PM)' },
 ]
 
 const WEEK_START_OPTIONS = [
@@ -68,46 +68,96 @@ export default function UISettingsPage() {
 
       <form onSubmit={handleSave}>
         {/* ── Dates & Times ── */}
-        <div className="settings-section-title" style={{ marginTop: 8 }}>Dates &amp; Times</div>
+        <div className="settings-section-title" style={{ marginTop: 8 }}>
+          Dates &amp; Times
+        </div>
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
             <label className="form-label">Short Date Format</label>
-            <select className="form-control" value={shortDate} onChange={e => setShortDate(e.target.value)} style={{ maxWidth: 320 }}>
-              {SHORT_DATE_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <select
+              className="form-control"
+              value={shortDate}
+              onChange={(e) => setShortDate(e.target.value)}
+              style={{ maxWidth: 320 }}
+            >
+              {SHORT_DATE_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
             </select>
-            <div className="form-hint">Preview: <code>{previewShort}</code></div>
+            <div className="form-hint">
+              Preview: <code>{previewShort}</code>
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Long Date Format</label>
-            <select className="form-control" value={longDate} onChange={e => setLongDate(e.target.value)} style={{ maxWidth: 360 }}>
-              {LONG_DATE_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <select
+              className="form-control"
+              value={longDate}
+              onChange={(e) => setLongDate(e.target.value)}
+              style={{ maxWidth: 360 }}
+            >
+              {LONG_DATE_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
             </select>
-            <div className="form-hint">Preview: <code>{previewLong}</code></div>
+            <div className="form-hint">
+              Preview: <code>{previewLong}</code>
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Time Format</label>
-            <select className="form-control" value={timeFormat} onChange={e => setTimeFormat(e.target.value)} style={{ maxWidth: 240 }}>
-              {TIME_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <select
+              className="form-control"
+              value={timeFormat}
+              onChange={(e) => setTimeFormat(e.target.value)}
+              style={{ maxWidth: 240 }}
+            >
+              {TIME_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
             </select>
-            <div className="form-hint">Preview: <code>{previewTime}</code></div>
+            <div className="form-hint">
+              Preview: <code>{previewTime}</code>
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Week Starts On</label>
-            <select className="form-control" value={weekStart} onChange={e => setWeekStart(e.target.value)} style={{ maxWidth: 180 }}>
-              {WEEK_START_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <select
+              className="form-control"
+              value={weekStart}
+              onChange={(e) => setWeekStart(e.target.value)}
+              style={{ maxWidth: 180 }}
+            >
+              {WEEK_START_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="toggle-row" style={{ borderBottom: 'none' }}>
             <div>
               <div className="toggle-label">Show Relative Dates</div>
-              <div className="toggle-hint">Display "2 days ago" instead of the full date where space allows.</div>
+              <div className="toggle-hint">
+                Display "2 days ago" instead of the full date where space allows.
+              </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={showRelative} onChange={e => setShowRelative(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={showRelative}
+                onChange={(e) => setShowRelative(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -119,7 +169,7 @@ export default function UISettingsPage() {
           <div className="form-group">
             <label className="form-label">Theme</label>
             <div style={{ display: 'flex', gap: 12 }}>
-              {(['dark', 'light', 'auto'] as const).map(t => (
+              {(['dark', 'light', 'auto'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -127,24 +177,41 @@ export default function UISettingsPage() {
                   onClick={() => setTheme(t)}
                 >
                   <span className={`theme-option-preview theme-option-preview--${t}`} />
-                  <span style={{ textTransform: 'capitalize', fontSize: 12 }}>{t === 'auto' ? 'Auto (System)' : t}</span>
+                  <span style={{ textTransform: 'capitalize', fontSize: 12 }}>
+                    {t === 'auto' ? 'Auto (System)' : t}
+                  </span>
                 </button>
               ))}
             </div>
-            <div className="form-hint">Auto follows your operating system's dark/light preference.</div>
+            <div className="form-hint">
+              Auto follows your operating system's dark/light preference.
+            </div>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Language</label>
-            <select className="form-control" value={language} onChange={e => setLanguage(e.target.value)} style={{ maxWidth: 240 }}>
-              {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            <select
+              className="form-control"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              style={{ maxWidth: 240 }}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
             </select>
-            <div className="form-hint">UI language. Most translations are community-contributed — English is always complete.</div>
+            <div className="form-hint">
+              UI language. Most translations are community-contributed — English is always complete.
+            </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
-          <button type="submit" className="btn btn-primary">Save Changes</button>
+          <button type="submit" className="btn btn-primary">
+            Save Changes
+          </button>
         </div>
       </form>
     </div>
@@ -152,9 +219,35 @@ export default function UISettingsPage() {
 }
 
 function formatPreview(format: string, date: Date): string {
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  const shortMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ]
+  const shortMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const m = date.getMonth()
   const d = date.getDate()
   const y = date.getFullYear()

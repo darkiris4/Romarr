@@ -55,7 +55,9 @@ export default function MediaManagement() {
 
   function handleFiles(files: FileList | null) {
     if (!files) return
-    Array.from(files).filter(f => f.name.endsWith('.dat')).forEach(f => uploadMutation.mutate(f))
+    Array.from(files)
+      .filter((f) => f.name.endsWith('.dat'))
+      .forEach((f) => uploadMutation.mutate(f))
   }
 
   function handleSave(e: React.FormEvent) {
@@ -78,25 +80,33 @@ export default function MediaManagement() {
     <div>
       <div className="settings-section">
         <div className="settings-section-title">Media Management</div>
-        <div className="settings-section-desc">Configure how ROMs are stored and renamed after import.</div>
+        <div className="settings-section-desc">
+          Configure how ROMs are stored and renamed after import.
+        </div>
       </div>
 
       {saved && <div className="alert alert-success">Settings saved.</div>}
 
       <form onSubmit={handleSave}>
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><span className="card-title">ROM Renaming</span></div>
+          <div className="card-header">
+            <span className="card-title">ROM Renaming</span>
+          </div>
 
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Rename ROMs on Import</div>
               <div className="toggle-hint">
-                Rename imported files to the canonical No-Intro title from the DAT file.
-                When no DAT match exists, the original filename is kept.
+                Rename imported files to the canonical No-Intro title from the DAT file. When no DAT
+                match exists, the original filename is kept.
               </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={renameEnabled} onChange={e => setRenameEnabled(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={renameEnabled}
+                onChange={(e) => setRenameEnabled(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -104,10 +114,16 @@ export default function MediaManagement() {
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Verify Checksums via DAT</div>
-              <div className="toggle-hint">Reject imports that don't match a No-Intro DAT entry.</div>
+              <div className="toggle-hint">
+                Reject imports that don't match a No-Intro DAT entry.
+              </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={verifyChecksums} onChange={e => setVerifyChecksums(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={verifyChecksums}
+                onChange={(e) => setVerifyChecksums(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -115,17 +131,25 @@ export default function MediaManagement() {
           <div className="toggle-row">
             <div>
               <div className="toggle-label">Delete Source File After Import</div>
-              <div className="toggle-hint">Remove the downloaded file once successfully imported.</div>
+              <div className="toggle-hint">
+                Remove the downloaded file once successfully imported.
+              </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={deleteAfterImport} onChange={e => setDeleteAfterImport(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={deleteAfterImport}
+                onChange={(e) => setDeleteAfterImport(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
-          <button type="submit" className="btn btn-primary">Save Changes</button>
+          <button type="submit" className="btn btn-primary">
+            Save Changes
+          </button>
         </div>
       </form>
 
@@ -135,10 +159,16 @@ export default function MediaManagement() {
         <div className="toggle-row" style={{ borderBottom: 'none' }}>
           <div>
             <div className="toggle-label">Unmonitor Deleted ROMs</div>
-            <div className="toggle-hint">Games deleted from disk are automatically unmonitored in Romarr.</div>
+            <div className="toggle-hint">
+              Games deleted from disk are automatically unmonitored in Romarr.
+            </div>
           </div>
           <label className="toggle">
-            <input type="checkbox" checked={unmonitorDeleted} onChange={e => setUnmonitorDeleted(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={unmonitorDeleted}
+              onChange={(e) => setUnmonitorDeleted(e.target.checked)}
+            />
             <span className="toggle-slider" />
           </label>
         </div>
@@ -147,8 +177,8 @@ export default function MediaManagement() {
       {/* ── Root Folders ── */}
       <div className="settings-section-title">Root Folders</div>
       <div className="settings-section-desc">
-        Root folders are the top-level directories where Romarr organises your ROM library.
-        Imported ROMs are placed under: <code>Root Folder / Platform / Game (Region).ext</code>
+        Root folders are the top-level directories where Romarr organises your ROM library. Imported
+        ROMs are placed under: <code>Root Folder / Platform / Game (Region).ext</code>
       </div>
       <div className="card" style={{ padding: 0, marginBottom: 16 }}>
         <table className="activity-table">
@@ -163,48 +193,64 @@ export default function MediaManagement() {
           <tbody>
             {foldersLoading ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                <td
+                  colSpan={4}
+                  style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}
+                >
                   Loading…
                 </td>
               </tr>
             ) : rootFolders.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                <td
+                  colSpan={4}
+                  style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}
+                >
                   No root folders configured
                 </td>
               </tr>
-            ) : rootFolders.map(folder => (
-              <tr key={folder.id}>
-                <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>{folder.path}</td>
-                <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{folder.free_space}</td>
-                <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{folder.unmapped_folders}</td>
-                <td className="col-action">
-                  <button
-                    className="btn-icon"
-                    title="Remove root folder"
-                    onClick={() => deleteFolderMutation.mutate(folder.id)}
-                    disabled={deleteFolderMutation.isPending}
-                  >
-                    <X size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            ) : (
+              rootFolders.map((folder) => (
+                <tr key={folder.id}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-white)' }}>
+                    {folder.path}
+                  </td>
+                  <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                    {folder.free_space}
+                  </td>
+                  <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                    {folder.unmapped_folders}
+                  </td>
+                  <td className="col-action">
+                    <button
+                      className="btn-icon"
+                      title="Remove root folder"
+                      onClick={() => deleteFolderMutation.mutate(folder.id)}
+                      disabled={deleteFolderMutation.isPending}
+                    >
+                      <X size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
       {addFolderMutation.isError && (
         <div className="alert alert-danger" style={{ marginBottom: 12 }}>
           <AlertCircle size={13} />
-          {String((addFolderMutation.error as any)?.response?.data?.detail ?? 'Failed to add folder')}
+          {String(
+            (addFolderMutation.error as any)?.response?.data?.detail ?? 'Failed to add folder'
+          )}
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 32 }}>
         <input
           className="form-control"
           value={newPath}
-          onChange={e => setNewPath(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddFolder())}
+          onChange={(e) => setNewPath(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddFolder())}
           placeholder="/media/roms"
           style={{ maxWidth: 400, fontFamily: 'monospace' }}
         />
@@ -221,17 +267,26 @@ export default function MediaManagement() {
       {/* ── DAT Files ── */}
       <div className="settings-section-title">No-Intro DAT Files</div>
       <div className="settings-section-desc">
-        DAT files enable hash-based ROM identification using CRC32 checksums — filenames and folder structure are ignored entirely.
-        Upload DAT files using the drop zone below. Romarr matches them to platforms automatically and shows the date of each DAT so you know when an update is available.
+        DAT files enable hash-based ROM identification using CRC32 checksums — filenames and folder
+        structure are ignored entirely. Upload DAT files using the drop zone below. Romarr matches
+        them to platforms automatically and shows the date of each DAT so you know when an update is
+        available.
       </div>
 
       {/* Upload drop zone */}
       <div
         className={`dat-dropzone${dragOver ? ' dat-dropzone--over' : ''}`}
         onClick={() => fileInputRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+          handleFiles(e.dataTransfer.files)
+        }}
       >
         <input
           ref={fileInputRef}
@@ -239,21 +294,33 @@ export default function MediaManagement() {
           accept=".dat"
           multiple
           style={{ display: 'none' }}
-          onChange={e => handleFiles(e.target.files)}
+          onChange={(e) => handleFiles(e.target.files)}
         />
         <Upload size={28} style={{ color: 'var(--accent-hover)', marginBottom: 10 }} />
         <div style={{ fontWeight: 500, color: 'var(--text-white)', marginBottom: 4 }}>
           {uploadMutation.isPending ? 'Uploading…' : 'Drop DAT files here or click to browse'}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Accepts .dat files — multiple files supported</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Accepts .dat files — multiple files supported
+        </div>
       </div>
 
       {uploadMutation.isSuccess && uploadMutation.data && (
-        <div className={`alert ${uploadMutation.data.status === 'loaded' ? 'alert-success' : 'alert-warning'}`} style={{ marginBottom: 16 }}>
+        <div
+          className={`alert ${uploadMutation.data.status === 'loaded' ? 'alert-success' : 'alert-warning'}`}
+          style={{ marginBottom: 16 }}
+        >
           {uploadMutation.data.status === 'loaded' ? (
-            <><CheckCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> loaded for <strong>{uploadMutation.data.matched_platform}</strong>{uploadMutation.data.platform_created ? ' (platform created automatically)' : ''}</>
+            <>
+              <CheckCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> loaded for{' '}
+              <strong>{uploadMutation.data.matched_platform}</strong>
+              {uploadMutation.data.platform_created ? ' (platform created automatically)' : ''}
+            </>
           ) : (
-            <><AlertCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> saved but could not be loaded — the DAT may be malformed</>
+            <>
+              <AlertCircle size={13} /> <strong>{uploadMutation.data.filename}</strong> saved but
+              could not be loaded — the DAT may be malformed
+            </>
           )}
         </div>
       )}
@@ -270,7 +337,14 @@ export default function MediaManagement() {
           <div>
             <span className="card-title">DAT Directory</span>
             {datDir && (
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                  marginTop: 4,
+                  fontFamily: 'monospace',
+                }}
+              >
                 {datDir}
               </div>
             )}
@@ -285,31 +359,48 @@ export default function MediaManagement() {
           </button>
         </div>
 
-        <div style={{
-          background: 'rgba(53,197,244,.06)',
-          border: '1px solid rgba(53,197,244,.2)',
-          borderRadius: 'var(--radius)',
-          padding: '12px 16px',
-          fontSize: 12,
-          color: 'var(--text-secondary)',
-          lineHeight: 1.7,
-          marginBottom: 16,
-        }}>
+        <div
+          style={{
+            background: 'rgba(53,197,244,.06)',
+            border: '1px solid rgba(53,197,244,.2)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.7,
+            marginBottom: 16,
+          }}
+        >
           <strong style={{ color: 'var(--info)' }}>Getting DAT files:</strong>
           <ol style={{ paddingLeft: 20, marginTop: 6, marginBottom: 8 }}>
-            <li>Go to <strong>datomatic.no-intro.org</strong> → Download → Standard DAT</li>
-            <li>Download the <code>.dat</code> file for each platform you want</li>
-            <li>Drag and drop the files onto the upload area above — platforms are matched and loaded automatically</li>
+            <li>
+              Go to <strong>datomatic.no-intro.org</strong> → Download → Standard DAT
+            </li>
+            <li>
+              Download the <code>.dat</code> file for each platform you want
+            </li>
+            <li>
+              Drag and drop the files onto the upload area above — platforms are matched and loaded
+              automatically
+            </li>
           </ol>
           <div style={{ color: 'var(--text-muted)' }}>
-            To update a DAT, upload the new file — it replaces the existing one automatically.
-            DATs are also reloaded each time Romarr starts.
+            To update a DAT, upload the new file — it replaces the existing one automatically. DATs
+            are also reloaded each time Romarr starts.
           </div>
         </div>
 
         {platforms.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-            No platforms configured yet. Add platforms in <strong>Settings → Platforms</strong> first.
+          <div
+            style={{
+              color: 'var(--text-muted)',
+              fontSize: 13,
+              textAlign: 'center',
+              padding: '20px 0',
+            }}
+          >
+            No platforms configured yet. Add platforms in <strong>Settings → Platforms</strong>{' '}
+            first.
           </div>
         ) : (
           <div className="table-wrap">
@@ -331,19 +422,42 @@ export default function MediaManagement() {
                     <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {p.dat_date ?? (p.dat_file ? '—' : '')}
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                    <td
+                      style={{
+                        color: 'var(--text-muted)',
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {p.dat_version ?? (p.dat_file ? '—' : '')}
                     </td>
                     <td style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
-                      {p.loaded ? p.entries.toLocaleString() : (p.dat_file ? '—' : '')}
+                      {p.loaded ? p.entries.toLocaleString() : p.dat_file ? '—' : ''}
                     </td>
                     <td>
                       {p.loaded ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--success)' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11,
+                            color: 'var(--success)',
+                          }}
+                        >
                           <CheckCircle size={12} /> Loaded
                         </span>
                       ) : p.dat_file ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--warning)' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11,
+                            color: 'var(--warning)',
+                          }}
+                        >
                           <AlertCircle size={12} /> Not loaded
                         </span>
                       ) : (
@@ -370,7 +484,8 @@ export default function MediaManagement() {
         )}
 
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-          {loadedCount} of {platforms.length} platform{platforms.length !== 1 ? 's' : ''} have a DAT loaded
+          {loadedCount} of {platforms.length} platform{platforms.length !== 1 ? 's' : ''} have a DAT
+          loaded
         </div>
       </div>
     </div>

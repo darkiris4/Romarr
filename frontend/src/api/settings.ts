@@ -9,10 +9,10 @@ export interface RootFolder {
 
 export const settingsApi = {
   listRootFolders: (): Promise<RootFolder[]> =>
-    client.get('/settings/root-folders').then(r => r.data),
+    client.get('/settings/root-folders').then((r) => r.data),
 
   addRootFolder: (path: string): Promise<RootFolder> =>
-    client.post('/settings/root-folders', { path }).then(r => r.data),
+    client.post('/settings/root-folders', { path }).then((r) => r.data),
 
   deleteRootFolder: (id: number): Promise<void> =>
     client.delete(`/settings/root-folders/${id}`).then(() => undefined),

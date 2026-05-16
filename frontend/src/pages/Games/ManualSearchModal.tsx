@@ -63,19 +63,36 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
   })
 
   function toggleSort(key: SortKey) {
-    if (sort === key) setDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSort(key); setDir('desc') }
+    if (sort === key) setDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSort(key)
+      setDir('desc')
+    }
   }
 
   const results = data?.results ?? []
   const sorted = [...results].sort((a, b) => {
     let av: number | string, bv: number | string
     switch (sort) {
-      case 'seeders': av = a.seeders ?? -1; bv = b.seeders ?? -1; break
-      case 'size': av = a.size; bv = b.size; break
-      case 'age': av = a.publish_date ?? ''; bv = b.publish_date ?? ''; break
-      case 'indexer': av = a.indexer; bv = b.indexer; break
-      default: av = a.title; bv = b.title
+      case 'seeders':
+        av = a.seeders ?? -1
+        bv = b.seeders ?? -1
+        break
+      case 'size':
+        av = a.size
+        bv = b.size
+        break
+      case 'age':
+        av = a.publish_date ?? ''
+        bv = b.publish_date ?? ''
+        break
+      case 'indexer':
+        av = a.indexer
+        bv = b.indexer
+        break
+      default:
+        av = a.title
+        bv = b.title
     }
     if (av < bv) return dir === 'asc' ? -1 : 1
     if (av > bv) return dir === 'asc' ? 1 : -1
@@ -89,10 +106,12 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal--wide" onClick={e => e.stopPropagation()}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Manual Search — {gameTitle}</span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
 
         <div className="modal-body" style={{ padding: 0 }}>
@@ -148,7 +167,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                               target="_blank"
                               rel="noopener noreferrer"
                               className="release-link"
-                              onClick={e => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <ExternalLink size={11} />
                             </a>
@@ -166,7 +185,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                             <span className={r.seeders > 0 ? 'text-success' : 'text-muted'}>
                               {r.seeders}
                             </span>
-                          ) : '—'}
+                          ) : (
+                            '—'
+                          )}
                           {r.leechers != null && (
                             <span className="text-muted"> / {r.leechers}</span>
                           )}
@@ -174,7 +195,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                         <td className="col-right text-muted">{formatAge(r.publish_date)}</td>
                         <td className="col-action">
                           {isGrabbed ? (
-                            <span className="text-success" style={{ fontSize: 12 }}>Grabbed!</span>
+                            <span className="text-success" style={{ fontSize: 12 }}>
+                              Grabbed!
+                            </span>
                           ) : (
                             <button
                               className="btn btn-primary btn--sm"
@@ -196,9 +219,13 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <span className="text-muted" style={{ fontSize: 12 }}>
-            {results.length > 0 ? `${results.length} release${results.length !== 1 ? 's' : ''} found` : ''}
+            {results.length > 0
+              ? `${results.length} release${results.length !== 1 ? 's' : ''} found`
+              : ''}
           </span>
-          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>

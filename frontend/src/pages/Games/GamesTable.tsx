@@ -13,7 +13,14 @@ interface Props {
   onToggleSelect?: (id: number) => void
 }
 
-export default function GamesTable({ games, platformMap, onDelete, selecting, selected, onToggleSelect }: Props) {
+export default function GamesTable({
+  games,
+  platformMap,
+  onDelete,
+  selecting,
+  selected,
+  onToggleSelect,
+}: Props) {
   return (
     <div className="card" style={{ padding: 0 }}>
       <div className="table-wrap">
@@ -31,7 +38,7 @@ export default function GamesTable({ games, platformMap, onDelete, selecting, se
             </tr>
           </thead>
           <tbody>
-            {games.map(game => {
+            {games.map((game) => {
               const isSelected = selected?.has(game.id) ?? false
               return (
                 <tr
@@ -41,7 +48,7 @@ export default function GamesTable({ games, platformMap, onDelete, selecting, se
                   style={selecting ? { cursor: 'pointer' } : undefined}
                 >
                   {selecting && (
-                    <td className="col-check" onClick={e => e.stopPropagation()}>
+                    <td className="col-check" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="game-checkbox"
@@ -52,14 +59,22 @@ export default function GamesTable({ games, platformMap, onDelete, selecting, se
                   )}
                   <td>
                     {selecting ? (
-                      game.cover_url
-                        ? <img src={game.cover_url} alt="" className="cover-thumb" />
-                        : <div className="cover-placeholder"><Gamepad2 size={14} /></div>
+                      game.cover_url ? (
+                        <img src={game.cover_url} alt="" className="cover-thumb" />
+                      ) : (
+                        <div className="cover-placeholder">
+                          <Gamepad2 size={14} />
+                        </div>
+                      )
                     ) : (
                       <Link to={`/games/${game.id}`}>
-                        {game.cover_url
-                          ? <img src={game.cover_url} alt="" className="cover-thumb" />
-                          : <div className="cover-placeholder"><Gamepad2 size={14} /></div>}
+                        {game.cover_url ? (
+                          <img src={game.cover_url} alt="" className="cover-thumb" />
+                        ) : (
+                          <div className="cover-placeholder">
+                            <Gamepad2 size={14} />
+                          </div>
+                        )}
                       </Link>
                     )}
                   </td>
@@ -73,14 +88,22 @@ export default function GamesTable({ games, platformMap, onDelete, selecting, se
                     )}
                     {!game.monitored && <span className="text-muted text-sm"> (unmonitored)</span>}
                   </td>
-                  <td className="text-muted">{game.platform?.name ?? platformMap[game.platform_id] ?? '—'}</td>
+                  <td className="text-muted">
+                    {game.platform?.name ?? platformMap[game.platform_id] ?? '—'}
+                  </td>
                   <td className="text-muted">{game.region}</td>
                   <td className="text-muted">{game.release_year ?? '—'}</td>
-                  <td><StatusBadge status={game.status} /></td>
+                  <td>
+                    <StatusBadge status={game.status} />
+                  </td>
                   {!selecting && (
                     <td>
                       <div className="flex-center gap-2" style={{ justifyContent: 'flex-end' }}>
-                        <button className="btn-icon" title="Re-search" onClick={() => gamesApi.search(game.id)}>
+                        <button
+                          className="btn-icon"
+                          title="Re-search"
+                          onClick={() => gamesApi.search(game.id)}
+                        >
                           <RotateCcw size={14} />
                         </button>
                         <button className="btn-icon" title="Delete" onClick={() => onDelete(game)}>

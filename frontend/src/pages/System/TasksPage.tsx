@@ -4,13 +4,13 @@ import { formatDistanceToNow } from 'date-fns'
 import { systemApi } from '../../api/system'
 
 const TASK_META: Record<string, { label: string }> = {
-  poll_downloads:  { label: 'Refresh Monitored Downloads' },
-  search_wanted:   { label: 'Wanted Search' },
+  poll_downloads: { label: 'Refresh Monitored Downloads' },
+  search_wanted: { label: 'Wanted Search' },
   scrape_metadata: { label: 'Scrape Metadata' },
-  deduplicate:     { label: 'Deduplicate Library' },
-  check_health:    { label: 'Check Health' },
-  backup:          { label: 'Backup' },
-  housekeeping:    { label: 'Housekeeping' },
+  deduplicate: { label: 'Deduplicate Library' },
+  check_health: { label: 'Check Health' },
+  backup: { label: 'Backup' },
+  housekeeping: { label: 'Housekeeping' },
 }
 
 function formatInterval(seconds: number | null): string {
@@ -63,13 +63,19 @@ export default function TasksPage() {
     },
   })
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-
       <div>
-        <div className="settings-section-title" style={{ marginBottom: 16 }}>Scheduled</div>
+        <div className="settings-section-title" style={{ marginBottom: 16 }}>
+          Scheduled
+        </div>
         <div className="card" style={{ padding: 0 }}>
           <div className="table-wrap">
             <table>
@@ -84,7 +90,7 @@ export default function TasksPage() {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map(t => (
+                {tasks.map((t) => (
                   <tr key={t.id}>
                     <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
                       {TASK_META[t.id]?.label ?? t.name}
@@ -114,7 +120,9 @@ export default function TasksPage() {
       </div>
 
       <div>
-        <div className="settings-section-title" style={{ marginBottom: 16 }}>Queue</div>
+        <div className="settings-section-title" style={{ marginBottom: 16 }}>
+          Queue
+        </div>
         <div className="card" style={{ padding: 0 }}>
           <div className="table-wrap">
             <table>
@@ -130,33 +138,41 @@ export default function TasksPage() {
               <tbody>
                 {queue.slice(0, 10).length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
+                    <td
+                      colSpan={5}
+                      style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}
+                    >
                       No tasks have run yet
                     </td>
                   </tr>
-                ) : queue.slice(0, 10).map((entry, i) => (
-                  <tr key={i}>
-                    <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
-                      {TASK_META[entry.id]?.label ?? entry.id}
-                      {entry.status === 'running' && (
-                        <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--accent)' }}>running</span>
-                      )}
-                      {entry.status === 'failed' && (
-                        <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--danger)' }}>failed</span>
-                      )}
-                    </td>
-                    <td className="text-muted">{formatRelative(entry.queued)}</td>
-                    <td className="text-muted">{formatRelative(entry.started)}</td>
-                    <td className="text-muted">{formatRelative(entry.ended)}</td>
-                    <td className="text-muted">{formatDuration(entry.duration)}</td>
-                  </tr>
-                ))}
+                ) : (
+                  queue.slice(0, 10).map((entry, i) => (
+                    <tr key={i}>
+                      <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
+                        {TASK_META[entry.id]?.label ?? entry.id}
+                        {entry.status === 'running' && (
+                          <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--accent)' }}>
+                            running
+                          </span>
+                        )}
+                        {entry.status === 'failed' && (
+                          <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--danger)' }}>
+                            failed
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-muted">{formatRelative(entry.queued)}</td>
+                      <td className="text-muted">{formatRelative(entry.started)}</td>
+                      <td className="text-muted">{formatRelative(entry.ended)}</td>
+                      <td className="text-muted">{formatDuration(entry.duration)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
-
     </div>
   )
 }

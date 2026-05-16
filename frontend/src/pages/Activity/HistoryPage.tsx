@@ -7,20 +7,20 @@ import { historyApi } from '../../api/history'
 import type { HistoryEventType } from '../../types'
 
 const EVENT_META: Record<string, { label: string; color: string }> = {
-  grabbed:         { label: 'Grabbed',           color: 'var(--accent-hover)' },
-  downloadComplete:{ label: 'Download Complete',  color: 'var(--info)' },
-  imported:        { label: 'Imported',           color: 'var(--success)' },
-  importFailed:    { label: 'Import Failed',      color: 'var(--danger)' },
-  deleted:         { label: 'Deleted',            color: 'var(--text-muted)' },
-  ignored:         { label: 'Ignored',            color: 'var(--text-muted)' },
+  grabbed: { label: 'Grabbed', color: 'var(--accent-hover)' },
+  downloadComplete: { label: 'Download Complete', color: 'var(--info)' },
+  imported: { label: 'Imported', color: 'var(--success)' },
+  importFailed: { label: 'Import Failed', color: 'var(--danger)' },
+  deleted: { label: 'Deleted', color: 'var(--text-muted)' },
+  ignored: { label: 'Ignored', color: 'var(--text-muted)' },
 }
 
 const FILTERS: { label: string; value: HistoryEventType | '' }[] = [
-  { label: 'All',              value: '' },
-  { label: 'Grabbed',          value: 'grabbed' },
-  { label: 'Imported',         value: 'imported' },
-  { label: 'Failed',           value: 'importFailed' },
-  { label: 'Deleted',          value: 'deleted' },
+  { label: 'All', value: '' },
+  { label: 'Grabbed', value: 'grabbed' },
+  { label: 'Imported', value: 'imported' },
+  { label: 'Failed', value: 'importFailed' },
+  { label: 'Deleted', value: 'deleted' },
 ]
 
 export default function HistoryPage() {
@@ -38,7 +38,7 @@ export default function HistoryPage() {
         <span className="activity-title">History</span>
         <span className="activity-count">{items.length}</span>
         <div className="activity-filters">
-          {FILTERS.map(f => (
+          {FILTERS.map((f) => (
             <button
               key={f.value}
               className={`activity-filter-btn${filter === f.value ? ' active' : ''}`}
@@ -51,7 +51,9 @@ export default function HistoryPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-page"><div className="spinner" /> Loading…</div>
+        <div className="loading-page">
+          <div className="spinner" /> Loading…
+        </div>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <List size={48} />
@@ -72,17 +74,26 @@ export default function HistoryPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => {
-                const meta = EVENT_META[item.event_type] ?? { label: item.event_type, color: 'var(--text-muted)' }
+              {items.map((item) => {
+                const meta = EVENT_META[item.event_type] ?? {
+                  label: item.event_type,
+                  color: 'var(--text-muted)',
+                }
                 return (
                   <tr key={item.id}>
                     <td>
-                      <span className="activity-game-link" onClick={() => navigate(`/games/${item.game_id}`)}>
+                      <span
+                        className="activity-game-link"
+                        onClick={() => navigate(`/games/${item.game_id}`)}
+                      >
                         {item.game?.title ?? `Game #${item.game_id}`}
                       </span>
                     </td>
                     <td>
-                      <span className="activity-event-badge" style={{ color: meta.color, borderColor: meta.color }}>
+                      <span
+                        className="activity-event-badge"
+                        style={{ color: meta.color, borderColor: meta.color }}
+                      >
                         {meta.label}
                       </span>
                     </td>

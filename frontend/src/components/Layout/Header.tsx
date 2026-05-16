@@ -55,59 +55,86 @@ export default function Header() {
             className="topbar-search"
             placeholder="Search or add games…"
             value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
+            onChange={(e) => setInputValue(e.target.value)}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            onKeyDown={e => {
-              if (e.key === 'Escape') { setInputValue(''); setFocused(false) }
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setInputValue('')
+                setFocused(false)
+              }
               if (e.key === 'Enter' && trimmed) goToAddNew(trimmed)
             }}
           />
           {inputValue && (
-            <button className="search-clear" onClick={() => { setInputValue(''); setFocused(false) }} tabIndex={-1}>
+            <button
+              className="search-clear"
+              onClick={() => {
+                setInputValue('')
+                setFocused(false)
+              }}
+              tabIndex={-1}
+            >
               <X size={12} />
             </button>
           )}
         </div>
       </header>
 
-      {showDropdown && createPortal(
-        <div
-          className="search-dropdown"
-          style={{ position: 'fixed', top: dropdownCoords.top, left: dropdownCoords.left, width: dropdownCoords.width }}
-          onMouseDown={e => e.preventDefault()}
-        >
-          {suggestions.slice(0, 5).map(g => (
-            <div
-              key={g.id}
-              className="search-dropdown-row"
-              onClick={() => { setInputValue(''); setFocused(false); navigate(`/games/${g.id}`) }}
-            >
-              <div className="search-dropdown-cover">
-                {g.cover_url
-                  ? <img src={g.cover_url} alt={g.title} />
-                  : <div className="search-dropdown-cover--empty"><ImageOff size={10} /></div>
-                }
+      {showDropdown &&
+        createPortal(
+          <div
+            className="search-dropdown"
+            style={{
+              position: 'fixed',
+              top: dropdownCoords.top,
+              left: dropdownCoords.left,
+              width: dropdownCoords.width,
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {suggestions.slice(0, 5).map((g) => (
+              <div
+                key={g.id}
+                className="search-dropdown-row"
+                onClick={() => {
+                  setInputValue('')
+                  setFocused(false)
+                  navigate(`/games/${g.id}`)
+                }}
+              >
+                <div className="search-dropdown-cover">
+                  {g.cover_url ? (
+                    <img src={g.cover_url} alt={g.title} />
+                  ) : (
+                    <div className="search-dropdown-cover--empty">
+                      <ImageOff size={10} />
+                    </div>
+                  )}
+                </div>
+                <div className="search-dropdown-info">
+                  <span className="search-dropdown-title">{g.title}</span>
+                  <span className="search-dropdown-meta">
+                    {g.platform?.name}
+                    {g.release_year ? ` · ${g.release_year}` : ''}
+                  </span>
+                </div>
+                <span className="search-dropdown-badge">In Library</span>
               </div>
-              <div className="search-dropdown-info">
-                <span className="search-dropdown-title">{g.title}</span>
-                <span className="search-dropdown-meta">
-                  {g.platform?.name}{g.release_year ? ` · ${g.release_year}` : ''}
-                </span>
-              </div>
-              <span className="search-dropdown-badge">In Library</span>
-            </div>
-          ))}
+            ))}
 
-          <div className="search-dropdown-row search-dropdown-row--add" onClick={() => goToAddNew(trimmed)}>
-            <div className="search-dropdown-cover search-dropdown-cover--add">
-              <Plus size={13} />
+            <div
+              className="search-dropdown-row search-dropdown-row--add"
+              onClick={() => goToAddNew(trimmed)}
+            >
+              <div className="search-dropdown-cover search-dropdown-cover--add">
+                <Plus size={13} />
+              </div>
+              <span className="search-dropdown-title">Search IGDB for "{trimmed}"</span>
             </div>
-            <span className="search-dropdown-title">Search IGDB for "{trimmed}"</span>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </>
   )
 }

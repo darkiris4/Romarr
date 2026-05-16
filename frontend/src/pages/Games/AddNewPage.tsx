@@ -44,13 +44,15 @@ export default function AddNewPage() {
     queryFn: () => gamesApi.list({}),
   })
 
-  const libraryIgdbIds = new Set(libraryGames.map(g => g.igdb_id).filter(Boolean))
+  const libraryIgdbIds = new Set(libraryGames.map((g) => g.igdb_id).filter(Boolean))
 
-  const enabledPlatforms = platforms.filter(p => p.enabled)
+  const enabledPlatforms = platforms.filter((p) => p.enabled)
 
   // Platforms that match the selected IGDB game's platform list; falls back to all enabled.
   const confirmPlatforms = selected?.platform_ids?.length
-    ? enabledPlatforms.filter(p => p.igdb_platform_id != null && selected.platform_ids.includes(p.igdb_platform_id!))
+    ? enabledPlatforms.filter(
+        (p) => p.igdb_platform_id != null && selected.platform_ids.includes(p.igdb_platform_id!)
+      )
     : enabledPlatforms
   const displayPlatforms = confirmPlatforms.length > 0 ? confirmPlatforms : enabledPlatforms
 
@@ -72,28 +74,37 @@ export default function AddNewPage() {
     else inputRef.current?.focus()
   }, [])
 
-  const handleSearch = useCallback(async (q = query) => {
-    const trimmed = q.trim()
-    if (!trimmed) { setResults([]); setSearched(false); return }
-    setLoading(true)
-    setSearched(true)
-    setStep('search')
-    setSelected(null)
-    try {
-      const data = await igdbApi.search(trimmed)
-      setResults(data)
-    } catch {
-      setResults([])
-    } finally {
-      setLoading(false)
-    }
-  }, [query])
+  const handleSearch = useCallback(
+    async (q = query) => {
+      const trimmed = q.trim()
+      if (!trimmed) {
+        setResults([])
+        setSearched(false)
+        return
+      }
+      setLoading(true)
+      setSearched(true)
+      setStep('search')
+      setSelected(null)
+      try {
+        const data = await igdbApi.search(trimmed)
+        setResults(data)
+      } catch {
+        setResults([])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [query]
+  )
 
   // Debounced search as user types
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => handleSearch(query), 400)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
   }, [query])
 
   const addMutation = useMutation({
@@ -118,7 +129,6 @@ export default function AddNewPage() {
 
   return (
     <div className="add-new-page">
-
       {/* Search bar */}
       <div className="add-new-search-wrap">
         <div className="add-new-searchbox">
@@ -128,8 +138,8 @@ export default function AddNewPage() {
             className="add-new-searchbox-input"
             placeholder="Search for a game…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button
             className="btn btn-primary"
@@ -141,8 +151,8 @@ export default function AddNewPage() {
         </div>
         {step === 'search' && !searched && (
           <p className="add-new-hint">
-            It's easy to add a new game, just start typing the name of the game you want to add.
-            You can also search using the IGDB ID of a game.
+            It's easy to add a new game, just start typing the name of the game you want to add. You
+            can also search using the IGDB ID of a game.
           </p>
         )}
       </div>
@@ -154,38 +164,47 @@ export default function AddNewPage() {
             <div className="add-new-no-results">No results found on IGDB.</div>
           ) : (
             <div className="igdb-results igdb-results--page">
-              {results.map(r => {
+              {results.map((r) => {
                 const inLibrary = libraryIgdbIds.has(r.igdb_id)
                 const existingGame = inLibrary
-                  ? libraryGames.find(g => g.igdb_id === r.igdb_id)
+                  ? libraryGames.find((g) => g.igdb_id === r.igdb_id)
                   : null
                 return (
                   <div
                     key={r.igdb_id}
                     className={`igdb-result-row${inLibrary ? ' igdb-result-row--in-library' : ''}`}
-                    onClick={() => inLibrary && existingGame
-                      ? navigate(`/games/${existingGame.id}`)
-                      : (setSelected(r), setStep('confirm'), setError(''))
+                    onClick={() =>
+                      inLibrary && existingGame
+                        ? navigate(`/games/${existingGame.id}`)
+                        : (setSelected(r), setStep('confirm'), setError(''))
                     }
                   >
                     <div className="igdb-result-cover">
-                      {r.cover_url
-                        ? <img src={r.cover_url} alt={r.name} />
-                        : <div className="igdb-result-cover--empty"><ImageOff size={16} /></div>
-                      }
+                      {r.cover_url ? (
+                        <img src={r.cover_url} alt={r.name} />
+                      ) : (
+                        <div className="igdb-result-cover--empty">
+                          <ImageOff size={16} />
+                        </div>
+                      )}
                     </div>
                     <div className="igdb-result-info">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                        <div className="igdb-result-title" style={{ marginBottom: 0 }}>{r.name}</div>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}
+                      >
+                        <div className="igdb-result-title" style={{ marginBottom: 0 }}>
+                          {r.name}
+                        </div>
                         {r.rating != null && (
-                          <div className={`detail-rating-badge ${ratingClass(r.rating)}`} style={{ position: 'static', flexShrink: 0 }}>
+                          <div
+                            className={`detail-rating-badge ${ratingClass(r.rating)}`}
+                            style={{ position: 'static', flexShrink: 0 }}
+                          >
                             <span className="detail-rating-score">{r.rating}</span>
                             <span className="detail-rating-label">rating</span>
                           </div>
                         )}
-                        {inLibrary && (
-                          <span className="igdb-result-in-library">In Library</span>
-                        )}
+                        {inLibrary && <span className="igdb-result-in-library">In Library</span>}
                       </div>
                       <div className="igdb-result-year">
                         {r.release_year ?? ''}
@@ -205,22 +224,35 @@ export default function AddNewPage() {
       {/* Confirm */}
       {step === 'confirm' && selected && (
         <div className="add-new-confirm-wrap">
-          <button className="btn btn-secondary" style={{ marginBottom: 20 }} onClick={() => setStep('search')}>
+          <button
+            className="btn btn-secondary"
+            style={{ marginBottom: 20 }}
+            onClick={() => setStep('search')}
+          >
             <ChevronLeft size={14} /> Back to results
           </button>
 
-          {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
+          {error && (
+            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
 
           <div className="add-game-confirm">
             <div className="add-game-confirm-cover">
-              {selected.cover_url
-                ? <img src={selected.cover_url} alt={selected.name} />
-                : <div className="igdb-result-cover--empty"><ImageOff size={24} /></div>
-              }
+              {selected.cover_url ? (
+                <img src={selected.cover_url} alt={selected.name} />
+              ) : (
+                <div className="igdb-result-cover--empty">
+                  <ImageOff size={24} />
+                </div>
+              )}
             </div>
             <div className="add-game-confirm-info">
               <div className="add-game-confirm-title">{selected.name}</div>
-              {selected.release_year && <div className="add-game-confirm-year">{selected.release_year}</div>}
+              {selected.release_year && (
+                <div className="add-game-confirm-year">{selected.release_year}</div>
+              )}
               {selected.summary && <p className="add-game-confirm-summary">{selected.summary}</p>}
             </div>
           </div>
@@ -228,16 +260,26 @@ export default function AddNewPage() {
           <div className="form-row" style={{ marginTop: 24 }}>
             <div className="form-group">
               <label className="form-label">Platform</label>
-              <select className="form-control" value={platformId} onChange={e => setPlatformId(e.target.value)}>
+              <select
+                className="form-control"
+                value={platformId}
+                onChange={(e) => setPlatformId(e.target.value)}
+              >
                 <option value="">— Select —</option>
-                {displayPlatforms.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                {displayPlatforms.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Region</label>
-              <select className="form-control" value={region} onChange={e => setRegion(e.target.value)}>
+              <select
+                className="form-control"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+              >
                 <option>USA</option>
                 <option>Europe</option>
                 <option>Japan</option>
@@ -250,7 +292,11 @@ export default function AddNewPage() {
 
           <div className="form-group">
             <label className="form-check">
-              <input type="checkbox" checked={monitored} onChange={e => setMonitored(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={monitored}
+                onChange={(e) => setMonitored(e.target.checked)}
+              />
               <span style={{ marginLeft: 8 }}>Monitored</span>
             </label>
           </div>

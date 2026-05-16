@@ -13,12 +13,12 @@ function formatBytes(bytes: number) {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  queued:        'var(--text-muted)',
-  downloading:   'var(--info)',
-  completed:     'var(--success)',
+  queued: 'var(--text-muted)',
+  downloading: 'var(--info)',
+  completed: 'var(--success)',
   importPending: 'var(--warning)',
-  failed:        'var(--danger)',
-  paused:        'var(--text-muted)',
+  failed: 'var(--danger)',
+  paused: 'var(--text-muted)',
 }
 
 export default function QueuePage() {
@@ -44,7 +44,9 @@ export default function QueuePage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-page"><div className="spinner" /> Loading…</div>
+        <div className="loading-page">
+          <div className="spinner" /> Loading…
+        </div>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <Clock size={48} />
@@ -67,7 +69,7 @@ export default function QueuePage() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {items.map((item) => (
                 <QueueRow
                   key={item.id}
                   item={item}
@@ -83,7 +85,11 @@ export default function QueuePage() {
   )
 }
 
-function QueueRow({ item, onRemove, onGameClick }: {
+function QueueRow({
+  item,
+  onRemove,
+  onGameClick,
+}: {
   item: QueueItem
   onRemove: () => void
   onGameClick: () => void
@@ -96,7 +102,9 @@ function QueueRow({ item, onRemove, onGameClick }: {
           {item.game?.title ?? `Game #${item.game_id}`}
         </span>
       </td>
-      <td className="activity-release-cell" title={item.title}>{item.title}</td>
+      <td className="activity-release-cell" title={item.title}>
+        {item.title}
+      </td>
       <td className="text-muted">{item.indexer_id ?? '—'}</td>
       <td>
         <span className={`protocol-badge protocol-badge--${item.protocol}`}>{item.protocol}</span>
@@ -107,7 +115,9 @@ function QueueRow({ item, onRemove, onGameClick }: {
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${item.progress}%` }} />
           </div>
-          <span className="text-muted" style={{ fontSize: 11, width: 34, textAlign: 'right' }}>{item.progress}%</span>
+          <span className="text-muted" style={{ fontSize: 11, width: 34, textAlign: 'right' }}>
+            {item.progress}%
+          </span>
         </div>
       </td>
       <td>

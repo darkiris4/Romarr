@@ -3,11 +3,29 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
-  Gamepad2, Plus, FolderInput,
-  Clock, List, Ban,
+  Gamepad2,
+  Plus,
+  FolderInput,
+  Clock,
+  List,
+  Ban,
   BookX,
-  HardDrive, Wifi, Server, FileInput, Plug, Database, Tag, Settings, Monitor, Star,
-  Activity, CheckSquare, Archive, RefreshCw, Bell, FileText,
+  HardDrive,
+  Wifi,
+  Server,
+  FileInput,
+  Plug,
+  Database,
+  Tag,
+  Settings,
+  Monitor,
+  Star,
+  Activity,
+  CheckSquare,
+  Archive,
+  RefreshCw,
+  Bell,
+  FileText,
 } from 'lucide-react'
 import { systemApi } from '../../api/system'
 
@@ -28,50 +46,68 @@ interface Section {
 
 const SECTIONS: Section[] = [
   {
-    key: 'games', to: '/games', icon: <Gamepad2 size={16} />, label: 'Games', prefix: '/games',
+    key: 'games',
+    to: '/games',
+    icon: <Gamepad2 size={16} />,
+    label: 'Games',
+    prefix: '/games',
     children: [
-      { to: '/games/add',    icon: <Plus size={14} />,        label: 'Add New' },
+      { to: '/games/add', icon: <Plus size={14} />, label: 'Add New' },
       { to: '/games/import', icon: <FolderInput size={14} />, label: 'Library Import' },
     ],
   },
   {
-    key: 'activity', to: '/activity', icon: <Clock size={16} />, label: 'Activity', prefix: '/activity',
+    key: 'activity',
+    to: '/activity',
+    icon: <Clock size={16} />,
+    label: 'Activity',
+    prefix: '/activity',
     children: [
-      { to: '/activity/queue',     icon: <Clock size={14} />,    label: 'Queue' },
-      { to: '/activity/history',   icon: <List size={14} />,     label: 'History' },
-      { to: '/activity/blocklist', icon: <Ban size={14} />,      label: 'Blocklist' },
+      { to: '/activity/queue', icon: <Clock size={14} />, label: 'Queue' },
+      { to: '/activity/history', icon: <List size={14} />, label: 'History' },
+      { to: '/activity/blocklist', icon: <Ban size={14} />, label: 'Blocklist' },
     ],
   },
   {
-    key: 'wanted', to: '/wanted', icon: <BookX size={16} />, label: 'Wanted', prefix: '/wanted',
+    key: 'wanted',
+    to: '/wanted',
+    icon: <BookX size={16} />,
+    label: 'Wanted',
+    prefix: '/wanted',
+    children: [{ to: '/wanted/missing', icon: <BookX size={14} />, label: 'Missing' }],
+  },
+  {
+    key: 'settings',
+    to: '/settings',
+    icon: <Settings size={16} />,
+    label: 'Settings',
+    prefix: '/settings',
     children: [
-      { to: '/wanted/missing', icon: <BookX size={14} />, label: 'Missing' },
+      { to: '/settings/mediamanagement', icon: <HardDrive size={14} />, label: 'Media Management' },
+      { to: '/settings/profiles', icon: <Star size={14} />, label: 'Profiles' },
+      { to: '/settings/indexers', icon: <Wifi size={14} />, label: 'Indexers' },
+      { to: '/settings/downloadclients', icon: <Server size={14} />, label: 'Download Clients' },
+      { to: '/settings/lists', icon: <FileInput size={14} />, label: 'Import Lists' },
+      { to: '/settings/connect', icon: <Plug size={14} />, label: 'Connect' },
+      { to: '/settings/metadata', icon: <Database size={14} />, label: 'Metadata' },
+      { to: '/settings/tags', icon: <Tag size={14} />, label: 'Tags' },
+      { to: '/settings/general', icon: <Settings size={14} />, label: 'General' },
+      { to: '/settings/ui', icon: <Monitor size={14} />, label: 'UI' },
     ],
   },
   {
-    key: 'settings', to: '/settings', icon: <Settings size={16} />, label: 'Settings', prefix: '/settings',
+    key: 'system',
+    to: '/system',
+    icon: <Activity size={16} />,
+    label: 'System',
+    prefix: '/system',
     children: [
-      { to: '/settings/mediamanagement', icon: <HardDrive size={14} />,  label: 'Media Management' },
-      { to: '/settings/profiles',           icon: <Star size={14} />,       label: 'Profiles' },
-      { to: '/settings/indexers',         icon: <Wifi size={14} />,       label: 'Indexers' },
-      { to: '/settings/downloadclients',  icon: <Server size={14} />,     label: 'Download Clients' },
-      { to: '/settings/lists',            icon: <FileInput size={14} />,  label: 'Import Lists' },
-      { to: '/settings/connect',          icon: <Plug size={14} />,       label: 'Connect' },
-      { to: '/settings/metadata',         icon: <Database size={14} />,   label: 'Metadata' },
-      { to: '/settings/tags',             icon: <Tag size={14} />,        label: 'Tags' },
-      { to: '/settings/general',          icon: <Settings size={14} />,   label: 'General' },
-      { to: '/settings/ui',               icon: <Monitor size={14} />,    label: 'UI' },
-    ],
-  },
-  {
-    key: 'system', to: '/system', icon: <Activity size={16} />, label: 'System', prefix: '/system',
-    children: [
-      { to: '/system/status',  icon: <Activity size={14} />,    label: 'Status' },
-      { to: '/system/tasks',   icon: <CheckSquare size={14} />, label: 'Tasks' },
-      { to: '/system/backup',  icon: <Archive size={14} />,     label: 'Backup' },
-      { to: '/system/updates', icon: <RefreshCw size={14} />,   label: 'Updates' },
-      { to: '/system/events',  icon: <Bell size={14} />,        label: 'Events' },
-      { to: '/system/logs',    icon: <FileText size={14} />,    label: 'Log Files' },
+      { to: '/system/status', icon: <Activity size={14} />, label: 'Status' },
+      { to: '/system/tasks', icon: <CheckSquare size={14} />, label: 'Tasks' },
+      { to: '/system/backup', icon: <Archive size={14} />, label: 'Backup' },
+      { to: '/system/updates', icon: <RefreshCw size={14} />, label: 'Updates' },
+      { to: '/system/events', icon: <Bell size={14} />, label: 'Events' },
+      { to: '/system/logs', icon: <FileText size={14} />, label: 'Log Files' },
     ],
   },
 ]
@@ -80,7 +116,7 @@ function ScrapeIndicator() {
   const { data } = useQuery({
     queryKey: ['scrape-status-sidebar'],
     queryFn: systemApi.scrapeStatus,
-    refetchInterval: (query) => query.state.data?.running ? 2000 : 15000,
+    refetchInterval: (query) => (query.state.data?.running ? 2000 : 15000),
   })
 
   if (!data?.running) return null
@@ -93,14 +129,24 @@ function ScrapeIndicator() {
     : `${data.processed.toLocaleString()} / ${data.total.toLocaleString()} · ${data.updated} matched · ${data.failed} skipped`
 
   return (
-    <div className="sidebar-scrape-indicator" onClick={() => window.location.href = '/system/tasks'} title="Go to Tasks">
+    <div
+      className="sidebar-scrape-indicator"
+      onClick={() => (window.location.href = '/system/tasks')}
+      title="Go to Tasks"
+    >
       <div className="sidebar-scrape-header">
         <RefreshCw size={11} className="sidebar-scrape-spin" />
         <span>{heading}</span>
         <span className="sidebar-scrape-pct">{pct}%</span>
       </div>
       <div className="sidebar-scrape-bar">
-        <div className="sidebar-scrape-fill" style={{ width: data.total > 0 ? `${pct}%` : '100%', animation: data.total > 0 ? 'none' : 'progress-indeterminate 1.4s ease infinite' }} />
+        <div
+          className="sidebar-scrape-fill"
+          style={{
+            width: data.total > 0 ? `${pct}%` : '100%',
+            animation: data.total > 0 ? 'none' : 'progress-indeterminate 1.4s ease infinite',
+          }}
+        />
       </div>
       <div className="sidebar-scrape-sub">{sub}</div>
     </div>
@@ -131,7 +177,7 @@ export default function Sidebar() {
 
   function handleParent(s: Section) {
     navigate(s.to)
-    setOpen(prev => prev.has(s.key) ? new Set() : new Set([s.key]))
+    setOpen((prev) => (prev.has(s.key) ? new Set() : new Set([s.key])))
   }
 
   return (
@@ -142,7 +188,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav" style={{ flex: 1 }}>
-        {SECTIONS.map(s => {
+        {SECTIONS.map((s) => {
           const isOpen = open.has(s.key)
           const isActive = location.pathname.startsWith(s.prefix)
           return (
@@ -158,16 +204,19 @@ export default function Sidebar() {
                 </span>
               </div>
 
-              {isOpen && s.children.map(c => (
-                <NavLink
-                  key={c.to}
-                  to={c.to}
-                  className={({ isActive }) => `nav-item nav-item--sub${isActive ? ' active' : ''}`}
-                >
-                  <span className="nav-icon">{c.icon}</span>
-                  {c.label}
-                </NavLink>
-              ))}
+              {isOpen &&
+                s.children.map((c) => (
+                  <NavLink
+                    key={c.to}
+                    to={c.to}
+                    className={({ isActive }) =>
+                      `nav-item nav-item--sub${isActive ? ' active' : ''}`
+                    }
+                  >
+                    <span className="nav-icon">{c.icon}</span>
+                    {c.label}
+                  </NavLink>
+                ))}
             </div>
           )
         })}

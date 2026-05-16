@@ -5,10 +5,10 @@ import { systemApi } from '../../api/system'
 function formatBytes(bytes: number | null): string {
   if (bytes === null) return '—'
   const units = ['B', 'KB', 'MB', 'GB', 'TiB']
-  const gib = bytes / (1024 ** 3)
-  if (gib >= 1024) return `${(bytes / (1024 ** 4)).toFixed(1)} TiB`
+  const gib = bytes / 1024 ** 3
+  if (gib >= 1024) return `${(bytes / 1024 ** 4).toFixed(1)} TiB`
   if (gib >= 1) return `${gib.toFixed(1)} GiB`
-  return `${(bytes / (1024 ** 2)).toFixed(1)} MB`
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB`
 }
 
 function formatUptime(seconds: number): string {
@@ -27,7 +27,9 @@ function formatUptime(seconds: number): string {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="settings-section-title" style={{ marginBottom: 12 }}>{title}</div>
+      <div className="settings-section-title" style={{ marginBottom: 12 }}>
+        {title}
+      </div>
       {children}
     </div>
   )
@@ -36,8 +38,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="toggle-row">
-      <span className="text-muted" style={{ minWidth: 180 }}>{label}</span>
-      <span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 13 }}>{value}</span>
+      <span className="text-muted" style={{ minWidth: 180 }}>
+        {label}
+      </span>
+      <span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 13 }}>
+        {value}
+      </span>
     </div>
   )
 }
@@ -49,25 +55,39 @@ export default function SystemStatus() {
     refetchInterval: 30_000,
   })
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
   if (!data) return null
 
   const { health, disk, about } = data
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-
       <Section title="Health">
         <div className="card" style={{ padding: '12px 16px' }}>
           {health.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--success)' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--success)' }}
+            >
               <CheckCircle size={18} />
               <span>No issues with your configuration</span>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {health.map((msg, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--warning, #f5a623)' }}>
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    color: 'var(--warning, #f5a623)',
+                  }}
+                >
                   <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
                   <span style={{ fontSize: 13, lineHeight: 1.5 }}>{msg}</span>
                 </div>
@@ -88,7 +108,7 @@ export default function SystemStatus() {
               </tr>
             </thead>
             <tbody>
-              {disk.map(d => (
+              {disk.map((d) => (
                 <tr key={d.path}>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{d.path}</td>
                   <td className="text-muted">{formatBytes(d.free)}</td>
@@ -121,7 +141,9 @@ export default function SystemStatus() {
             ['Issues / Feature Requests', 'github.com/darkiris4/Romarr/issues'],
           ].map(([label, url]) => (
             <div key={label} className="toggle-row">
-              <span className="text-muted" style={{ minWidth: 180 }}>{label}</span>
+              <span className="text-muted" style={{ minWidth: 180 }}>
+                {label}
+              </span>
               <a
                 href={`https://${url}`}
                 target="_blank"
@@ -134,7 +156,6 @@ export default function SystemStatus() {
           ))}
         </div>
       </Section>
-
     </div>
   )
 }

@@ -16,7 +16,12 @@ export default function WantedPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['games'] }),
   })
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
 
   if (games.length === 0) {
     return (
@@ -31,11 +36,13 @@ export default function WantedPage() {
   return (
     <div>
       <div className="page-toolbar">
-        <span className="text-muted">{games.length} missing game{games.length !== 1 ? 's' : ''}</span>
+        <span className="text-muted">
+          {games.length} missing game{games.length !== 1 ? 's' : ''}
+        </span>
         <div className="spacer" />
         <button
           className="btn btn-primary"
-          onClick={() => games.forEach(g => searchMutation.mutate(g.id))}
+          onClick={() => games.forEach((g) => searchMutation.mutate(g.id))}
         >
           <RotateCcw size={14} /> Search All
         </button>
@@ -55,13 +62,15 @@ export default function WantedPage() {
               </tr>
             </thead>
             <tbody>
-              {games.map(game => (
+              {games.map((game) => (
                 <tr key={game.id}>
                   <td>
                     {game.cover_url ? (
                       <img src={game.cover_url} alt="" className="cover-thumb" />
                     ) : (
-                      <div className="cover-placeholder"><Gamepad2 size={14} /></div>
+                      <div className="cover-placeholder">
+                        <Gamepad2 size={14} />
+                      </div>
                     )}
                   </td>
                   <td style={{ fontWeight: 500, color: 'var(--text-white)' }}>{game.title}</td>

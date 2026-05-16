@@ -11,7 +11,11 @@ const CLIENT_DEFAULTS: Record<DownloadClientType, { port: number; urlBase: strin
   transmission: { port: 9091, urlBase: '' },
 }
 
-function ClientModal({ initial, onClose, onSaved }: {
+function ClientModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
   initial?: DownloadClient
   onClose: () => void
   onSaved: () => void
@@ -34,10 +38,40 @@ function ClientModal({ initial, onClose, onSaved }: {
   const needs_password = impl !== 'sabnzbd'
 
   const saveMutation = useMutation({
-    mutationFn: () => initial
-      ? downloadClientsApi.update(initial.id, { name, implementation: impl, host, port, url_base: urlBase, use_ssl: useSsl, username, password, api_key: apiKey, category, enabled: true, priority: 0 })
-      : downloadClientsApi.create({ name, implementation: impl, host, port, url_base: urlBase, use_ssl: useSsl, username, password, api_key: apiKey, category, enabled: true, priority: 0 }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['download-clients'] }); onSaved() },
+    mutationFn: () =>
+      initial
+        ? downloadClientsApi.update(initial.id, {
+            name,
+            implementation: impl,
+            host,
+            port,
+            url_base: urlBase,
+            use_ssl: useSsl,
+            username,
+            password,
+            api_key: apiKey,
+            category,
+            enabled: true,
+            priority: 0,
+          })
+        : downloadClientsApi.create({
+            name,
+            implementation: impl,
+            host,
+            port,
+            url_base: urlBase,
+            use_ssl: useSsl,
+            username,
+            password,
+            api_key: apiKey,
+            category,
+            enabled: true,
+            priority: 0,
+          }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['download-clients'] })
+      onSaved()
+    },
   })
 
   async function handleTest() {
@@ -46,7 +80,9 @@ function ClientModal({ initial, onClose, onSaved }: {
     try {
       const result = await downloadClientsApi.test(initial.id)
       setTestResult(result)
-    } finally { setTesting(false) }
+    } finally {
+      setTesting(false)
+    }
   }
 
   function handleImplChange(v: DownloadClientType) {
@@ -58,10 +94,14 @@ function ClientModal({ initial, onClose, onSaved }: {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ width: 560 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">{initial ? 'Edit Download Client' : 'Add Download Client'}</span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <span className="modal-title">
+            {initial ? 'Edit Download Client' : 'Add Download Client'}
+          </span>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
         <div className="modal-body">
           {testResult && (
@@ -73,11 +113,19 @@ function ClientModal({ initial, onClose, onSaved }: {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Name</label>
-              <input className="form-control" value={name} onChange={e => setName(e.target.value)} />
+              <input
+                className="form-control"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Client</label>
-              <select className="form-control" value={impl} onChange={e => handleImplChange(e.target.value as DownloadClientType)}>
+              <select
+                className="form-control"
+                value={impl}
+                onChange={(e) => handleImplChange(e.target.value as DownloadClientType)}
+              >
                 <option value="qbittorrent">qBittorrent</option>
                 <option value="sabnzbd">SABnzbd</option>
                 <option value="transmission">Transmission</option>
@@ -88,45 +136,81 @@ function ClientModal({ initial, onClose, onSaved }: {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Host</label>
-              <input className="form-control" value={host} onChange={e => setHost(e.target.value)} />
+              <input
+                className="form-control"
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Port</label>
-              <input className="form-control" type="number" value={port} onChange={e => setPort(+e.target.value)} />
+              <input
+                className="form-control"
+                type="number"
+                value={port}
+                onChange={(e) => setPort(+e.target.value)}
+              />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">URL Base</label>
-              <input className="form-control" value={urlBase} onChange={e => setUrlBase(e.target.value)} placeholder="/sabnzbd" />
+              <input
+                className="form-control"
+                value={urlBase}
+                onChange={(e) => setUrlBase(e.target.value)}
+                placeholder="/sabnzbd"
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
-              <input className="form-control" value={category} onChange={e => setCategory(e.target.value)} />
+              <input
+                className="form-control"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
             </div>
           </div>
           {needs_api_key && (
             <div className="form-group">
               <label className="form-label">API Key</label>
-              <input className="form-control" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} />
+              <input
+                className="form-control"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
             </div>
           )}
           {needs_password && (
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Username</label>
-                <input className="form-control" value={username} onChange={e => setUsername(e.target.value)} />
+                <input
+                  className="form-control"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Password</label>
-                <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                <input
+                  className="form-control"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
             </div>
           )}
           <div className="toggle-row" style={{ paddingTop: 8 }}>
             <div className="toggle-label">Use SSL</div>
             <label className="toggle">
-              <input type="checkbox" checked={useSsl} onChange={e => setUseSsl(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={useSsl}
+                onChange={(e) => setUseSsl(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -138,8 +222,14 @@ function ClientModal({ initial, onClose, onSaved }: {
             </button>
           )}
           <div className="spacer" />
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+          >
             {saveMutation.isPending ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -152,14 +242,22 @@ export default function DownloadClientsPage() {
   const qc = useQueryClient()
   const [modal, setModal] = useState<'new' | DownloadClient | null>(null)
 
-  const { data: clients = [], isLoading } = useQuery({ queryKey: ['download-clients'], queryFn: downloadClientsApi.list })
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ['download-clients'],
+    queryFn: downloadClientsApi.list,
+  })
 
   const deleteMutation = useMutation({
     mutationFn: downloadClientsApi.delete,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['download-clients'] }),
   })
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
 
   return (
     <div>
@@ -168,7 +266,9 @@ export default function DownloadClientsPage() {
 
       <div className="page-toolbar" style={{ marginBottom: 16 }}>
         <div className="spacer" />
-        <button className="btn btn-primary" onClick={() => setModal('new')}><Plus size={14} /> Add Client</button>
+        <button className="btn btn-primary" onClick={() => setModal('new')}>
+          <Plus size={14} /> Add Client
+        </button>
       </div>
 
       {clients.length === 0 ? (
@@ -192,14 +292,20 @@ export default function DownloadClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {clients.map(c => (
+                {clients.map((c) => (
                   <tr key={c.id}>
                     <td
                       style={{ fontWeight: 500, color: 'var(--accent)', cursor: 'pointer' }}
                       onClick={() => setModal(c)}
-                    >{c.name}</td>
-                    <td className="text-muted text-sm" style={{ textTransform: 'capitalize' }}>{c.implementation}</td>
-                    <td className="text-muted text-sm">{c.host}:{c.port}</td>
+                    >
+                      {c.name}
+                    </td>
+                    <td className="text-muted text-sm" style={{ textTransform: 'capitalize' }}>
+                      {c.implementation}
+                    </td>
+                    <td className="text-muted text-sm">
+                      {c.host}:{c.port}
+                    </td>
                     <td className="text-muted text-sm">{c.category}</td>
                     <td>
                       <label className="toggle">
@@ -209,7 +315,9 @@ export default function DownloadClientsPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="btn-icon" onClick={() => deleteMutation.mutate(c.id)}><Trash2 size={14} /></button>
+                        <button className="btn-icon" onClick={() => deleteMutation.mutate(c.id)}>
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>

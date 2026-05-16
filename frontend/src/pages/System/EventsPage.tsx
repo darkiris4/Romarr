@@ -25,15 +25,26 @@ function formatFull(iso: string) {
 function DetailModal({ event, onClose }: { event: AppEvent; onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Event Detail</span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>COMPONENT</div>
-            <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid rgba(123,104,238,.25)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+              COMPONENT
+            </div>
+            <span
+              className="badge"
+              style={{
+                background: 'var(--accent-subtle)',
+                color: 'var(--accent)',
+                border: '1px solid rgba(123,104,238,.25)',
+              }}
+            >
               {event.component}
             </span>
           </div>
@@ -47,7 +58,9 @@ function DetailModal({ event, onClose }: { event: AppEvent; onClose: () => void 
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -101,7 +114,9 @@ export default function EventsPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-page"><div className="spinner" /> Loading…</div>
+        <div className="loading-page">
+          <div className="spinner" /> Loading…
+        </div>
       ) : !data?.events.length ? (
         <div className="empty-state">
           <Bell size={48} />
@@ -121,7 +136,7 @@ export default function EventsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.events.map(ev => (
+                {data.events.map((ev) => (
                   <tr key={ev.id}>
                     <td>
                       <button
@@ -137,7 +152,14 @@ export default function EventsPage() {
                       {formatTime(ev.created_at)}
                     </td>
                     <td>
-                      <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid rgba(123,104,238,.25)' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          background: 'var(--accent-subtle)',
+                          color: 'var(--accent)',
+                          border: '1px solid rgba(123,104,238,.25)',
+                        }}
+                      >
                         {ev.component}
                       </span>
                     </td>
@@ -149,10 +171,12 @@ export default function EventsPage() {
           </div>
 
           {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}
+            >
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
                 disabled={page === 1}
               >
                 Previous
@@ -162,7 +186,7 @@ export default function EventsPage() {
               </span>
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 disabled={page >= totalPages}
               >
                 Next

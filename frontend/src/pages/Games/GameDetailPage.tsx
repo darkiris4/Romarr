@@ -2,8 +2,16 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ChevronLeft, Search, Trash2, ImageOff,
-  Eye, EyeOff, CheckCircle2, Download, AlertTriangle, Gamepad2,
+  ChevronLeft,
+  Search,
+  Trash2,
+  ImageOff,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Download,
+  AlertTriangle,
+  Gamepad2,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -11,18 +19,18 @@ import ManualSearchModal from './ManualSearchModal'
 import type { Game } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
-  imported:    'var(--success)',
-  wanted:      'var(--accent)',
-  grabbed:     'var(--info)',
+  imported: 'var(--success)',
+  wanted: 'var(--accent)',
+  grabbed: 'var(--info)',
   downloading: 'var(--info)',
-  failed:      'var(--danger)',
+  failed: 'var(--danger)',
 }
 const STATUS_ICONS: Record<string, React.ReactNode> = {
-  imported:    <CheckCircle2 size={13} />,
-  wanted:      <Gamepad2 size={13} />,
-  grabbed:     <Download size={13} />,
+  imported: <CheckCircle2 size={13} />,
+  wanted: <Gamepad2 size={13} />,
+  grabbed: <Download size={13} />,
   downloading: <Download size={13} />,
-  failed:      <AlertTriangle size={13} />,
+  failed: <AlertTriangle size={13} />,
 }
 
 function formatBytes(bytes: number): string {
@@ -34,8 +42,11 @@ function formatBytes(bytes: number): string {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -68,9 +79,18 @@ export default function GameDetailPage() {
     },
   })
 
-
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
-  if (!game) return <div className="empty-state"><p>Game not found</p></div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
+  if (!game)
+    return (
+      <div className="empty-state">
+        <p>Game not found</p>
+      </div>
+    )
 
   const statusColor = STATUS_COLORS[game.status] ?? 'var(--text-muted)'
   const hasFile = !!(game.rom_path || game.checksum_crc32)
@@ -108,7 +128,15 @@ export default function GameDetailPage() {
           {/* Info column */}
           <div className="detail-info">
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', marginBottom: 10 }}>
-              <Link to="/games" style={{ color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <Link
+                to="/games"
+                style={{
+                  color: 'rgba(255,255,255,.55)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
                 <ChevronLeft size={14} /> Games
               </Link>
             </div>
@@ -118,28 +146,46 @@ export default function GameDetailPage() {
             {/* Inline summary: year · platform · region */}
             <div className="detail-meta-row">
               {game.release_year && <span>{game.release_year}</span>}
-              {game.release_year && game.platform?.name && <span className="detail-meta-sep">·</span>}
+              {game.release_year && game.platform?.name && (
+                <span className="detail-meta-sep">·</span>
+              )}
               {game.platform?.name && <span>{game.platform.name}</span>}
-              {game.region && <><span className="detail-meta-sep">·</span><span>{game.region}</span></>}
-              {game.igdb_id && <><span className="detail-meta-sep">·</span><span style={{ opacity: .55 }}>IGDB #{game.igdb_id}</span></>}
+              {game.region && (
+                <>
+                  <span className="detail-meta-sep">·</span>
+                  <span>{game.region}</span>
+                </>
+              )}
+              {game.igdb_id && (
+                <>
+                  <span className="detail-meta-sep">·</span>
+                  <span style={{ opacity: 0.55 }}>IGDB #{game.igdb_id}</span>
+                </>
+              )}
             </div>
 
             {/* Status + monitored badges */}
             <div className="detail-status-row">
-              <span className="detail-badge" style={{
-                color: statusColor,
-                background: `${statusColor}22`,
-                border: `1px solid ${statusColor}55`,
-              }}>
+              <span
+                className="detail-badge"
+                style={{
+                  color: statusColor,
+                  background: `${statusColor}22`,
+                  border: `1px solid ${statusColor}55`,
+                }}
+              >
                 {STATUS_ICONS[game.status]}
                 {game.status.charAt(0).toUpperCase() + game.status.slice(1)}
               </span>
               {!game.monitored && (
-                <span className="detail-badge" style={{
-                  color: 'rgba(255,255,255,.4)',
-                  background: 'rgba(255,255,255,.06)',
-                  border: '1px solid rgba(255,255,255,.12)',
-                }}>
+                <span
+                  className="detail-badge"
+                  style={{
+                    color: 'rgba(255,255,255,.4)',
+                    background: 'rgba(255,255,255,.06)',
+                    border: '1px solid rgba(255,255,255,.12)',
+                  }}
+                >
                   <EyeOff size={12} /> Unmonitored
                 </span>
               )}
@@ -150,7 +196,11 @@ export default function GameDetailPage() {
               <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
                 <Search size={13} /> Search
               </button>
-              <button className="btn btn-secondary" onClick={() => toggleMonitored.mutate()} disabled={toggleMonitored.isPending}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => toggleMonitored.mutate()}
+                disabled={toggleMonitored.isPending}
+              >
                 {game.monitored ? <EyeOff size={13} /> : <Eye size={13} />}
                 {game.monitored ? 'Unmonitor' : 'Monitor'}
               </button>
@@ -160,32 +210,37 @@ export default function GameDetailPage() {
             </div>
 
             {/* Summary */}
-            {game.summary && (
-              <p className="detail-summary">{game.summary}</p>
-            )}
+            {game.summary && <p className="detail-summary">{game.summary}</p>}
 
             {/* Tags: game modes, themes */}
             {(game.game_modes || game.themes) && (
               <div className="detail-tags">
-                {parseTags(game.game_modes).map(m => (
-                  <span key={m} className="detail-tag detail-tag--mode">{m}</span>
+                {parseTags(game.game_modes).map((m) => (
+                  <span key={m} className="detail-tag detail-tag--mode">
+                    {m}
+                  </span>
                 ))}
-                {parseTags(game.themes).map(t => (
-                  <span key={t} className="detail-tag detail-tag--theme">{t}</span>
+                {parseTags(game.themes).map((t) => (
+                  <span key={t} className="detail-tag detail-tag--theme">
+                    {t}
+                  </span>
                 ))}
               </div>
             )}
 
             {/* Details grid — embedded in hero */}
             <div className="detail-hero-grid">
-              <HeroItem label="Platform"     value={game.platform?.name ?? '—'} />
+              <HeroItem label="Platform" value={game.platform?.name ?? '—'} />
               <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
-              <HeroItem label="Region"       value={game.region || '—'} />
-              <HeroItem label="Status"       value={game.status.charAt(0).toUpperCase() + game.status.slice(1)} />
-              <HeroItem label="Monitored"    value={game.monitored ? 'Yes' : 'No'} />
-              <HeroItem label="IGDB ID"      value={game.igdb_id?.toString() ?? '—'} />
-              <HeroItem label="Added"        value={formatDate(game.added_at)} />
-              <HeroItem label="Updated"      value={formatDate(game.updated_at)} />
+              <HeroItem label="Region" value={game.region || '—'} />
+              <HeroItem
+                label="Status"
+                value={game.status.charAt(0).toUpperCase() + game.status.slice(1)}
+              />
+              <HeroItem label="Monitored" value={game.monitored ? 'Yes' : 'No'} />
+              <HeroItem label="IGDB ID" value={game.igdb_id?.toString() ?? '—'} />
+              <HeroItem label="Added" value={formatDate(game.added_at)} />
+              <HeroItem label="Updated" value={formatDate(game.updated_at)} />
             </div>
           </div>
         </div>
@@ -297,12 +352,20 @@ function ratingClass(score: number): string {
 
 function parseTags(json: string | undefined): string[] {
   if (!json) return []
-  try { return JSON.parse(json) } catch { return [] }
+  try {
+    return JSON.parse(json)
+  } catch {
+    return []
+  }
 }
 
 function parseSimilarGames(json: string | undefined): { name?: string; cover_url?: string }[] {
   if (!json) return []
-  try { return JSON.parse(json) } catch { return [] }
+  try {
+    return JSON.parse(json)
+  } catch {
+    return []
+  }
 }
 
 function HeroItem({ label, value }: { label: string; value: string }) {

@@ -98,7 +98,13 @@ export interface DownloadClient {
   updated_at: string
 }
 
-export type QueueStatus = 'queued' | 'downloading' | 'completed' | 'failed' | 'paused' | 'importPending'
+export type QueueStatus =
+  | 'queued'
+  | 'downloading'
+  | 'completed'
+  | 'failed'
+  | 'paused'
+  | 'importPending'
 
 export interface QueueItem {
   id: number
@@ -118,7 +124,13 @@ export interface QueueItem {
   error_message?: string
 }
 
-export type HistoryEventType = 'grabbed' | 'downloadComplete' | 'importFailed' | 'imported' | 'deleted' | 'ignored'
+export type HistoryEventType =
+  | 'grabbed'
+  | 'downloadComplete'
+  | 'importFailed'
+  | 'imported'
+  | 'deleted'
+  | 'ignored'
 
 export interface HistoryItem {
   id: number

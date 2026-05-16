@@ -61,39 +61,77 @@ export default function GeneralPage() {
   return (
     <div>
       <div className="settings-section-title">General</div>
-      <div className="settings-section-desc">Application host, security, logging, and maintenance settings.</div>
+      <div className="settings-section-desc">
+        Application host, security, logging, and maintenance settings.
+      </div>
 
       {saved && <div className="alert alert-success">Settings saved.</div>}
 
       <form onSubmit={handleSave}>
-
         {/* ── Host ── */}
-        <div className="settings-section-title" style={{ marginTop: 8 }}>Host</div>
+        <div className="settings-section-title" style={{ marginTop: 8 }}>
+          Host
+        </div>
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
             <label className="form-label">Bind Address</label>
-            <input className="form-control" value={bindAddress} onChange={e => setBindAddress(e.target.value)} style={{ maxWidth: 240 }} />
-            <div className="form-hint">Valid IP4 address or <code>*</code> for all interfaces. Leave as <code>*</code> unless you have a specific reason.</div>
+            <input
+              className="form-control"
+              value={bindAddress}
+              onChange={(e) => setBindAddress(e.target.value)}
+              style={{ maxWidth: 240 }}
+            />
+            <div className="form-hint">
+              Valid IP4 address or <code>*</code> for all interfaces. Leave as <code>*</code> unless
+              you have a specific reason.
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Port Number</label>
-            <input className="form-control" type="number" value={port} onChange={e => setPort(e.target.value)} style={{ maxWidth: 120 }} />
+            <input
+              className="form-control"
+              type="number"
+              value={port}
+              onChange={(e) => setPort(e.target.value)}
+              style={{ maxWidth: 120 }}
+            />
             <div className="form-hint">Requires restart to take effect.</div>
           </div>
           <div className="form-group">
             <label className="form-label">URL Base</label>
-            <input className="form-control" value={urlBase} onChange={e => setUrlBase(e.target.value)} placeholder="/" style={{ maxWidth: 240 }} />
-            <div className="form-hint">For reverse proxy support. Example: <code>/romarr</code></div>
+            <input
+              className="form-control"
+              value={urlBase}
+              onChange={(e) => setUrlBase(e.target.value)}
+              placeholder="/"
+              style={{ maxWidth: 240 }}
+            />
+            <div className="form-hint">
+              For reverse proxy support. Example: <code>/romarr</code>
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Instance Name</label>
-            <input className="form-control" value={instanceName} onChange={e => setInstanceName(e.target.value)} style={{ maxWidth: 320 }} />
+            <input
+              className="form-control"
+              value={instanceName}
+              onChange={(e) => setInstanceName(e.target.value)}
+              style={{ maxWidth: 320 }}
+            />
             <div className="form-hint">Name shown in the browser tab and notifications.</div>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Application URL</label>
-            <input className="form-control" value={applicationUrl} onChange={e => setApplicationUrl(e.target.value)} placeholder="http://localhost:8000" style={{ maxWidth: 400 }} />
-            <div className="form-hint">Used in notification links. Leave blank to use the local address.</div>
+            <input
+              className="form-control"
+              value={applicationUrl}
+              onChange={(e) => setApplicationUrl(e.target.value)}
+              placeholder="http://localhost:8000"
+              style={{ maxWidth: 400 }}
+            />
+            <div className="form-hint">
+              Used in notification links. Leave blank to use the local address.
+            </div>
           </div>
         </div>
 
@@ -102,7 +140,12 @@ export default function GeneralPage() {
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
             <label className="form-label">Authentication Method</label>
-            <select className="form-control" value={authMethod} onChange={e => setAuthMethod(e.target.value)} style={{ maxWidth: 240 }}>
+            <select
+              className="form-control"
+              value={authMethod}
+              onChange={(e) => setAuthMethod(e.target.value)}
+              style={{ maxWidth: 240 }}
+            >
               <option value="None">None</option>
               <option value="Basic">Basic (Browser Popup)</option>
               <option value="Forms">Forms (Login Page)</option>
@@ -111,8 +154,8 @@ export default function GeneralPage() {
               {authMethod === 'None'
                 ? 'No authentication. Recommended for trusted local networks only.'
                 : authMethod === 'Basic'
-                ? 'Browser-native popup dialog. Simple but credentials are not encrypted in transit without HTTPS.'
-                : 'Full login page. Recommended when exposed to a wider network.'}
+                  ? 'Browser-native popup dialog. Simple but credentials are not encrypted in transit without HTTPS.'
+                  : 'Full login page. Recommended when exposed to a wider network.'}
             </div>
           </div>
 
@@ -120,18 +163,36 @@ export default function GeneralPage() {
             <>
               <div className="form-group">
                 <label className="form-label">Authentication Required</label>
-                <select className="form-control" value={authRequired} onChange={e => setAuthRequired(e.target.value)} style={{ maxWidth: 320 }}>
+                <select
+                  className="form-control"
+                  value={authRequired}
+                  onChange={(e) => setAuthRequired(e.target.value)}
+                  style={{ maxWidth: 320 }}
+                >
                   <option value="DisabledForLocalAddresses">Disabled for Local Addresses</option>
                   <option value="Enabled">Enabled</option>
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Username</label>
-                <input className="form-control" value={username} onChange={e => setUsername(e.target.value)} autoComplete="off" style={{ maxWidth: 280 }} />
+                <input
+                  className="form-control"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="off"
+                  style={{ maxWidth: 280 }}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Password</label>
-                <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" style={{ maxWidth: 280 }} />
+                <input
+                  className="form-control"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  style={{ maxWidth: 280 }}
+                />
               </div>
             </>
           )}
@@ -145,15 +206,27 @@ export default function GeneralPage() {
                 readOnly
                 style={{ fontFamily: 'monospace', fontSize: 12, flex: 1 }}
               />
-              <button type="button" className="btn btn-secondary btn-sm" onClick={copyApiKey} style={{ flexShrink: 0 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={copyApiKey}
+                style={{ flexShrink: 0 }}
+              >
                 {copiedKey ? <Check size={13} /> : <Copy size={13} />}
                 {copiedKey ? 'Copied' : 'Copy'}
               </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={regenerateKey} style={{ flexShrink: 0 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={regenerateKey}
+                style={{ flexShrink: 0 }}
+              >
                 <RefreshCw size={13} /> Reset
               </button>
             </div>
-            <div className="form-hint">Used by external applications and scripts to access the Romarr API.</div>
+            <div className="form-hint">
+              Used by external applications and scripts to access the Romarr API.
+            </div>
           </div>
         </div>
 
@@ -165,7 +238,7 @@ export default function GeneralPage() {
             <select
               className="form-control"
               value={logLevel}
-              onChange={e => setLevelMutation.mutate(e.target.value)}
+              onChange={(e) => setLevelMutation.mutate(e.target.value)}
               style={{ maxWidth: 180 }}
             >
               <option value="info">Info</option>
@@ -187,11 +260,16 @@ export default function GeneralPage() {
             <div>
               <div className="toggle-label">Send Anonymous Usage Data</div>
               <div className="toggle-hint">
-                Sends anonymous feature usage and error data to help improve Romarr. No personal data or library content is ever sent.
+                Sends anonymous feature usage and error data to help improve Romarr. No personal
+                data or library content is ever sent.
               </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={analytics} onChange={e => setAnalytics(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={analytics}
+                onChange={(e) => setAnalytics(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -202,16 +280,29 @@ export default function GeneralPage() {
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
             <label className="form-label">Branch</label>
-            <input className="form-control" value={branch} onChange={e => setBranch(e.target.value)} style={{ maxWidth: 200 }} />
-            <div className="form-hint">The release branch to track for updates. Use <code>main</code> for stable releases.</div>
+            <input
+              className="form-control"
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              style={{ maxWidth: 200 }}
+            />
+            <div className="form-hint">
+              The release branch to track for updates. Use <code>main</code> for stable releases.
+            </div>
           </div>
           <div className="toggle-row" style={{ borderBottom: 'none' }}>
             <div>
               <div className="toggle-label">Automatic</div>
-              <div className="toggle-hint">Automatically install updates when available. Romarr will restart.</div>
+              <div className="toggle-hint">
+                Automatically install updates when available. Romarr will restart.
+              </div>
             </div>
             <label className="toggle">
-              <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={autoUpdate}
+                onChange={(e) => setAutoUpdate(e.target.checked)}
+              />
               <span className="toggle-slider" />
             </label>
           </div>
@@ -222,27 +313,49 @@ export default function GeneralPage() {
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
             <label className="form-label">Folder</label>
-            <input className="form-control" value={backupFolder} onChange={e => setBackupFolder(e.target.value)} style={{ maxWidth: 320 }} />
-            <div className="form-hint">Path where Romarr stores database backups. Relative paths are from the application data directory.</div>
+            <input
+              className="form-control"
+              value={backupFolder}
+              onChange={(e) => setBackupFolder(e.target.value)}
+              style={{ maxWidth: 320 }}
+            />
+            <div className="form-hint">
+              Path where Romarr stores database backups. Relative paths are from the application
+              data directory.
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Interval</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input className="form-control" type="number" value={backupInterval} onChange={e => setBackupInterval(e.target.value)} style={{ maxWidth: 100 }} />
+              <input
+                className="form-control"
+                type="number"
+                value={backupInterval}
+                onChange={(e) => setBackupInterval(e.target.value)}
+                style={{ maxWidth: 100 }}
+              />
               <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>days</span>
             </div>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Retention</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input className="form-control" type="number" value={backupRetention} onChange={e => setBackupRetention(e.target.value)} style={{ maxWidth: 100 }} />
+              <input
+                className="form-control"
+                type="number"
+                value={backupRetention}
+                onChange={(e) => setBackupRetention(e.target.value)}
+                style={{ maxWidth: 100 }}
+              />
               <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>files</span>
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
-          <button type="submit" className="btn btn-primary">Save Changes</button>
+          <button type="submit" className="btn btn-primary">
+            Save Changes
+          </button>
         </div>
       </form>
     </div>

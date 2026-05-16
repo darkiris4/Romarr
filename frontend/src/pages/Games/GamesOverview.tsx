@@ -18,10 +18,17 @@ function romFilename(path: string | null | undefined) {
   return path.split('/').pop() ?? path
 }
 
-export default function GamesOverview({ games, platformMap, onDelete, selecting, selected, onToggleSelect }: Props) {
+export default function GamesOverview({
+  games,
+  platformMap,
+  onDelete,
+  selecting,
+  selected,
+  onToggleSelect,
+}: Props) {
   return (
     <div className="overview-list card" style={{ padding: 0 }}>
-      {games.map(game => {
+      {games.map((game) => {
         const isSelected = selected?.has(game.id) ?? false
         return (
           <div
@@ -31,7 +38,10 @@ export default function GamesOverview({ games, platformMap, onDelete, selecting,
             style={selecting ? { cursor: 'pointer' } : undefined}
           >
             {selecting && (
-              <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 4 }} onClick={e => e.stopPropagation()}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', paddingLeft: 4 }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   className="game-checkbox"
@@ -43,15 +53,23 @@ export default function GamesOverview({ games, platformMap, onDelete, selecting,
 
             {selecting ? (
               <div style={{ flexShrink: 0 }}>
-                {game.cover_url
-                  ? <img src={game.cover_url} alt={game.title} className="overview-cover" />
-                  : <div className="overview-cover overview-cover-placeholder"><Gamepad2 size={22} /></div>}
+                {game.cover_url ? (
+                  <img src={game.cover_url} alt={game.title} className="overview-cover" />
+                ) : (
+                  <div className="overview-cover overview-cover-placeholder">
+                    <Gamepad2 size={22} />
+                  </div>
+                )}
               </div>
             ) : (
               <Link to={`/games/${game.id}`} style={{ flexShrink: 0 }}>
-                {game.cover_url
-                  ? <img src={game.cover_url} alt={game.title} className="overview-cover" />
-                  : <div className="overview-cover overview-cover-placeholder"><Gamepad2 size={22} /></div>}
+                {game.cover_url ? (
+                  <img src={game.cover_url} alt={game.title} className="overview-cover" />
+                ) : (
+                  <div className="overview-cover overview-cover-placeholder">
+                    <Gamepad2 size={22} />
+                  </div>
+                )}
               </Link>
             )}
 
@@ -60,7 +78,9 @@ export default function GamesOverview({ games, platformMap, onDelete, selecting,
                 {selecting ? (
                   <span style={{ color: 'var(--text-white)' }}>{game.title}</span>
                 ) : (
-                  <Link to={`/games/${game.id}`} style={{ color: 'var(--text-white)' }}>{game.title}</Link>
+                  <Link to={`/games/${game.id}`} style={{ color: 'var(--text-white)' }}>
+                    {game.title}
+                  </Link>
                 )}
                 {!game.monitored && <span className="text-muted text-sm"> (unmonitored)</span>}
               </div>
@@ -80,7 +100,11 @@ export default function GamesOverview({ games, platformMap, onDelete, selecting,
               <StatusBadge status={game.status} />
               {!selecting && (
                 <div className="flex-center gap-2" style={{ marginTop: 8 }}>
-                  <button className="btn-icon" title="Re-search" onClick={() => gamesApi.search(game.id)}>
+                  <button
+                    className="btn-icon"
+                    title="Re-search"
+                    onClick={() => gamesApi.search(game.id)}
+                  >
                     <RotateCcw size={14} />
                   </button>
                   <button className="btn-icon" title="Delete" onClick={() => onDelete(game)}>

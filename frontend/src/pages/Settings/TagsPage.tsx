@@ -15,27 +15,31 @@ export default function TagsPage() {
   function addTag() {
     const label = input.trim()
     if (!label) return
-    if (tags.some(t => t.label.toLowerCase() === label.toLowerCase())) {
+    if (tags.some((t) => t.label.toLowerCase() === label.toLowerCase())) {
       setInput('')
       return
     }
-    setTags(prev => [...prev, { id: nextId++, label }])
+    setTags((prev) => [...prev, { id: nextId++, label }])
     setInput('')
   }
 
   function deleteTag(id: number) {
-    setTags(prev => prev.filter(t => t.id !== id))
+    setTags((prev) => prev.filter((t) => t.id !== id))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') { e.preventDefault(); addTag() }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addTag()
+    }
   }
 
   return (
     <div>
       <div className="settings-section-title">Tags</div>
       <div className="settings-section-desc">
-        Tags let you organise games into custom groups — use them in list sources, search filters, and notifications.
+        Tags let you organise games into custom groups — use them in list sources, search filters,
+        and notifications.
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
@@ -46,7 +50,7 @@ export default function TagsPage() {
           <input
             className="form-control"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. Favourites, Multiplayer, JRPG"
             style={{ maxWidth: 320 }}
@@ -68,10 +72,12 @@ export default function TagsPage() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Tags</span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{tags.length} tag{tags.length !== 1 ? 's' : ''}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {tags.length} tag{tags.length !== 1 ? 's' : ''}
+            </span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {tags.map(tag => (
+            {tags.map((tag) => (
               <span key={tag.id} className="tag-chip">
                 {tag.label}
                 <button

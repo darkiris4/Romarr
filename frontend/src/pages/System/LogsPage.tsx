@@ -13,8 +13,12 @@ function formatSize(bytes: number): string {
 
 function formatDate(ts: number): string {
   return new Date(ts * 1000).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   })
 }
 
@@ -48,7 +52,10 @@ export default function LogsPage() {
           disabled={isFetching}
           title="Refresh log file list"
         >
-          <RefreshCw size={18} style={isFetching ? { animation: 'spin 1s linear infinite' } : undefined} />
+          <RefreshCw
+            size={18}
+            style={isFetching ? { animation: 'spin 1s linear infinite' } : undefined}
+          />
           <span>Refresh</span>
         </button>
 
@@ -68,13 +75,18 @@ export default function LogsPage() {
           <Info size={15} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
             Log files are stored at <code>{logDir}</code>. Log level can be changed in{' '}
-            <Link to="/settings/general" style={{ color: 'var(--accent)' }}>Settings → General → Logging</Link>.
+            <Link to="/settings/general" style={{ color: 'var(--accent)' }}>
+              Settings → General → Logging
+            </Link>
+            .
           </span>
         </div>
       )}
 
       {isLoading ? (
-        <div className="loading-page"><div className="spinner" /> Loading…</div>
+        <div className="loading-page">
+          <div className="spinner" /> Loading…
+        </div>
       ) : files.length === 0 ? (
         <div className="empty-state">
           <FileText size={40} />
@@ -94,25 +106,35 @@ export default function LogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {files.map(f => (
+                {files.map((f) => (
                   <tr key={f.filename}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <FileText size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                         <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{f.filename}</span>
                         {f.log_type !== 'standard' && (
-                          <span className="badge" style={{
-                            background: f.log_type === 'debug' ? 'rgba(53,197,244,.15)' : 'rgba(155,89,182,.15)',
-                            color: f.log_type === 'debug' ? 'var(--info)' : 'var(--purple)',
-                            fontSize: 10,
-                          }}>
+                          <span
+                            className="badge"
+                            style={{
+                              background:
+                                f.log_type === 'debug'
+                                  ? 'rgba(53,197,244,.15)'
+                                  : 'rgba(155,89,182,.15)',
+                              color: f.log_type === 'debug' ? 'var(--info)' : 'var(--purple)',
+                              fontSize: 10,
+                            }}
+                          >
                             {f.log_type.toUpperCase()}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatSize(f.size)}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDate(f.last_modified)}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      {formatSize(f.size)}
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      {formatDate(f.last_modified)}
+                    </td>
                     <td style={{ textAlign: 'center' }}>
                       <a
                         href={logsApi.downloadUrl(f.filename)}

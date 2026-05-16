@@ -19,29 +19,41 @@ function formatTime(iso: string): string {
   }
 }
 
-function ConfirmRestoreModal({ name, onConfirm, onClose }: {
+function ConfirmRestoreModal({
+  name,
+  onConfirm,
+  onClose,
+}: {
   name: string
   onConfirm: () => void
   onClose: () => void
 }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Restore Backup</span>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
         <div className="modal-body">
           <p style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
-            Are you sure you want to restore <strong style={{ color: 'var(--text-white)' }}>{name}</strong>?
+            Are you sure you want to restore{' '}
+            <strong style={{ color: 'var(--text-white)' }}>{name}</strong>?
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-            The current database will be overwritten. Restart the application after restoring to apply changes.
+            The current database will be overwritten. Restart the application after restoring to
+            apply changes.
           </p>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-danger" onClick={onConfirm}>Restore</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={onConfirm}>
+            Restore
+          </button>
         </div>
       </div>
     </div>
@@ -91,7 +103,12 @@ export default function BackupPage() {
     e.target.value = ''
   }
 
-  if (isLoading) return <div className="loading-page"><div className="spinner" /> Loading…</div>
+  if (isLoading)
+    return (
+      <div className="loading-page">
+        <div className="spinner" /> Loading…
+      </div>
+    )
 
   return (
     <div>
@@ -101,15 +118,14 @@ export default function BackupPage() {
           onClick={() => createMutation.mutate()}
           disabled={createMutation.isPending}
         >
-          {createMutation.isPending
-            ? <div className="spinner" style={{ width: 16, height: 16 }} />
-            : <Download size={18} />}
+          {createMutation.isPending ? (
+            <div className="spinner" style={{ width: 16, height: 16 }} />
+          ) : (
+            <Download size={18} />
+          )}
           <span>Backup Now</span>
         </button>
-        <button
-          className="toolbar-icon-btn"
-          onClick={() => fileInputRef.current?.click()}
-        >
+        <button className="toolbar-icon-btn" onClick={() => fileInputRef.current?.click()}>
           <RotateCcw size={18} />
           <span>Restore Backup</span>
         </button>
@@ -123,13 +139,23 @@ export default function BackupPage() {
       </div>
 
       {restoreMsg && (
-        <div className="card" style={{
-          marginBottom: 16, padding: '12px 16px',
-          background: 'var(--accent-subtle)', border: '1px solid rgba(123,104,238,.3)',
-          color: 'var(--accent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
+        <div
+          className="card"
+          style={{
+            marginBottom: 16,
+            padding: '12px 16px',
+            background: 'var(--accent-subtle)',
+            border: '1px solid rgba(123,104,238,.3)',
+            color: 'var(--accent)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <span>{restoreMsg}</span>
-          <button className="btn-icon" onClick={() => setRestoreMsg(null)}><X size={14} /></button>
+          <button className="btn-icon" onClick={() => setRestoreMsg(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -137,7 +163,9 @@ export default function BackupPage() {
         <div className="empty-state">
           <Download size={48} />
           <p>No backups yet</p>
-          <small>Click <strong>Backup Now</strong> to create your first backup.</small>
+          <small>
+            Click <strong>Backup Now</strong> to create your first backup.
+          </small>
         </div>
       ) : (
         <div className="card" style={{ padding: 0 }}>
@@ -152,15 +180,15 @@ export default function BackupPage() {
                 </tr>
               </thead>
               <tbody>
-                {backups.map(b => (
+                {backups.map((b) => (
                   <tr key={b.name}>
                     <td>
                       <a
                         href={systemApi.backupDownloadUrl(b.name)}
                         download={b.name}
                         style={{ color: 'var(--text-white)', textDecoration: 'none' }}
-                        onMouseOver={e => (e.currentTarget.style.color = 'var(--accent)')}
-                        onMouseOut={e => (e.currentTarget.style.color = 'var(--text-white)')}
+                        onMouseOver={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                        onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-white)')}
                       >
                         {b.name}
                       </a>
