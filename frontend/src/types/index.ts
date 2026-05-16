@@ -132,7 +132,9 @@ export interface QueueItem {
   progress: number
   download_id?: string
   download_client_id?: number
+  download_client_name?: string
   indexer_id?: number
+  indexer_name?: string
   protocol: string
   added_at: string
   estimated_completion?: string
@@ -142,6 +144,7 @@ export interface QueueItem {
 export type HistoryEventType =
   | 'grabbed'
   | 'downloadComplete'
+  | 'downloadFailed'
   | 'importFailed'
   | 'imported'
   | 'deleted'
@@ -155,7 +158,7 @@ export interface HistoryItem {
   source_title: string
   indexer: string
   download_client: string
-  data: string
+  data: Record<string, unknown>
   date: string
 }
 

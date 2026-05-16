@@ -16,7 +16,11 @@ router = APIRouter()
 def list_queue(db: Session = Depends(get_db)):
     return (
         db.query(QueueItem)
-        .options(joinedload(QueueItem.game).joinedload(Game.platform))
+        .options(
+            joinedload(QueueItem.game).joinedload(Game.platform),
+            joinedload(QueueItem.indexer),
+            joinedload(QueueItem.download_client),
+        )
         .order_by(QueueItem.added_at.desc())
         .all()
     )

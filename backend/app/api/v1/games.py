@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -266,6 +267,12 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         source_title=payload.title,
         indexer=payload.indexer,
         download_client=client_model.name,
+        data=json.dumps({
+            "download_id": download_id,
+            "protocol": payload.protocol,
+            "size": payload.size,
+            "indexer_id": payload.indexer_id,
+        }),
     ))
     game.status = GameStatus.GRABBED
     db.commit()

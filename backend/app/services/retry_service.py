@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from sqlalchemy.orm import Session
@@ -28,10 +29,14 @@ async def handle_download_failure(db: Session, item: QueueItem) -> None:
 
     db.add(HistoryItem(
         game_id=item.game_id,
-        event_type=HistoryEventType.IMPORT_FAILED,
+        event_type=HistoryEventType.DOWNLOAD_FAILED,
         source_title=item.title,
         indexer=indexer_name,
         download_client=client_name,
+        data=json.dumps({
+            "download_id": item.download_id or "",
+            "error": item.error_message or "",
+        }),
     ))
     db.add(BlocklistItem(
         game_id=item.game_id,
@@ -129,6 +134,11 @@ async def _auto_retry(db: Session, game: Game) -> None:
         source_title=best.title,
         indexer=best.indexer,
         download_client=client_model.name,
+        data=json.dumps({
+            "download_id": download_id,
+            "protocol": best.protocol,
+            "size": best.size or 0,
+        }),
     ))
     game.status = GameStatus.GRABBED
     db.commit()

@@ -181,7 +181,10 @@ class SABnzbdClient(BaseDownloadClient):
                 },
             )
             data = resp.json()
-        return data.get("nzo_ids", ["unknown"])[0]
+        nzo_ids = data.get("nzo_ids") or []
+        if not nzo_ids:
+            raise ValueError(f"SABnzbd did not return an nzo_id (response: {data})")
+        return nzo_ids[0]
 
     # Full queue status map sourced from Radarr's Sabnzbd.cs (develop branch)
     _QUEUE_STATUS_MAP = {
@@ -221,8 +224,11 @@ class SABnzbdClient(BaseDownloadClient):
                         encrypted=encrypted,
                     )
 
-            # Not in active queue — check history (completed and explicitly failed items)
-            # Limit to 100 entries; our item is recent so it will be near the top
+            # Not in active queue — check history.
+            # SABnzbd moves items to history during post-processing (Extracting,
+            # Verifying, Moving, etc.) before they are truly complete.
+            # Radarr pattern: only treat history items as COMPLETED when the status
+            # is explicitly "Completed"; anything else is still in progress.
             hist = await http.get(
                 self._api_url,
                 params={
@@ -234,14 +240,30 @@ class SABnzbdClient(BaseDownloadClient):
             )
             for slot in hist.json().get("history", {}).get("slots", []):
                 if slot.get("nzo_id") == download_id:
-                    failed = bool(slot.get("failed_message")) or slot.get("status", "") == "Failed"
+                    hist_status = slot.get("status", "")
                     size = int(float(slot.get("mb", 0)) * 1024 * 1024)
+                    if hist_status == "Failed":
+                        return ClientStatus(
+                            download_id=download_id,
+                            status=QueueStatus.FAILED,
+                            size=size,
+                            size_downloaded=size,
+                            error=slot.get("fail_message") or None,
+                        )
+                    if hist_status == "Completed":
+                        return ClientStatus(
+                            download_id=download_id,
+                            status=QueueStatus.COMPLETED,
+                            size=size,
+                            size_downloaded=size,
+                        )
+                    # Post-processing in progress (Extracting, Verifying, Repairing,
+                    # Moving, Running, etc.) — still not ready for import.
                     return ClientStatus(
                         download_id=download_id,
-                        status=QueueStatus.FAILED if failed else QueueStatus.COMPLETED,
+                        status=QueueStatus.DOWNLOADING,
                         size=size,
                         size_downloaded=size,
-                        error=slot.get("fail_message") or None,
                     )
 
         # Gone from both queue and history — may be a transient gap (auto-clean, API error)

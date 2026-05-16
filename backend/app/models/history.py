@@ -10,6 +10,7 @@ from ..database import Base
 class HistoryEventType(str, enum.Enum):
     GRABBED = "grabbed"
     DOWNLOAD_COMPLETE = "downloadComplete"
+    DOWNLOAD_FAILED = "downloadFailed"
     IMPORT_FAILED = "importFailed"
     IMPORTED = "imported"
     DELETED = "deleted"

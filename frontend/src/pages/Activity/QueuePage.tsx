@@ -13,6 +13,20 @@ function formatBytes(bytes: number) {
   return mb >= 1 ? `${mb.toFixed(0)} MB` : `${(bytes / 1024).toFixed(0)} KB`
 }
 
+function formatETA(eta: string | undefined): string {
+  if (!eta) return '—'
+  // FastAPI serializes naive UTC datetimes without 'Z' — force UTC parsing
+  const utc = eta.endsWith('Z') || eta.includes('+') ? eta : eta + 'Z'
+  const diffMs = new Date(utc).getTime() - Date.now()
+  if (diffMs <= 0) return '< 1m'
+  const totalSec = Math.floor(diffMs / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m`
+  return '< 1m'
+}
+
 const STATUS_COLOR: Record<string, string> = {
   queued: 'var(--text-muted)',
   downloading: 'var(--info)',
@@ -101,10 +115,12 @@ export default function QueuePage() {
               <tr>
                 <th>Game</th>
                 <th>Release</th>
+                <th>Client</th>
                 <th>Indexer</th>
                 <th>Protocol</th>
                 <th>Size</th>
                 <th style={{ minWidth: 160 }}>Progress</th>
+                <th>Time Left</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -152,7 +168,8 @@ function QueueRow({
       <td className="activity-release-cell" title={item.title}>
         {item.title}
       </td>
-      <td className="text-muted">{item.indexer_id ?? '—'}</td>
+      <td className="text-muted">{item.download_client_name ?? '—'}</td>
+      <td className="text-muted">{item.indexer_name ?? '—'}</td>
       <td>
         <span className={`protocol-badge protocol-badge--${item.protocol}`}>{item.protocol}</span>
       </td>
@@ -167,10 +184,18 @@ function QueueRow({
           </span>
         </div>
       </td>
+      <td className="text-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+        {item.status === 'downloading' ? formatETA(item.estimated_completion) : '—'}
+      </td>
       <td>
         <span style={{ color, fontSize: 12, fontWeight: 500 }}>
           {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
         </span>
+        {item.error_message && (
+          <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2 }}>
+            {item.error_message}
+          </div>
+        )}
       </td>
       <td className="col-action">
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>

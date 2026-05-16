@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import shutil
@@ -103,6 +104,27 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
         platform_exts = {e.strip().lower() for e in game.platform.extensions.split(",") if e.strip()}
 
     rom_files = _find_rom_files(src, platform_exts)
+
+    # Stage 2: try the full known-ROM extension list
+    if not rom_files:
+        rom_files = _find_rom_files(src, None)
+
+    # Stage 3: largest file > 10 MB — handles scene releases packed with
+    # non-standard extensions (e.g. .txt used as obfuscation)
+    if not rom_files:
+        candidates = sorted(
+            [f for f in (src.rglob("*") if src.is_dir() else [src])
+             if f.is_file() and f.stat().st_size > 10_000_000],
+            key=lambda f: f.stat().st_size,
+            reverse=True,
+        )
+        if candidates:
+            logger.warning(
+                "No ROM by extension at '%s' — falling back to largest file: %s",
+                src, candidates[0].name,
+            )
+            rom_files = [candidates[0]]
+
     if not rom_files:
         raise ValueError(
             f"No ROM files found at {src}"
@@ -140,6 +162,11 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
         source_title=item.title,
         indexer=indexer_name,
         download_client=client_name,
+        data=json.dumps({
+            "download_id": item.download_id or "",
+            "destination": str(dest),
+            "filename": rom_file.name,
+        }),
     ))
     db.delete(item)
     db.commit()

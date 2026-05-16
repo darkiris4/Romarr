@@ -15,7 +15,9 @@ class QueueItemOut(BaseModel):
     size_downloaded: int
     download_id: str | None
     download_client_id: int | None
+    download_client_name: str | None = None
     indexer_id: int | None
+    indexer_name: str | None = None
     protocol: str
     added_at: datetime
     estimated_completion: datetime | None
