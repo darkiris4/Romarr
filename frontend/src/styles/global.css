@@ -574,6 +574,41 @@ textarea {
   gap: 8px;
 }
 
+.btn-sm svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.queue-import-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.queue-import-result--ok {
+  background: rgba(46, 160, 67, 0.15);
+  border: 1px solid rgba(46, 160, 67, 0.4);
+  color: var(--success);
+}
+.queue-import-result--err {
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  color: var(--danger);
+}
+.queue-import-result span {
+  flex: 1;
+}
+.queue-import-result .btn-icon {
+  color: inherit;
+  opacity: 0.7;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
 /* ── Tables ─────────────────────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
@@ -758,6 +793,11 @@ td {
 
 select.form-control {
   cursor: pointer;
+}
+
+.form-control-sm {
+  padding: 3px 8px;
+  font-size: 12px;
 }
 
 .form-hint {

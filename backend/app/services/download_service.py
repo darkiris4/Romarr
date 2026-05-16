@@ -45,6 +45,10 @@ class BaseDownloadClient(ABC):
         """Remove download from client."""
 
     @abstractmethod
+    async def file_path(self, download_id: str) -> str | None:
+        """Return the local filesystem path of the downloaded content (file or directory)."""
+
+    @abstractmethod
     async def test(self) -> tuple[bool, str]:
         """Verify connectivity."""
 
@@ -112,6 +116,19 @@ class QBittorrentClient(BaseDownloadClient):
                 data={"hashes": download_id, "deleteFiles": str(delete_data).lower()},
             )
 
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            await self._login(http)
+            resp = await http.get(
+                f"{self.base_url}/api/v2/torrents/info", params={"hashes": download_id}
+            )
+            data = resp.json()
+        if not data:
+            return None
+        t = data[0]
+        # content_path = full path to file (single) or root dir (multi); added in Web API v2.8.4
+        return t.get("content_path") or (t.get("save_path", "").rstrip("/") + "/" + t.get("name", ""))
+
     async def test(self) -> tuple[bool, str]:
         try:
             async with httpx.AsyncClient(timeout=10) as http:
@@ -144,29 +161,48 @@ class SABnzbdClient(BaseDownloadClient):
 
     async def status(self, download_id: str) -> ClientStatus:
         async with httpx.AsyncClient(timeout=15) as http:
+            # Check active queue first
             resp = await http.get(
                 self._api_url,
                 params={"mode": "queue", "apikey": self.client.api_key, "output": "json"},
             )
             data = resp.json()
-        for slot in data.get("queue", {}).get("slots", []):
-            if slot["nzo_id"] == download_id:
-                status_map = {
-                    "Downloading": QueueStatus.DOWNLOADING,
-                    "Completed": QueueStatus.COMPLETED,
-                    "Failed": QueueStatus.FAILED,
-                    "Paused": QueueStatus.PAUSED,
-                }
-                size = int(float(slot.get("mb", 0)) * 1024 * 1024)
-                left = int(float(slot.get("mbleft", 0)) * 1024 * 1024)
-                return ClientStatus(
-                    download_id=download_id,
-                    status=status_map.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
-                    size=size,
-                    size_downloaded=size - left,
-                )
+            for slot in data.get("queue", {}).get("slots", []):
+                if slot["nzo_id"] == download_id:
+                    status_map = {
+                        "Downloading": QueueStatus.DOWNLOADING,
+                        "Completed": QueueStatus.COMPLETED,
+                        "Failed": QueueStatus.FAILED,
+                        "Paused": QueueStatus.PAUSED,
+                    }
+                    size = int(float(slot.get("mb", 0)) * 1024 * 1024)
+                    left = int(float(slot.get("mbleft", 0)) * 1024 * 1024)
+                    return ClientStatus(
+                        download_id=download_id,
+                        status=status_map.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
+                        size=size,
+                        size_downloaded=size - left,
+                    )
+
+            # Not in active queue — check history (covers completed and failed)
+            hist = await http.get(
+                self._api_url,
+                params={"mode": "history", "apikey": self.client.api_key, "output": "json"},
+            )
+            for slot in hist.json().get("history", {}).get("slots", []):
+                if slot.get("nzo_id") == download_id:
+                    failed = slot.get("failed_message") or slot.get("status", "") == "Failed"
+                    size = int(float(slot.get("mb", 0)) * 1024 * 1024)
+                    return ClientStatus(
+                        download_id=download_id,
+                        status=QueueStatus.FAILED if failed else QueueStatus.COMPLETED,
+                        size=size,
+                        size_downloaded=size,
+                    )
+
+        # Gone from both queue and history — treat as failed
         return ClientStatus(
-            download_id=download_id, status=QueueStatus.COMPLETED, size=0, size_downloaded=0
+            download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
         )
 
     async def remove(self, download_id: str, delete_data: bool = False) -> None:
@@ -182,6 +218,17 @@ class SABnzbdClient(BaseDownloadClient):
                     "output": "json",
                 },
             )
+
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            resp = await http.get(
+                self._api_url,
+                params={"mode": "history", "apikey": self.client.api_key, "output": "json"},
+            )
+            for slot in resp.json().get("history", {}).get("slots", []):
+                if slot.get("nzo_id") == download_id:
+                    return slot.get("storage")
+        return None
 
     async def test(self) -> tuple[bool, str]:
         try:
@@ -265,6 +312,21 @@ class TransmissionClient(BaseDownloadClient):
                 "torrent-remove",
                 {"ids": [int(download_id)], "delete-local-data": delete_data},
             )
+
+    async def file_path(self, download_id: str) -> str | None:
+        async with httpx.AsyncClient(timeout=15) as http:
+            result = await self._rpc(
+                http,
+                "torrent-get",
+                {"ids": [int(download_id)], "fields": ["downloadDir", "name"]},
+            )
+        torrents = result.get("arguments", {}).get("torrents", [])
+        if not torrents:
+            return None
+        t = torrents[0]
+        download_dir = t.get("downloadDir", "").rstrip("/")
+        name = t.get("name", "")
+        return f"{download_dir}/{name}" if download_dir and name else None
 
     async def test(self) -> tuple[bool, str]:
         try:
