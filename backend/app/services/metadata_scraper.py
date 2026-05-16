@@ -225,12 +225,16 @@ def scrape_pending() -> dict:
         _log_entry({"event": "run_end", "updated": updated, "failed": failed,
                     "time": datetime.now(timezone.utc).isoformat()})
         logger.info("Scrape complete — updated: %d, not found: %d, enriched: %d", updated, failed, enriched)
+        from .event_service import log_event
+        log_event("MetadataScraper", f"Scrape complete: {updated} matched, {enriched} enriched, {failed} not found")
         return {"updated": updated, "failed": failed}
 
     except Exception as exc:
         _state["error"] = str(exc)
         _log_entry({"event": "run_error", "error": str(exc)})
         logger.error("Scrape error: %s", exc)
+        from .event_service import log_event
+        log_event("MetadataScraper", f"Scrape failed: {exc}")
         return {"updated": updated, "failed": failed, "error": str(exc)}
     finally:
         db.close()

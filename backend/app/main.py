@@ -54,6 +54,8 @@ async def lifespan(app: FastAPI):
     setup_logging(get_config("log_level", settings.log_level.lower()))
     _load_dats()
     start_scheduler()
+    from .services.event_service import log_event
+    log_event("Application", f"Started — {settings.app_name}")
     yield
     stop_scheduler()
     logger.info("Shutdown complete")

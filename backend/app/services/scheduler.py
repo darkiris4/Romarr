@@ -36,6 +36,8 @@ def _deduplicate():
         result = deduplicate_games(db)
         if result["removed"]:
             logger.info("Deduplication removed %d duplicate game record(s)", result["removed"])
+            from .event_service import log_event
+            log_event("Scheduler", f"Deduplication removed {result['removed']} duplicate game record(s)")
     except Exception:
         logger.exception("Deduplication job failed")
     finally:

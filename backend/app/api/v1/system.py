@@ -113,6 +113,18 @@ def scrape_log(limit: int = 500):
 
 
 
+@router.get("/events")
+def list_events(page: int = 1, per_page: int = 50):
+    from ...services.event_service import get_events
+    return get_events(page, per_page)
+
+
+@router.delete("/events", status_code=204)
+def clear_events():
+    from ...services.event_service import clear_events as _clear
+    _clear()
+
+
 @router.get("/backup")
 def list_backups():
     return []

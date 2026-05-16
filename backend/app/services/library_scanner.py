@@ -77,15 +77,19 @@ def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
     from ..database import SessionLocal
 
     def _worker():
+        from .event_service import log_event
         db = SessionLocal()
         try:
+            log_event("LibraryScanner", f"Scan started: {folder_path}")
             summary = scan_folder(db, folder_path, platform_hint_id,
                                   progress_state=_scan_state, progress_lock=_scan_lock)
             with _scan_lock:
                 _scan_state.update({"running": False, "done": True, "result": _summary_to_dict(summary)})
+            log_event("LibraryScanner", f"Scan complete: {summary.total_files_seen} files, {summary.matched_dat} DAT matches, {summary.matched_filename} filename matches")
         except Exception as exc:
             with _scan_lock:
                 _scan_state.update({"running": False, "done": True, "error": str(exc)})
+            log_event("LibraryScanner", f"Scan failed: {exc}")
         finally:
             db.close()
 
@@ -600,8 +604,10 @@ def import_start(
     from ..database import SessionLocal
 
     def _worker():
+        from .event_service import log_event
         db = SessionLocal()
         try:
+            log_event("LibraryImport", f"Import started: {folder_path}")
             result = import_roms(
                 db, folder_path,
                 platform_hint_id=platform_hint_id,
@@ -609,12 +615,14 @@ def import_start(
                 skip_existing=skip_existing,
                 selected_keys=selected_keys,
             )
+            log_event("LibraryImport", f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped")
             if result.get("created", 0) > 0:
                 from .metadata_scraper import scrape_start
                 scrape_start()
             with _import_lock:
                 _import_state.update({"running": False, "done": True, "result": result})
         except Exception as exc:
+            log_event("LibraryImport", f"Import failed: {exc}")
             with _import_lock:
                 _import_state.update({"running": False, "done": True, "error": str(exc)})
         finally:
