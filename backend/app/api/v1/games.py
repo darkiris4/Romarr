@@ -158,7 +158,7 @@ _PLATFORM_HINTS: dict[str, tuple[str, str]] = {
     "Nintendo - Nintendo GameCube": ("GameCube", r"\bGCN\b|\bNGC\b|\bGameCube\b"),
     "Nintendo - Wii": ("Wii", r"\bWii\b(?!\s*U)"),
     "Nintendo - Wii U": ("WiiU", r"\bWiiU\b|\bWii\s+U\b"),
-    "Nintendo - Nintendo Switch": ("Switch", r"\bSwitch\b|\bNSP\b|\bXCI\b"),
+    "Nintendo - Nintendo Switch": ("Switch", r"\bSwitch\b|\bNSP\b|\bXCI\b|\bNSW\b"),
     "Nintendo - Game Boy": ("Game Boy", r"\bGame\s*Boy\b(?!\s*(Advance|Color))"),
     "Nintendo - Game Boy Color": ("GBC", r"\bGBC\b|\bGame\s*Boy\s*Color\b"),
     "Nintendo - Game Boy Advance": ("GBA", r"\bGBA\b|\bGame\s*Boy\s*Advance\b"),
@@ -211,11 +211,7 @@ async def manual_search(
     platform_no_intro = game.platform.no_intro_name if game.platform else None
     platform_hint = _PLATFORM_HINTS.get(platform_no_intro) if platform_no_intro else None
 
-    query = q if q else _normalize_title(game.title)
-    if not q and platform_hint:
-        query = f"{query} {platform_hint[0]}"
-    if not q:
-        query = _sanitize_query(query)
+    query = q if q else _sanitize_query(_normalize_title(game.title))
 
     # Grab history for this game keyed by release title
     grabbed: dict[str, str] = {
