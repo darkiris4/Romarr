@@ -4,6 +4,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Status: Early Development](https://img.shields.io/badge/status-early%20development-orange.svg)]()
+[![CI](https://github.com/darkiris4/Romarr/actions/workflows/ci.yml/badge.svg)](https://github.com/darkiris4/Romarr/actions/workflows/ci.yml)
 
 ---
 
@@ -28,17 +29,17 @@ Romarr automates the acquisition, organisation, and metadata enrichment of ROM f
 
 | Area | What's implemented |
 |---|---|
-| **Library import** | Scan existing ROM folders; CRC32 matching against No-Intro DAT files (including ZIP-transparent CRC) |
-| **DAT support** | No-Intro DAT parsing; platform auto-detection by header name; qualifier prefix matching |
-| **Metadata scraper** | IGDB cover art + release year; tiered exact/fuzzy search; Japanese→English title alias map; per-run debug log |
-| **Download pipeline** | Indexer search, grab, queue tracking, download client integration, post-processor |
-| **Game views** | Table, poster grid, and overview list; console filter dropdown; sticky toolbar; debounced search |
-| **Game detail page** | Radarr-style hero with blurred backdrop, inline metadata grid, file information table |
+| **Library import** | Scan existing ROM folders; progress bar; recent folders list; CRC32 matching against No-Intro DATs (ZIP-transparent); multi-ROM ZIP support (each inner file importable separately); stackable filters (DAT match, region, type, new-only) |
+| **DAT management** | Drag-and-drop upload via Settings → Platforms; auto-creates platform on upload; version/date display; per-row delete; manual placement in `data/dats/` also supported |
+| **Metadata scraper** | IGDB cover art, summary, rating, game modes, themes, similar games; tiered exact/fuzzy search; Japanese→English title alias map; batched enrichment (50/request); 30-day retry skip for unmatched titles |
+| **Download pipeline** | Indexer search, grab, queue tracking, download client integration (qBittorrent, SABnzbd, Transmission), post-processor |
+| **Game views** | Table, poster grid, and overview list; multi-dimension filter (platform, status, region, missing metadata); 8 sort options; active filter count |
+| **Game detail page** | Radarr-style hero with blurred backdrop, inline metadata grid, file info, similar games row |
 | **Platforms** | 15+ pre-seeded platforms with No-Intro names and IGDB platform IDs |
-| **Settings UI** | Media management, platforms, indexers, download clients, list sources, general/IGDB config |
+| **Settings UI** | Media management, platforms (with DAT management), indexers, download clients, list sources, general/IGDB config, profiles (region priority) |
 | **Plugin system** | Drop-in list source plugins; IGDB list plugin included |
-| **Scheduler** | Background jobs: metadata scraper (6 h), download poller, wanted searcher |
-| **System pages** | System status, task scheduler, structured log viewer |
+| **Scheduler** | Background jobs: metadata scraper (6 h), download poller (30 s), wanted searcher (15 min), health check (6 h), backup (7 days), deduplication (24 h) |
+| **System pages** | Status (health checks, disk space, about), Tasks (scheduled + queue), Events log, Backup (create/download/restore/delete) |
 
 ---
 
@@ -130,9 +131,9 @@ Cover art and release metadata are sourced from [IGDB](https://www.igdb.com/) (f
 
 Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identification by CRC32 checksum.
 
-1. Download DAT files from the No-Intro website (requires a free account)
-2. Place them in `backend/data/dats/` (or `/data/dats/` inside the container)
-3. Romarr auto-matches DAT files to platforms by their `<header><name>` field on startup
+**Option A — UI upload (recommended):** Go to **Settings → Platforms**, drag-and-drop one or more `.dat` files onto the upload zone. Romarr auto-matches to existing platforms or creates a new one.
+
+**Option B — manual placement:** Copy DAT files into `backend/data/dats/` (or `/data/dats/` inside the container) and restart. Romarr matches by the `<header><name>` field on startup.
 
 ---
 
@@ -142,8 +143,10 @@ Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identif
 - [x] Add game flow — IGDB results → confirm (platform/region/monitored)
 - [x] Manual search UI — indexer results with one-click grab
 - [x] History and activity feed
+- [x] DAT upload UI with auto-platform creation
+- [x] System pages — Status, Tasks, Events, Backup
+- [x] CI pipeline (Ruff + ESLint + Prettier + tsc)
 - [ ] End-to-end download pipeline validation (requires real indexer + download client)
-- [ ] Real-time log streaming in the UI
 - [ ] Pagination on the games list
 - [ ] First-run IGDB setup wizard (banner/modal guiding Twitch app registration)
 - [ ] More list source plugins (LaunchBox, ScreenScraper)
