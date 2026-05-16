@@ -133,7 +133,8 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
     all_results = []
     for indexer in indexers:
         try:
-            results = await search_indexer(indexer, game.title)
+            cats = [int(c) for c in indexer.categories.split(",") if c.strip().isdigit()]
+            results = await search_indexer(indexer, game.title, categories=cats or None)
             all_results.extend(
                 [
                     {

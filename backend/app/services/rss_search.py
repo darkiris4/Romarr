@@ -20,10 +20,12 @@ async def search_wanted():
         for game in wanted:
             for indexer in indexers:
                 try:
-                    results = await search_indexer(indexer, game.title)
+                    cats = [int(c) for c in indexer.categories.split(",") if c.strip().isdigit()]
+                    results = await search_indexer(indexer, game.title, categories=cats or None)
                     if results:
+                        results.sort(key=lambda r: r.seeders or 0, reverse=True)
                         best = results[0]
-                        _grab(db, game, indexer, best)
+                        await _grab(db, game, indexer, best)
                         break
                 except Exception as exc:
                     logger.warning("Search error for '%s' on %s: %s", game.title, indexer.name, exc)
@@ -31,9 +33,7 @@ async def search_wanted():
         db.close()
 
 
-def _grab(db, game, indexer, result):
-    import asyncio
-
+async def _grab(db, game, indexer, result):
     from ..models.download_client import DownloadClient
     from .download_service import get_client
 
@@ -43,9 +43,7 @@ def _grab(db, game, indexer, result):
 
     client = get_client(client_model)
     try:
-        download_id = asyncio.get_event_loop().run_until_complete(
-            client.add(result.link, result.title)
-        )
+        download_id = await client.add(result.link, result.title)
     except Exception as exc:
         logger.error("Failed to add download for '%s': %s", game.title, exc)
         return
