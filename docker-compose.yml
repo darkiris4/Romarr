@@ -1,41 +1,31 @@
 version: "3.9"
 
 services:
-  backend:
+  romarr:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: romarr-backend
+    image: ghcr.io/darkiris4/romarr:latest
+    container_name: romarr
     restart: unless-stopped
     environment:
-      - DATABASE_URL=sqlite:////data/romarr.db
-      - DATA_DIR=/data
+      - DATABASE_URL=sqlite:////app/data/romarr.db
+      - DATA_DIR=/app/data
       - ROM_LIBRARY_PATH=/library
       - LOG_LEVEL=INFO
-      # Optional — IGDB plugin
+      # Optional — IGDB credentials
       - IGDB_CLIENT_ID=${IGDB_CLIENT_ID:-}
       - IGDB_CLIENT_SECRET=${IGDB_CLIENT_SECRET:-}
     volumes:
-      - romarr-data:/data
+      - romarr-data:/app/data
       - ${ROM_LIBRARY_PATH:-./library}:/library
     ports:
-      - "8000:8000"
+      - "${ROMARR_PORT:-7878}:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/system/status"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: romarr-frontend
-    restart: unless-stopped
-    ports:
-      - "${ROMARR_PORT:-7878}:80"
-    depends_on:
-      - backend
 
 volumes:
   romarr-data:
