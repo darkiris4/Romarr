@@ -180,7 +180,9 @@ async def manual_search(
                 for c in (indexer.categories or "").split(",")
                 if c.strip().isdigit()
             ]
-            results = await search_indexer(indexer, query, categories=cats or None)
+            # Default to Newznab category 1000 (Console) so we never get
+            # movies/TV back from a general indexer with no categories set.
+            results = await search_indexer(indexer, query, categories=cats or [1000])
             all_results.extend(
                 [
                     {

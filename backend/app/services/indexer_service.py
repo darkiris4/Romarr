@@ -7,6 +7,7 @@ the same Newznab/Torznab protocol transparently.
 """
 
 import logging
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,6 +17,29 @@ import httpx
 from ..models.indexer import Indexer, IndexerProtocol
 
 logger = logging.getLogger(__name__)
+
+# Patterns that conclusively identify a video/TV release rather than a ROM
+_VIDEO_RE = re.compile(
+    r"""
+    \b(
+        \d{3,4}p           |   # 720p, 1080p, 2160p
+        4K | UHD            |
+        Blu-?Ray | BDRIP    |
+        WEB-?DL | WEBRip    |
+        HDTV | PDTV         |
+        DVDRip | DVDScr     |
+        x26[45] | HEVC      |
+        H\.26[45]           |
+        XviD | DivX         |
+        S\d{1,2}E\d{1,2}        # S01E03 TV episode pattern
+    )\b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def _looks_like_video(title: str) -> bool:
+    return bool(_VIDEO_RE.search(title))
 
 
 @dataclass
@@ -56,7 +80,12 @@ async def search_indexer(
         resp.raise_for_status()
 
     logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
-    return _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
+    results = _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
+    before = len(results)
+    results = [r for r in results if not _looks_like_video(r.title)]
+    if len(results) < before:
+        logger.info("Filtered %d video result(s) from indexer '%s'", before - len(results), indexer.name)
+    return results
 
 
 async def test_indexer(indexer: Indexer) -> tuple[bool, str]:
