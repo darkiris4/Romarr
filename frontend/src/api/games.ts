@@ -22,10 +22,11 @@ export const gamesApi = {
 
   delete: (id: number) => client.delete(`/games/${id}`),
 
-  search: (id: number) =>
+  search: (id: number, q?: string) =>
     client
-      .get<{ results: ReleaseResult[]; errors: { indexer: string; error: string }[] }>(
-        `/games/${id}/search`
+      .get<{ results: ReleaseResult[]; errors: { indexer: string; error: string }[]; query: string }>(
+        `/games/${id}/search`,
+        { params: q ? { q } : undefined }
       )
       .then((r) => r.data),
 

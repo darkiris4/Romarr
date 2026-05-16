@@ -1,7 +1,8 @@
 import logging
 import os
+import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 logger = logging.getLogger(__name__)
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ from ...models.indexer import Indexer
 from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.game import GameCreate, GameOut, GameUpdate
 from ...services.download_service import get_client
+from ...services.event_service import log_event
 from ...services.indexer_service import search_indexer
 
 
@@ -127,11 +129,28 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+def _normalize_title(title: str) -> str:
+    """Convert No-Intro article-last format to natural search form.
+    'Legend of Zelda, The' → 'The Legend of Zelda'
+    """
+    m = re.match(r"^(.+),\s+(The|A|An)$", title, re.IGNORECASE)
+    if m:
+        return f"{m.group(2)} {m.group(1)}"
+    return title
+
+
 @router.get("/{game_id}/search")
-async def manual_search(game_id: int, db: Session = Depends(get_db)):
+async def manual_search(
+    game_id: int,
+    q: str | None = Query(None, description="Override search query"),
+    db: Session = Depends(get_db),
+):
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+
+    query = q if q else _normalize_title(game.title)
+
     indexers = db.query(Indexer).filter_by(enabled=True).all()
     all_results = []
     indexer_errors: list[dict] = []
@@ -142,7 +161,7 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
                 for c in (indexer.categories or "").split(",")
                 if c.strip().isdigit()
             ]
-            results = await search_indexer(indexer, game.title, categories=cats or None)
+            results = await search_indexer(indexer, query, categories=cats or None)
             all_results.extend(
                 [
                     {
@@ -162,8 +181,14 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
         except Exception as exc:
             logger.warning("Search failed for indexer '%s': %s", indexer.name, exc)
             indexer_errors.append({"indexer": indexer.name, "error": str(exc)})
+
     all_results.sort(key=lambda r: r["seeders"] or 0, reverse=True)
-    return {"results": all_results, "errors": indexer_errors}
+    log_event(
+        "Search",
+        f"Manual search for \"{game.title}\" (query: \"{query}\") — "
+        f"{len(all_results)} result(s) across {len(indexers)} indexer(s)",
+    )
+    return {"results": all_results, "errors": indexer_errors, "query": query}
 
 
 @router.post("/{game_id}/grab")
@@ -201,4 +226,9 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     db.commit()
     db.refresh(item)
 
+    log_event(
+        "Grab",
+        f"Grabbed \"{payload.title}\" for \"{game.title}\" via {client_model.name} "
+        f"({payload.protocol}, download_id={download_id})",
+    )
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}

@@ -6,6 +6,7 @@ Prowlarr compatibility: point the indexer URL at your Prowlarr instance
 the same Newznab/Torznab protocol transparently.
 """
 
+import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -13,6 +14,8 @@ from datetime import datetime
 import httpx
 
 from ..models.indexer import Indexer, IndexerProtocol
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -46,10 +49,13 @@ async def search_indexer(
     if categories:
         params["cat"] = ",".join(str(c) for c in categories)
 
+    url = f"{indexer.url.rstrip('/')}/api"
+    logger.info("Searching indexer '%s': GET %s params=%s", indexer.name, url, params)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(f"{indexer.url.rstrip('/')}/api", params=params)
+        resp = await client.get(url, params=params)
         resp.raise_for_status()
 
+    logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
     return _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
 
 
@@ -76,7 +82,15 @@ def _parse_newznab_xml(
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
+        logger.warning("Failed to parse XML response: %s", xml_text[:300])
         return []
+
+    # Newznab/Torznab error element — surface as exception so callers can report it
+    error_el = root.find(".//error")
+    if error_el is not None:
+        code = error_el.get("code", "?")
+        desc = error_el.get("description", "unknown error")
+        raise ValueError(f"Indexer returned error {code}: {desc}")
 
     results: list[SearchResult] = []
     for item in root.findall(".//item"):

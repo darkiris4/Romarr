@@ -1591,6 +1591,16 @@ select.form-control {
 }
 
 /* ── Manual release search table ──────────────────────────────── */
+.modal-search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-search-bar .form-control {
+  flex: 1;
+}
+
 .search-modal-status {
   display: flex;
   align-items: center;
