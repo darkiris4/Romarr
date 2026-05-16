@@ -1,5 +1,6 @@
 from .app_config import AppConfig
 from .app_event import AppEvent
+from .blocklist import BlocklistItem
 from .download_client import DownloadClient, DownloadClientType
 from .game import Game, GameStatus
 from .history import HistoryEventType, HistoryItem
@@ -25,4 +26,5 @@ __all__ = [
     "AppConfig",
     "RootFolder",
     "AppEvent",
+    "BlocklistItem",
 ]

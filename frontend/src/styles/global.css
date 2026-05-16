@@ -899,10 +899,23 @@ select.form-control {
   justify-content: flex-end;
 }
 
-/* Wide modal variant for release search */
+/* Wide modal variant */
 .modal--wide {
   width: 900px;
   max-width: 96vw;
+}
+
+/* Full-width search results modal */
+.modal--search {
+  width: min(96vw, 1600px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal--search .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 /* ── Library Import Page ────────────────────────────────────────── */
@@ -1658,12 +1671,73 @@ select.form-control {
   background: rgba(39, 194, 76, 0.06);
 }
 
+.release-table tr.row-rejected td {
+  opacity: 0.55;
+}
+
+/* Column widths */
+.release-table th:nth-child(1),
+.release-table td:nth-child(1) { width: 52px; }   /* Source */
+.release-table th:nth-child(2),
+.release-table td:nth-child(2) { width: 48px; }   /* Age */
+.release-table th:nth-child(3),
+.release-table td:nth-child(3) { min-width: 200px; } /* Title — grows */
+.release-table th:nth-child(4),
+.release-table td:nth-child(4) { width: 110px; }  /* Indexer */
+.release-table th:nth-child(5),
+.release-table td:nth-child(5) { width: 90px; }   /* History */
+.release-table th:nth-child(6),
+.release-table td:nth-child(6) { width: 72px; }   /* Size */
+.release-table th:nth-child(7),
+.release-table td:nth-child(7) { width: 76px; }   /* Peers */
+.release-table th:nth-child(8),
+.release-table td:nth-child(8) { width: 90px; }   /* Region */
+.release-table th:nth-child(9),
+.release-table td:nth-child(9) { width: 90px; }   /* Rejections */
+.release-table th:nth-child(10),
+.release-table td:nth-child(10) { width: 80px; text-align: right; } /* Grab */
+
 .release-title {
-  max-width: 340px;
+  color: var(--text-white);
+  white-space: nowrap;
+}
+
+.release-title-text {
+  display: inline-block;
+  max-width: 600px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-white);
+  vertical-align: bottom;
+}
+
+.release-age,
+.release-indexer,
+.release-region { white-space: nowrap; }
+
+.release-history { white-space: nowrap; }
+
+.history-grabbed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.rejection-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .release-link {
@@ -1684,7 +1758,7 @@ select.form-control {
   text-align: right;
 }
 .col-action {
-  width: 90px;
+  width: 80px;
   text-align: right;
 }
 

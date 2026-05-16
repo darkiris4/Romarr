@@ -14,6 +14,8 @@ from ...models.game import Game, GameStatus
 from ...models.indexer import Indexer
 from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.game import GameCreate, GameOut, GameUpdate
+from ...models.blocklist import BlocklistItem
+from ...models.history import HistoryEventType, HistoryItem
 from ...services.download_service import get_client
 from ...services.event_service import log_event
 from ...services.indexer_service import search_indexer
@@ -151,6 +153,23 @@ async def manual_search(
 
     query = q if q else _normalize_title(game.title)
 
+    # Grab history for this game keyed by release title
+    grabbed: dict[str, str] = {
+        h.source_title: h.date.isoformat()
+        for h in db.query(HistoryItem)
+        .filter(
+            HistoryItem.game_id == game_id,
+            HistoryItem.event_type == HistoryEventType.GRABBED,
+        )
+        .all()
+    }
+
+    # Blocklist rejections for this game keyed by release title
+    blocklisted: dict[str, str] = {
+        b.source_title: b.reason
+        for b in db.query(BlocklistItem).filter_by(game_id=game_id).all()
+    }
+
     indexers = db.query(Indexer).filter_by(enabled=True).all()
     all_results = []
     indexer_errors: list[dict] = []
@@ -174,6 +193,8 @@ async def manual_search(
                         "protocol": r.protocol,
                         "link": r.link,
                         "publish_date": r.publish_date.isoformat() if r.publish_date else None,
+                        "grabbed_at": grabbed.get(r.title),
+                        "rejections": [blocklisted[r.title]] if r.title in blocklisted else [],
                     }
                     for r in results
                 ]

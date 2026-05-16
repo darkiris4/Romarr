@@ -60,6 +60,19 @@ export interface ReleaseResult {
   protocol: string
   link: string
   publish_date?: string
+  grabbed_at?: string
+  rejections: string[]
+}
+
+export interface BlocklistItem {
+  id: number
+  game_id: number
+  game?: { id: number; title: string }
+  source_title: string
+  indexer: string
+  protocol: string
+  reason: string
+  added_at: string
 }
 
 export type IndexerProtocol = 'newznab' | 'torznab'
