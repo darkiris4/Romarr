@@ -157,7 +157,15 @@ export default function LibraryImportPage() {
   const [hintPlatformId, setHintPlatformId] = useState<number | undefined>()
   const [preview, setPreview] = useState<ScanPreview | null>(null)
   const [overrides, setOverrides] = useState<Record<string, number>>({})
-  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [result, setResult] = useState<{
+    scanned: number
+    created: number
+    updated: number
+    skipped_existing: number
+    skipped_ambiguous: number
+    dat_matches: number
+    filename_matches: number
+  } | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   type FilterKey = 'new' | 'dat' | 'filename' | 'ambiguous' | 'exists'
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set())
@@ -743,6 +751,7 @@ export default function LibraryImportPage() {
     )
 
   /* ── Step 5: done ── */
+  if (!result) return null
   return (
     <div className="import-page">
       <div className="import-done">

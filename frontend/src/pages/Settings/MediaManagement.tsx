@@ -473,7 +473,7 @@ export default function MediaManagement() {
                         <button
                           className="btn-icon"
                           title={`Remove ${p.dat_file}`}
-                          onClick={() => deleteDatMutation.mutate(p.dat_file)}
+                          onClick={() => deleteDatMutation.mutate(p.dat_file!)}
                           disabled={deleteDatMutation.isPending}
                         >
                           <X size={14} />
