@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Trash2, Bell } from 'lucide-react'
+import { RefreshCw, Trash2, Bell, Info, X } from 'lucide-react'
 import { format } from 'date-fns'
-import { systemApi } from '../../api/system'
+import { systemApi, type AppEvent } from '../../api/system'
 
 const PER_PAGE = 50
 
@@ -14,8 +14,49 @@ function formatTime(iso: string) {
   }
 }
 
+function formatFull(iso: string) {
+  try {
+    return format(new Date(iso), 'PPpp')
+  } catch {
+    return iso
+  }
+}
+
+function DetailModal({ event, onClose }: { event: AppEvent; onClose: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Event Detail</span>
+          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>COMPONENT</div>
+            <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid rgba(123,104,238,.25)' }}>
+              {event.component}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>MESSAGE</div>
+            <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>{event.message}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>TIME</div>
+            <div style={{ color: 'var(--text-primary)' }}>{formatFull(event.created_at)}</div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function EventsPage() {
   const [page, setPage] = useState(1)
+  const [detail, setDetail] = useState<AppEvent | null>(null)
   const qc = useQueryClient()
 
   const { data, isLoading } = useQuery({
@@ -73,6 +114,7 @@ export default function EventsPage() {
             <table className="activity-table">
               <thead>
                 <tr>
+                  <th style={{ width: 32 }}></th>
                   <th style={{ width: 80 }}>Time</th>
                   <th style={{ width: 200 }}>Component</th>
                   <th>Message</th>
@@ -81,7 +123,17 @@ export default function EventsPage() {
               <tbody>
                 {data.events.map(ev => (
                   <tr key={ev.id}>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }} title={ev.created_at}>
+                    <td>
+                      <button
+                        className="btn-icon"
+                        title="Details"
+                        onClick={() => setDetail(ev)}
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <Info size={14} />
+                      </button>
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {formatTime(ev.created_at)}
                     </td>
                     <td>
@@ -119,6 +171,8 @@ export default function EventsPage() {
           )}
         </>
       )}
+
+      {detail && <DetailModal event={detail} onClose={() => setDetail(null)} />}
     </div>
   )
 }
