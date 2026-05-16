@@ -1645,6 +1645,7 @@ tr.selecting.selected td { background: rgba(123,104,238,.12); }
   position: relative;
   box-shadow: var(--card-shadow);
   transition: transform .15s, box-shadow .15s;
+  min-width: 0;
 }
 .poster-card:hover {
   transform: translateY(-3px);
@@ -1652,12 +1653,10 @@ tr.selecting.selected td { background: rgba(123,104,238,.12); }
 }
 .poster-img {
   width: 100%;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  background: rgba(0,0,0,.3);
   display: block;
 }
 .poster-placeholder {
+  aspect-ratio: 264 / 374;
   display: flex;
   align-items: center;
   justify-content: center;
