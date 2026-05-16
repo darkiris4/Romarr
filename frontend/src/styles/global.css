@@ -2210,6 +2210,11 @@ tr.selecting.selected td {
   border-radius: var(--radius);
   padding: 5px;
 }
+.poster-status-bar {
+  height: 4px;
+  width: 100%;
+  flex-shrink: 0;
+}
 .poster-footer {
   padding: 8px 10px 10px;
 }
@@ -2246,6 +2251,11 @@ tr.selecting.selected td {
 }
 .overview-row:hover {
   background: var(--bg-card-hover);
+}
+.overview-cover-wrap {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
 .overview-cover {
   width: 54px;
