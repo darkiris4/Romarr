@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...database import get_db
+from ...models.remote_path_mapping import RemotePathMapping
 from ...models.root_folder import RootFolder
 
 router = APIRouter()
@@ -66,4 +67,61 @@ def delete_root_folder(folder_id: int, db: Session = Depends(get_db)):
     if not folder:
         raise HTTPException(status_code=404, detail="Root folder not found")
     db.delete(folder)
+    db.commit()
+
+
+# ── Remote Path Mappings ──────────────────────────────────────────────────────
+
+class RemotePathMappingCreate(BaseModel):
+    host: str
+    remote_path: str
+    local_path: str
+
+
+class RemotePathMappingOut(BaseModel):
+    id: int
+    host: str
+    remote_path: str
+    local_path: str
+    model_config = {"from_attributes": True}
+
+
+@router.get("/remote-path-mappings", response_model=list[RemotePathMappingOut])
+def list_remote_path_mappings(db: Session = Depends(get_db)):
+    return db.query(RemotePathMapping).order_by(RemotePathMapping.host, RemotePathMapping.remote_path).all()
+
+
+@router.post("/remote-path-mappings", response_model=RemotePathMappingOut, status_code=201)
+def add_remote_path_mapping(payload: RemotePathMappingCreate, db: Session = Depends(get_db)):
+    m = RemotePathMapping(
+        host=payload.host.strip(),
+        remote_path=payload.remote_path.strip(),
+        local_path=payload.local_path.strip(),
+    )
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.put("/remote-path-mappings/{mapping_id}", response_model=RemotePathMappingOut)
+def update_remote_path_mapping(
+    mapping_id: int, payload: RemotePathMappingCreate, db: Session = Depends(get_db)
+):
+    m = db.query(RemotePathMapping).filter_by(id=mapping_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    m.host = payload.host.strip()
+    m.remote_path = payload.remote_path.strip()
+    m.local_path = payload.local_path.strip()
+    db.commit()
+    return m
+
+
+@router.delete("/remote-path-mappings/{mapping_id}", status_code=204)
+def delete_remote_path_mapping(mapping_id: int, db: Session = Depends(get_db)):
+    m = db.query(RemotePathMapping).filter_by(id=mapping_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    db.delete(m)
     db.commit()

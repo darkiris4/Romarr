@@ -174,6 +174,13 @@ export interface SystemStatus {
   }
 }
 
+export interface RemotePathMapping {
+  id: number
+  host: string
+  remote_path: string
+  local_path: string
+}
+
 export interface TestResult {
   success: boolean
   message: string
