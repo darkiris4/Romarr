@@ -48,7 +48,17 @@ async def poll_downloads():
                 item.size = cs.size
                 item.size_downloaded = cs.size_downloaded
 
-                if cs.not_found:
+                status_logged = False
+                if cs.encrypted:
+                    # SABnzbd detected a password-protected archive — fail immediately,
+                    # same path as an explicit client failure (blocklist + auto-retry).
+                    _not_found_streak.pop(item.id, None)
+                    item.status = QueueStatus.FAILED
+                    item.error_message = "Encrypted / password-protected archive"
+                    failed_items.append(item)
+                    log_event("Download", f"Encrypted archive detected, failing: \"{item.title}\"")
+                    status_logged = True
+                elif cs.not_found:
                     # Item absent from client — either a transient API gap or the
                     # client auto-cleaned it after completion.
                     #
@@ -64,6 +74,7 @@ async def poll_downloads():
                             "Download",
                             f"Download complete (auto-removed by client), import pending: \"{item.title}\"",
                         )
+                        status_logged = True
                     else:
                         streak = _not_found_streak.get(item.id, 0) + 1
                         _not_found_streak[item.id] = streak
@@ -91,7 +102,7 @@ async def poll_downloads():
                     _not_found_streak.pop(item.id, None)
                     item.status = cs.status
 
-                if item.status != prev_status:
+                if item.status != prev_status and not status_logged:
                     if item.status == QueueStatus.DOWNLOADING:
                         log_event("Download", f"Downloading \"{item.title}\"")
                     elif item.status == QueueStatus.IMPORT_PENDING:

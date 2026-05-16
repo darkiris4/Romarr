@@ -23,7 +23,8 @@ class ClientStatus:
     size: int
     size_downloaded: int
     error: str | None = None
-    not_found: bool = False  # True when item is absent from client (vs explicitly reported failed)
+    not_found: bool = False   # True when item is absent from client (vs explicitly reported failed)
+    encrypted: bool = False   # SABnzbd detected a password-protected archive
 
 
 class BaseDownloadClient(ABC):
@@ -95,13 +96,34 @@ class QBittorrentClient(BaseDownloadClient):
                 not_found=True,
             )
         t = data[0]
+        # Full state map sourced from Radarr's QBittorrent.cs (develop branch)
         state_map = {
-            "downloading": QueueStatus.DOWNLOADING,
-            "stalledDL": QueueStatus.DOWNLOADING,
-            "uploading": QueueStatus.COMPLETED,
-            "stalledUP": QueueStatus.COMPLETED,
-            "pausedDL": QueueStatus.PAUSED,
-            "error": QueueStatus.FAILED,
+            # Completed / seeding — all forms mean the download finished
+            "uploading":      QueueStatus.COMPLETED,
+            "stalledUP":      QueueStatus.COMPLETED,
+            "pausedUP":       QueueStatus.COMPLETED,
+            "stoppedUP":      QueueStatus.COMPLETED,
+            "queuedUP":       QueueStatus.COMPLETED,
+            "forcedUP":       QueueStatus.COMPLETED,
+            # Active download
+            "downloading":    QueueStatus.DOWNLOADING,
+            "forcedDL":       QueueStatus.DOWNLOADING,
+            "moving":         QueueStatus.DOWNLOADING,
+            # Stalled but may resume — treat as downloading, not a failure
+            "stalledDL":      QueueStatus.DOWNLOADING,
+            # Queued / checking states
+            "queuedDL":           QueueStatus.QUEUED,
+            "checkingDL":         QueueStatus.QUEUED,
+            "checkingUP":         QueueStatus.QUEUED,
+            "checkingResumeData": QueueStatus.QUEUED,
+            "metaDL":             QueueStatus.QUEUED,
+            "forcedMetaDL":       QueueStatus.QUEUED,
+            # Paused
+            "pausedDL":   QueueStatus.PAUSED,
+            "stoppedDL":  QueueStatus.PAUSED,
+            # Explicit failures
+            "error":        QueueStatus.FAILED,
+            "missingFiles": QueueStatus.FAILED,
         }
         return ClientStatus(
             download_id=download_id,
@@ -161,6 +183,21 @@ class SABnzbdClient(BaseDownloadClient):
             data = resp.json()
         return data.get("nzo_ids", ["unknown"])[0]
 
+    # Full queue status map sourced from Radarr's Sabnzbd.cs (develop branch)
+    _QUEUE_STATUS_MAP = {
+        "Downloading":  QueueStatus.DOWNLOADING,
+        "Verifying":    QueueStatus.DOWNLOADING,
+        "Repairing":    QueueStatus.DOWNLOADING,
+        "Extracting":   QueueStatus.DOWNLOADING,
+        "Moving":       QueueStatus.DOWNLOADING,
+        "Queued":       QueueStatus.QUEUED,
+        "Grabbing":     QueueStatus.QUEUED,
+        "Propagating":  QueueStatus.QUEUED,
+        "Completed":    QueueStatus.COMPLETED,
+        "Failed":       QueueStatus.FAILED,
+        "Paused":       QueueStatus.PAUSED,
+    }
+
     async def status(self, download_id: str) -> ClientStatus:
         async with httpx.AsyncClient(timeout=15) as http:
             # Check active queue first
@@ -170,36 +207,41 @@ class SABnzbdClient(BaseDownloadClient):
             )
             data = resp.json()
             for slot in data.get("queue", {}).get("slots", []):
-                if slot["nzo_id"] == download_id:
-                    status_map = {
-                        "Downloading": QueueStatus.DOWNLOADING,
-                        "Completed": QueueStatus.COMPLETED,
-                        "Failed": QueueStatus.FAILED,
-                        "Paused": QueueStatus.PAUSED,
-                    }
+                if slot.get("nzo_id") == download_id:
                     size = int(float(slot.get("mb", 0)) * 1024 * 1024)
                     left = int(float(slot.get("mbleft", 0)) * 1024 * 1024)
+                    # SABnzbd marks password-protected archives with an "ENCRYPTED /" prefix
+                    title = slot.get("filename", "") or slot.get("cat", "")
+                    encrypted = title.startswith("ENCRYPTED /")
                     return ClientStatus(
                         download_id=download_id,
-                        status=status_map.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
+                        status=self._QUEUE_STATUS_MAP.get(slot.get("status", ""), QueueStatus.DOWNLOADING),
                         size=size,
                         size_downloaded=size - left,
+                        encrypted=encrypted,
                     )
 
-            # Not in active queue — check history (covers completed and failed)
+            # Not in active queue — check history (completed and explicitly failed items)
+            # Limit to 100 entries; our item is recent so it will be near the top
             hist = await http.get(
                 self._api_url,
-                params={"mode": "history", "apikey": self.client.api_key, "output": "json"},
+                params={
+                    "mode": "history",
+                    "apikey": self.client.api_key,
+                    "output": "json",
+                    "limit": 100,
+                },
             )
             for slot in hist.json().get("history", {}).get("slots", []):
                 if slot.get("nzo_id") == download_id:
-                    failed = slot.get("failed_message") or slot.get("status", "") == "Failed"
+                    failed = bool(slot.get("failed_message")) or slot.get("status", "") == "Failed"
                     size = int(float(slot.get("mb", 0)) * 1024 * 1024)
                     return ClientStatus(
                         download_id=download_id,
                         status=QueueStatus.FAILED if failed else QueueStatus.COMPLETED,
                         size=size,
                         size_downloaded=size,
+                        error=slot.get("fail_message") or None,
                     )
 
         # Gone from both queue and history — may be a transient gap (auto-clean, API error)
@@ -226,7 +268,12 @@ class SABnzbdClient(BaseDownloadClient):
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.get(
                 self._api_url,
-                params={"mode": "history", "apikey": self.client.api_key, "output": "json"},
+                params={
+                    "mode": "history",
+                    "apikey": self.client.api_key,
+                    "output": "json",
+                    "limit": 100,
+                },
             )
             for slot in resp.json().get("history", {}).get("slots", []):
                 if slot.get("nzo_id") == download_id:
