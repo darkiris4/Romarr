@@ -17,7 +17,7 @@ import MetadataPage from './pages/Settings/MetadataPage'
 import TagsPage from './pages/Settings/TagsPage'
 import GeneralPage from './pages/Settings/GeneralPage'
 import UISettingsPage from './pages/Settings/UISettingsPage'
-import QualityPage from './pages/Settings/QualityPage'
+import RegionPage from './pages/Settings/RegionPage'
 import SystemStatus from './pages/System/SystemStatus'
 import TasksPage from './pages/System/TasksPage'
 import BackupPage from './pages/System/BackupPage'
@@ -47,7 +47,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/mediamanagement" replace />} />
             <Route path="mediamanagement" element={<MediaManagement />} />
-            <Route path="quality" element={<QualityPage />} />
+            <Route path="region" element={<RegionPage />} />
             <Route path="platforms" element={<PlatformsPage />} />
             <Route path="indexers" element={<IndexersPage />} />
             <Route path="downloadclients" element={<DownloadClientsPage />} />
