@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
-from ...models.game import Game
+from ...models.game import Game, GameStatus
 from ...models.download_client import DownloadClient
 from ...models.indexer import Indexer
 from ...models.platform import Platform
@@ -60,5 +60,12 @@ def remove_from_queue(
     item = db.query(QueueItem).filter_by(id=item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Queue item not found")
+    game_id = item.game_id
     db.delete(item)
+    db.flush()
+    remaining = db.query(QueueItem).filter_by(game_id=game_id).count()
+    if remaining == 0:
+        game = db.query(Game).filter_by(id=game_id).first()
+        if game and game.status == GameStatus.GRABBED:
+            game.status = GameStatus.WANTED
     db.commit()

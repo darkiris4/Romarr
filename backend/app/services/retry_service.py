@@ -55,7 +55,12 @@ async def handle_download_failure(db: Session, item: QueueItem) -> None:
 
     log_event("Download", f"Download failed, blocklisted \"{failed_title}\" — searching for next release")
 
-    await _auto_retry(db, game)
+    try:
+        await _auto_retry(db, game)
+    except Exception as exc:
+        logger.error("Auto-retry failed for game %d: %s", game.id, exc)
+        game.status = GameStatus.WANTED
+        db.commit()
 
 
 async def _auto_retry(db: Session, game: Game) -> None:
