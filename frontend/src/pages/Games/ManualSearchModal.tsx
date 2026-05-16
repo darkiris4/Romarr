@@ -71,6 +71,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
   }
 
   const results = data?.results ?? []
+  const searchErrors = data?.errors ?? []
   const sorted = [...results].sort((a, b) => {
     let av: number | string, bv: number | string
     switch (sort) {
@@ -122,12 +123,19 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
           )}
           {isError && (
             <div className="search-modal-status" style={{ color: 'var(--danger)' }}>
-              Search failed. Check that your indexers are configured and reachable.
+              Search request failed — check the backend logs for details.
             </div>
           )}
-          {!isLoading && !isError && results.length === 0 && (
-            <div className="search-modal-status">
-              No releases found. Check your indexer configuration.
+          {!isLoading && !isError && results.length === 0 && searchErrors.length === 0 && (
+            <div className="search-modal-status">No releases found.</div>
+          )}
+          {!isLoading && !isError && searchErrors.length > 0 && results.length === 0 && (
+            <div className="search-modal-status" style={{ color: 'var(--danger)' }}>
+              {searchErrors.map((e, i) => (
+                <div key={i}>
+                  <strong>{e.indexer}:</strong> {e.error}
+                </div>
+              ))}
             </div>
           )}
           {sorted.length > 0 && (
@@ -219,9 +227,12 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <span className="text-muted" style={{ fontSize: 12 }}>
-            {results.length > 0
-              ? `${results.length} release${results.length !== 1 ? 's' : ''} found`
-              : ''}
+            {results.length > 0 && `${results.length} release${results.length !== 1 ? 's' : ''} found`}
+            {searchErrors.length > 0 && results.length > 0 && (
+              <span style={{ color: 'var(--danger)', marginLeft: 8 }}>
+                {searchErrors.length} indexer{searchErrors.length !== 1 ? 's' : ''} failed
+              </span>
+            )}
           </span>
           <button className="btn btn-secondary" onClick={onClose}>
             Close

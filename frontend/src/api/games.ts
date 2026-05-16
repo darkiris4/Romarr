@@ -23,7 +23,11 @@ export const gamesApi = {
   delete: (id: number) => client.delete(`/games/${id}`),
 
   search: (id: number) =>
-    client.get<{ results: ReleaseResult[] }>(`/games/${id}/search`).then((r) => r.data),
+    client
+      .get<{ results: ReleaseResult[]; errors: { indexer: string; error: string }[] }>(
+        `/games/${id}/search`
+      )
+      .then((r) => r.data),
 
   grab: (
     id: number,

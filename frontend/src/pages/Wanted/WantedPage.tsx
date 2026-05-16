@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookX, RotateCcw } from 'lucide-react'
 import { gamesApi } from '../../api/games'
+import client from '../../api/client'
+import type { Game } from '../../types'
 import { Gamepad2 } from 'lucide-react'
 
 export default function WantedPage() {
@@ -8,7 +10,7 @@ export default function WantedPage() {
 
   const { data: games = [], isLoading } = useQuery({
     queryKey: ['wanted-missing'],
-    queryFn: () => gamesApi.list({ status: 'wanted' }),
+    queryFn: () => client.get<Game[]>('/wanted/missing').then((r) => r.data),
   })
 
   const searchMutation = useMutation({

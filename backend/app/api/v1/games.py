@@ -1,6 +1,9 @@
+import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
@@ -131,9 +134,14 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Game not found")
     indexers = db.query(Indexer).filter_by(enabled=True).all()
     all_results = []
+    indexer_errors: list[dict] = []
     for indexer in indexers:
         try:
-            cats = [int(c) for c in indexer.categories.split(",") if c.strip().isdigit()]
+            cats = [
+                int(c)
+                for c in (indexer.categories or "").split(",")
+                if c.strip().isdigit()
+            ]
             results = await search_indexer(indexer, game.title, categories=cats or None)
             all_results.extend(
                 [
@@ -151,10 +159,11 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
                     for r in results
                 ]
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Search failed for indexer '%s': %s", indexer.name, exc)
+            indexer_errors.append({"indexer": indexer.name, "error": str(exc)})
     all_results.sort(key=lambda r: r["seeders"] or 0, reverse=True)
-    return {"results": all_results}
+    return {"results": all_results, "errors": indexer_errors}
 
 
 @router.post("/{game_id}/grab")
