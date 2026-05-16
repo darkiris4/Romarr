@@ -39,7 +39,7 @@ const DEFAULT_REGIONS: RegionItem[] = [
 let nextFormatId = 100
 let nextRegionId = 200
 
-export default function RegionPage() {
+export default function ProfilesPage() {
   const [formats, setFormats] = useState<FormatItem[]>(DEFAULT_FORMATS)
   const [regions, setRegions] = useState<RegionItem[]>(DEFAULT_REGIONS)
   const [newFormat, setNewFormat] = useState('')
@@ -90,7 +90,7 @@ export default function RegionPage() {
 
   return (
     <div>
-      <div className="settings-section-title">Region &amp; Profiles</div>
+      <div className="settings-section-title">Profiles</div>
       <div className="settings-section-desc">
         Define which ROM formats and regions are acceptable, and set priorities for automatic searching.
       </div>

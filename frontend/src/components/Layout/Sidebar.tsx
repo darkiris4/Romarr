@@ -52,7 +52,7 @@ const SECTIONS: Section[] = [
     key: 'settings', to: '/settings', icon: <Settings size={16} />, label: 'Settings', prefix: '/settings',
     children: [
       { to: '/settings/mediamanagement', icon: <HardDrive size={14} />,  label: 'Media Management' },
-      { to: '/settings/region',            icon: <Star size={14} />,       label: 'Region' },
+      { to: '/settings/profiles',           icon: <Star size={14} />,       label: 'Profiles' },
       { to: '/settings/indexers',         icon: <Wifi size={14} />,       label: 'Indexers' },
       { to: '/settings/downloadclients',  icon: <Server size={14} />,     label: 'Download Clients' },
       { to: '/settings/lists',            icon: <FileInput size={14} />,  label: 'Import Lists' },
