@@ -68,6 +68,15 @@ _IGDB_PLATFORM_IDS: dict[str, int] = {
     "Nintendo - GameCube": 21,
     "Nintendo - Nintendo GameCube (NPDP Carts)": 21,
     "Nintendo - Wii": 5,
+    "Nintendo - Nintendo 3DS": 37,
+    "Nintendo - Wii U": 41,
+    "Nintendo - Nintendo Switch": 130,
+    "Sony - PlayStation 3": 9,
+    "Sony - PlayStation 4": 48,
+    "Sony - PlayStation Vita": 46,
+    "Microsoft - Xbox 360": 12,
+    "Sega - Saturn": 32,
+    "Sega - Dreamcast": 23,
 }
 
 
@@ -86,16 +95,17 @@ def _migrate():
 
 
 def _seed_platforms():
-    """Insert built-in platforms on a fresh database."""
+    """Upsert built-in platforms — inserts any that are missing, leaves existing rows alone."""
     from .api.v1.platforms import BUILTIN_PLATFORMS
     from .models.platform import Platform
 
     db = SessionLocal()
     try:
-        if db.query(Platform).count() == 0:
-            for p in BUILTIN_PLATFORMS:
+        existing = {p.no_intro_name for p in db.query(Platform).all()}
+        for p in BUILTIN_PLATFORMS:
+            if p["no_intro_name"] not in existing:
                 db.add(Platform(**p))
-            db.commit()
+        db.commit()
     finally:
         db.close()
 
