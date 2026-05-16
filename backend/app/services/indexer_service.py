@@ -37,9 +37,32 @@ _VIDEO_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
+# Patterns that identify a music/audio release rather than a ROM
+_AUDIO_RE = re.compile(
+    r"""
+    \b(
+        MP3 | FLAC | AAC | OGG | OPUS | WMA | ALAC |   # audio codecs
+        OST | Soundtrack                             |   # soundtrack labels
+        WEB-MP3 | WEB-FLAC | CD-MP3                 |   # scene audio formats
+        \d+kbps | \d+K-MP3                          |   # bitrate markers
+        Discography | Album | EP \b | Single \b     |   # release types
+        Vinyl | Cassette                                 # physical formats
+    )\b
+    |
+    ^VA-                    # "VA-" (Various Artists) prefix used in scene music releases
+    |
+    -\d{4}-[A-Z0-9]+$      # scene music tag: -YYYY-GROUP at end (e.g. -2017-DDASMP3)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
 
 def _looks_like_video(title: str) -> bool:
     return bool(_VIDEO_RE.search(title))
+
+
+def _looks_like_audio(title: str) -> bool:
+    return bool(_AUDIO_RE.search(title))
 
 
 @dataclass
@@ -82,9 +105,10 @@ async def search_indexer(
     logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
     results = _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
     before = len(results)
-    results = [r for r in results if not _looks_like_video(r.title)]
-    if len(results) < before:
-        logger.info("Filtered %d video result(s) from indexer '%s'", before - len(results), indexer.name)
+    results = [r for r in results if not _looks_like_video(r.title) and not _looks_like_audio(r.title)]
+    filtered = before - len(results)
+    if filtered:
+        logger.info("Filtered %d non-ROM result(s) from indexer '%s'", filtered, indexer.name)
     return results
 
 
