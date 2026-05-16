@@ -1,13 +1,13 @@
-from .platform import Platform
-from .game import Game, GameStatus
-from .indexer import Indexer, IndexerProtocol
-from .download_client import DownloadClient, DownloadClientType
-from .list_source import ListSource
-from .queue_item import QueueItem, QueueStatus
-from .history import HistoryItem, HistoryEventType
 from .app_config import AppConfig
-from .root_folder import RootFolder
 from .app_event import AppEvent
+from .download_client import DownloadClient, DownloadClientType
+from .game import Game, GameStatus
+from .history import HistoryEventType, HistoryItem
+from .indexer import Indexer, IndexerProtocol
+from .list_source import ListSource
+from .platform import Platform
+from .queue_item import QueueItem, QueueStatus
+from .root_folder import RootFolder
 
 __all__ = [
     "Platform",

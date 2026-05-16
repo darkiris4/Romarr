@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import shutil
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -84,7 +83,9 @@ def compute_checksums(file_path: Path) -> dict[str, str]:
     }
 
 
-def build_no_intro_filename(title: str, region: str, version: str | None = None, extension: str = "") -> str:
+def build_no_intro_filename(
+    title: str, region: str, version: str | None = None, extension: str = ""
+) -> str:
     """
     Build a No-Intro compliant filename.
     e.g. build_no_intro_filename("Chrono Trigger", "USA", ext="sfc")
@@ -125,9 +126,13 @@ def import_rom(
     if dat_entries:
         entry = dat_entries.get(checksums["sha1"])
         if entry is None:
-            _record_history(db, game, HistoryEventType.IMPORT_FAILED,
-                            source_title=source_path.name,
-                            data={"reason": "Checksum not found in DAT", "sha1": checksums["sha1"]})
+            _record_history(
+                db,
+                game,
+                HistoryEventType.IMPORT_FAILED,
+                source_title=source_path.name,
+                data={"reason": "Checksum not found in DAT", "sha1": checksums["sha1"]},
+            )
             return False, "Checksum not found in No-Intro DAT — possible bad dump"
 
     platform: Platform = game.platform

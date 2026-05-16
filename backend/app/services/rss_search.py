@@ -4,9 +4,9 @@ import logging
 
 from ..database import SessionLocal
 from ..models.game import Game, GameStatus
+from ..models.history import HistoryEventType, HistoryItem
 from ..models.indexer import Indexer
 from ..models.queue_item import QueueItem, QueueStatus
-from ..models.history import HistoryEventType, HistoryItem
 from .indexer_service import search_indexer
 
 logger = logging.getLogger(__name__)
@@ -32,9 +32,10 @@ async def search_wanted():
 
 
 def _grab(db, game, indexer, result):
+    import asyncio
+
     from ..models.download_client import DownloadClient
     from .download_service import get_client
-    import asyncio
 
     client_model = db.query(DownloadClient).filter_by(enabled=True).first()
     if not client_model:

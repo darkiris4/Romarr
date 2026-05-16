@@ -1,13 +1,12 @@
 import re
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ...config import settings
-from ...services.log_service import list_log_files, clear_log_files, get_log_level, setup_logging
 from ...services.config_service import get_config, set_config
+from ...services.log_service import clear_log_files, list_log_files, setup_logging
 
 router = APIRouter()
 

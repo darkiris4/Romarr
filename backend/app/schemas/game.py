@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel
+
 from ..models.game import GameStatus
 from .platform import PlatformOut
 

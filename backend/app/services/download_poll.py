@@ -12,9 +12,11 @@ logger = logging.getLogger(__name__)
 async def poll_downloads():
     db = SessionLocal()
     try:
-        active = db.query(QueueItem).filter(
-            QueueItem.status.in_([QueueStatus.QUEUED, QueueStatus.DOWNLOADING])
-        ).all()
+        active = (
+            db.query(QueueItem)
+            .filter(QueueItem.status.in_([QueueStatus.QUEUED, QueueStatus.DOWNLOADING]))
+            .all()
+        )
         for item in active:
             if not item.download_client:
                 continue

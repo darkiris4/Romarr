@@ -6,7 +6,6 @@ Prowlarr compatibility: point the indexer URL at your Prowlarr instance
 the same Newznab/Torznab protocol transparently.
 """
 
-import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -67,7 +66,9 @@ async def test_indexer(indexer: Indexer) -> tuple[bool, str]:
         return False, str(exc)
 
 
-def _parse_newznab_xml(xml_text: str, indexer_name: str, protocol: IndexerProtocol) -> list[SearchResult]:
+def _parse_newznab_xml(
+    xml_text: str, indexer_name: str, protocol: IndexerProtocol
+) -> list[SearchResult]:
     ns = {
         "newznab": "http://www.newznab.com/DTD/2010/feeds/attributes/",
         "torznab": "http://torznab.com/schemas/2015/feed",
@@ -89,7 +90,11 @@ def _parse_newznab_xml(xml_text: str, indexer_name: str, protocol: IndexerProtoc
         pub_date_str = _text(item, "pubDate")
 
         try:
-            pub_date = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z") if pub_date_str else None
+            pub_date = (
+                datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z")
+                if pub_date_str
+                else None
+            )
         except ValueError:
             pub_date = None
 

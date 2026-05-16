@@ -1,17 +1,17 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
 from ...models.download_client import DownloadClient
 from ...models.game import Game, GameStatus
+from ...models.indexer import Indexer
 from ...models.queue_item import QueueItem, QueueStatus
 from ...schemas.game import GameCreate, GameOut, GameUpdate
 from ...services.download_service import get_client
 from ...services.indexer_service import search_indexer
-from ...models.indexer import Indexer
 
 
 class GrabPayload(BaseModel):
@@ -22,6 +22,7 @@ class GrabPayload(BaseModel):
     indexer: str = ""
     indexer_id: int | None = None
     seeders: int | None = None
+
 
 router = APIRouter()
 
@@ -94,7 +95,9 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
             pass
         try:
             from pathlib import Path
+
             from ...config import settings
+
             out.relative_rom_path = str(Path(game.rom_path).relative_to(settings.rom_library_path))
         except ValueError:
             out.relative_rom_path = game.rom_path
@@ -131,23 +134,25 @@ async def manual_search(game_id: int, db: Session = Depends(get_db)):
     for indexer in indexers:
         try:
             results = await search_indexer(indexer, game.title)
-            all_results.extend([
-                {
-                    "title": r.title,
-                    "indexer": r.indexer,
-                    "indexer_id": indexer.id,
-                    "size": r.size,
-                    "seeders": r.seeders,
-                    "leechers": r.leechers,
-                    "protocol": r.protocol,
-                    "link": r.link,
-                    "publish_date": r.publish_date.isoformat() if r.publish_date else None,
-                }
-                for r in results
-            ])
+            all_results.extend(
+                [
+                    {
+                        "title": r.title,
+                        "indexer": r.indexer,
+                        "indexer_id": indexer.id,
+                        "size": r.size,
+                        "seeders": r.seeders,
+                        "leechers": r.leechers,
+                        "protocol": r.protocol,
+                        "link": r.link,
+                        "publish_date": r.publish_date.isoformat() if r.publish_date else None,
+                    }
+                    for r in results
+                ]
+            )
         except Exception:
             pass
-    all_results.sort(key=lambda r: (r["seeders"] or 0), reverse=True)
+    all_results.sort(key=lambda r: r["seeders"] or 0, reverse=True)
     return {"results": all_results}
 
 
@@ -158,10 +163,7 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         raise HTTPException(status_code=404, detail="Game not found")
 
     clients = (
-        db.query(DownloadClient)
-        .filter_by(enabled=True)
-        .order_by(DownloadClient.priority)
-        .all()
+        db.query(DownloadClient).filter_by(enabled=True).order_by(DownloadClient.priority).all()
     )
     if not clients:
         raise HTTPException(status_code=400, detail="No download clients configured")

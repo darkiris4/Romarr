@@ -1,6 +1,8 @@
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from pathlib import Path
+
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
 from .config import settings
 
 
@@ -41,30 +43,31 @@ def get_db():
 
 def init_db():
     from . import models  # noqa: F401 — registers all models
+
     Base.metadata.create_all(bind=engine)
     _migrate()
 
 
 _IGDB_PLATFORM_IDS: dict[str, int] = {
     "Nintendo - Super Nintendo Entertainment System": 19,
-    "Nintendo - Nintendo Entertainment System":       18,
-    "Nintendo - Game Boy Advance":                    24,
-    "Nintendo - Game Boy Color":                      22,
-    "Nintendo - Game Boy":                            33,
-    "Nintendo - Nintendo 64":                         4,
-    "Nintendo - Nintendo DS":                         20,
-    "Sega - Mega Drive - Genesis":                    29,
-    "Sega - Master System - Mark III":                64,
-    "Sega - Game Gear":                               35,
-    "Sony - PlayStation":                             7,
-    "Sony - PlayStation 2":                           8,
-    "Sony - PlayStation Portable":                    38,
-    "Atari - 2600":                                   59,
-    "SNK - Neo Geo Pocket Color":                     119,
-    "Sega - 32X":                                     30,
-    "Nintendo - GameCube":                            21,
-    "Nintendo - Nintendo GameCube (NPDP Carts)":      21,
-    "Nintendo - Wii":                                 5,
+    "Nintendo - Nintendo Entertainment System": 18,
+    "Nintendo - Game Boy Advance": 24,
+    "Nintendo - Game Boy Color": 22,
+    "Nintendo - Game Boy": 33,
+    "Nintendo - Nintendo 64": 4,
+    "Nintendo - Nintendo DS": 20,
+    "Sega - Mega Drive - Genesis": 29,
+    "Sega - Master System - Mark III": 64,
+    "Sega - Game Gear": 35,
+    "Sony - PlayStation": 7,
+    "Sony - PlayStation 2": 8,
+    "Sony - PlayStation Portable": 38,
+    "Atari - 2600": 59,
+    "SNK - Neo Geo Pocket Color": 119,
+    "Sega - 32X": 30,
+    "Nintendo - GameCube": 21,
+    "Nintendo - Nintendo GameCube (NPDP Carts)": 21,
+    "Nintendo - Wii": 5,
 }
 
 
@@ -86,6 +89,7 @@ def _seed_platforms():
     """Insert built-in platforms on a fresh database."""
     from .api.v1.platforms import BUILTIN_PLATFORMS
     from .models.platform import Platform
+
     db = SessionLocal()
     try:
         if db.query(Platform).count() == 0:
@@ -99,6 +103,7 @@ def _seed_platforms():
 def _seed_igdb_platform_ids():
     """Back-fill igdb_platform_id for existing platform rows that are still NULL."""
     from sqlalchemy import text
+
     with engine.connect() as conn:
         for no_intro_name, igdb_id in _IGDB_PLATFORM_IDS.items():
             conn.execute(
@@ -113,6 +118,7 @@ def _seed_igdb_platform_ids():
 
 def _add_column_if_missing(table: str, column: str, col_type: str):
     from sqlalchemy import text
+
     with engine.connect() as conn:
         cols = [row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))]
         if column not in cols:

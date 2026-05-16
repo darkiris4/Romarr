@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import time
+from datetime import UTC
 
 import httpx
 
@@ -23,6 +24,7 @@ _token_cache: dict = {"token": None, "expires_at": 0.0, "client_id": ""}
 def _credentials() -> tuple[str, str]:
     """Return (client_id, client_secret) from DB config, falling back to env."""
     from .config_service import get_many
+
     db = get_many(["igdb_client_id", "igdb_client_secret"])
     client_id = db["igdb_client_id"] or settings.igdb_client_id
     client_secret = db["igdb_client_secret"] or settings.igdb_client_secret
@@ -74,8 +76,17 @@ def test_credentials() -> tuple[bool, str]:
 
 
 _ARTICLE_SUFFIX = re.compile(r"^(.+),\s*(The|A|An)$", re.IGNORECASE)
-_ROMAN = {"VIII": "8", "VII": "7", "VI": "6", "IV": "4", "IX": "9",
-          "III": "3", "II": "2", "V": "5", "X": "10"}
+_ROMAN = {
+    "VIII": "8",
+    "VII": "7",
+    "VI": "6",
+    "IV": "4",
+    "IX": "9",
+    "III": "3",
+    "II": "2",
+    "V": "5",
+    "X": "10",
+}
 _ROMAN_RE = re.compile(r"\b(VIII|VII|VI|IV|IX|III|II|V|X)\b")
 
 # No-Intro title → IGDB English title.
@@ -83,38 +94,32 @@ _ROMAN_RE = re.compile(r"\b(VIII|VII|VI|IV|IX|III|II|V|X)\b")
 # compound-word formatting (removes spaces that IGDB preserves).
 _TITLE_ALIASES: dict[str, str] = {
     # European name (TMHT) → US/IGDB name (TMNT)
-    "Teenage Mutant Hero Turtles - Fall of the Foot Clan":   "Teenage Mutant Ninja Turtles: Fall of the Foot Clan",
+    "Teenage Mutant Hero Turtles - Fall of the Foot Clan": "Teenage Mutant Ninja Turtles: Fall of the Foot Clan",
     "Teenage Mutant Hero Turtles II - Back from the Sewers": "Teenage Mutant Ninja Turtles II: Back from the Sewers",
-    "Teenage Mutant Hero Turtles III - Radical Rescue":      "Teenage Mutant Ninja Turtles III: Radical Rescue",
-
+    "Teenage Mutant Hero Turtles III - Radical Rescue": "Teenage Mutant Ninja Turtles III: Radical Rescue",
     # No-Intro removes spaces in compound proper nouns
-    "BattleCity":              "Battle City",
-    "SolarStriker":            "Solar Striker",
+    "BattleCity": "Battle City",
+    "SolarStriker": "Solar Striker",
     "SpaceStation Silicon Valley": "Space Station Silicon Valley",
-    "Ninjawarriors":           "The Ninja Warriors Again",
-
+    "Ninjawarriors": "The Ninja Warriors Again",
     # Japanese NES titles → English IGDB titles
-    "Ninja Ryuuken Den":         "Ninja Gaiden",
-    "Konamic Sports in Seoul":   "Konami Sports in Seoul",
-    "Bart no Survival Camp":     "Bart Simpsons' Escape from Camp Deadly",
-
+    "Ninja Ryuuken Den": "Ninja Gaiden",
+    "Konamic Sports in Seoul": "Konami Sports in Seoul",
+    "Bart no Survival Camp": "Bart Simpsons' Escape from Camp Deadly",
     # Japanese SNES titles → English IGDB titles
-    "Akumajou Dracula XX":         "Castlevania: Dracula X",
+    "Akumajou Dracula XX": "Castlevania: Dracula X",
     "Hoshi no Kirby Super Deluxe": "Kirby Super Star",
-
     # Japanese GB/GBC titles → English IGDB titles
-    "Kirby no Kirakira Kids":              "Kirby's Star Stacker",
-    "Stranded Kids":                       "Survival Kids",
+    "Kirby no Kirakira Kids": "Kirby's Star Stacker",
+    "Stranded Kids": "Survival Kids",
     "Estpolis Denki - Yomigaeru Densetsu": "Lufia: The Legend Returns",
-    "Bokujou Monogatari 2 GB":             "Harvest Moon 2 GBC",
+    "Bokujou Monogatari 2 GB": "Harvest Moon 2 GBC",
     "Bokujou Monogatari 3 GB - Boy Meets Girl": "Harvest Moon 3 GBC",
-    "Pocket Monsters Eun":                 "Pokemon Silver",
-    "Pocket Monsters Geum":                "Pokemon Gold",
-    "Pokemon Card GB 2 - GR Dan Sanjou!":  "Pokemon Card GB2: The GR Dan Joins In!",
-
+    "Pocket Monsters Eun": "Pokemon Silver",
+    "Pocket Monsters Geum": "Pokemon Gold",
+    "Pokemon Card GB 2 - GR Dan Sanjou!": "Pokemon Card GB2: The GR Dan Joins In!",
     # Japanese N64 titles → English IGDB titles
     "Banjo to Kazooie no Daibouken 2": "Banjo-Tooie",
-
     # Japanese GBA titles → English IGDB titles
     "Hobbit no Bouken - Lord of the Rings - Hajimari no Monogatari": "The Hobbit",
     "Yu-Gi-Oh! Duel Monsters GX - Mezase Duel King!": "Yu-Gi-Oh! GX Duel Academy",
@@ -182,8 +187,10 @@ def _igdb_query(client_id: str, token: str, body: str) -> list:
                 timeout=10,
             )
             if resp.status_code == 429:
-                wait = 2 ** attempt
-                logger.warning("IGDB rate limited — backing off %ds (attempt %d/3)", wait, attempt + 1)
+                wait = 2**attempt
+                logger.warning(
+                    "IGDB rate limited — backing off %ds (attempt %d/3)", wait, attempt + 1
+                )
                 time.sleep(wait)
                 continue
             resp.raise_for_status()
@@ -221,16 +228,18 @@ def _run_tiered_search(title: str, igdb_platform_id: int | None) -> tuple[list, 
         attempts = [
             f'{fields} where name = "{safe}" {plat}; limit 1;',
             f'{fields} where name = "{safe}"; limit 1;',
-            *(
-                [f'search "{safe}"; {fields} {plat_clause} limit 1;']
-                if igdb_platform_id else []
-            ),
+            *([f'search "{safe}"; {fields} {plat_clause} limit 1;'] if igdb_platform_id else []),
             f'search "{safe}"; {fields} limit 1;',
         ]
         for body in attempts:
             results = _igdb_query(client_id, token, body)
-            query_log.append({"body": body, "hit": bool(results),
-                               "match": results[0].get("name") if results else None})
+            query_log.append(
+                {
+                    "body": body,
+                    "hit": bool(results),
+                    "match": results[0].get("name") if results else None,
+                }
+            )
             if results:
                 break
         if results:
@@ -252,24 +261,17 @@ def _build_metadata(results: list) -> dict | None:
 
     release_year = None
     if ts := game.get("first_release_date"):
-        from datetime import datetime, timezone
-        release_year = datetime.fromtimestamp(ts, tz=timezone.utc).year
+        from datetime import datetime
 
-    raw_rating = (
-        game.get("total_rating")
-        or game.get("aggregated_rating")
-        or game.get("rating")
-    )
+        release_year = datetime.fromtimestamp(ts, tz=UTC).year
+
+    raw_rating = game.get("total_rating") or game.get("aggregated_rating") or game.get("rating")
     rating = round(raw_rating, 1) if raw_rating is not None else None
 
     game_modes = [
-        gm["name"] for gm in game.get("game_modes") or []
-        if isinstance(gm, dict) and "name" in gm
+        gm["name"] for gm in game.get("game_modes") or [] if isinstance(gm, dict) and "name" in gm
     ]
-    themes = [
-        t["name"] for t in game.get("themes") or []
-        if isinstance(t, dict) and "name" in t
-    ]
+    themes = [t["name"] for t in game.get("themes") or [] if isinstance(t, dict) and "name" in t]
 
     similar: list[dict] = []
     for sg in game.get("similar_games") or []:

@@ -1,34 +1,42 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
+from .api.v1.router import router as api_router
 from .config import settings
 from .database import init_db
-from .api.v1.router import router as api_router
-from .services.scheduler import start as start_scheduler, stop as stop_scheduler
 from .services.dat_manager import scan_dat_dir
+from .services.scheduler import start as start_scheduler
+from .services.scheduler import stop as stop_scheduler
 
 
 def _load_dats():
     from .database import SessionLocal
+
     db = SessionLocal()
     try:
         results = scan_dat_dir(db)
         loaded = [r for r in results if r["status"] == "loaded"]
         unmatched = [r for r in results if r["status"] == "unmatched"]
         if loaded:
-            logger.info("Loaded %d DAT file(s): %s", len(loaded),
-                        ", ".join(f"{r['platform_name']} ({r['entries']} entries)" for r in loaded))
+            logger.info(
+                "Loaded %d DAT file(s): %s",
+                len(loaded),
+                ", ".join(f"{r['platform_name']} ({r['entries']} entries)" for r in loaded),
+            )
         if unmatched:
-            logger.warning("Unmatched DAT file(s) in %s: %s",
-                           str(settings.dat_dir),
-                           ", ".join(r["file"] for r in unmatched))
+            logger.warning(
+                "Unmatched DAT file(s) in %s: %s",
+                str(settings.dat_dir),
+                ", ".join(r["file"] for r in unmatched),
+            )
     finally:
         db.close()
+
 
 from .services.log_service import setup_logging
 
@@ -51,10 +59,12 @@ async def lifespan(app: FastAPI):
     init_db()
     # Reconfigure logging from the persisted DB setting (may differ from env default)
     from .services.config_service import get_config
+
     setup_logging(get_config("log_level", settings.log_level.lower()))
     _load_dats()
     start_scheduler()
     from .services.event_service import log_event
+
     log_event("Application", f"Started — {settings.app_name}")
     yield
     stop_scheduler()

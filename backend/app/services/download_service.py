@@ -7,7 +7,6 @@ The scheduler calls poll_all_clients() periodically.
 
 from __future__ import annotations
 
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -68,7 +67,12 @@ class QBittorrentClient(BaseDownloadClient):
             # qBittorrent returns the info hash via torrent list after add
             torrents = await http.get(
                 f"{self.base_url}/api/v2/torrents/info",
-                params={"category": self.client.category, "sort": "added_on", "reverse": "true", "limit": 1},
+                params={
+                    "category": self.client.category,
+                    "sort": "added_on",
+                    "reverse": "true",
+                    "limit": 1,
+                },
             )
             data = torrents.json()
             return data[0]["hash"] if data else "unknown"
@@ -81,7 +85,9 @@ class QBittorrentClient(BaseDownloadClient):
             )
             data = resp.json()
         if not data:
-            return ClientStatus(download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0)
+            return ClientStatus(
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+            )
         t = data[0]
         state_map = {
             "downloading": QueueStatus.DOWNLOADING,
@@ -159,7 +165,9 @@ class SABnzbdClient(BaseDownloadClient):
                     size=size,
                     size_downloaded=size - left,
                 )
-        return ClientStatus(download_id=download_id, status=QueueStatus.COMPLETED, size=0, size_downloaded=0)
+        return ClientStatus(
+            download_id=download_id, status=QueueStatus.COMPLETED, size=0, size_downloaded=0
+        )
 
     async def remove(self, download_id: str, delete_data: bool = False) -> None:
         async with httpx.AsyncClient(timeout=15) as http:
@@ -213,7 +221,9 @@ class TransmissionClient(BaseDownloadClient):
     async def add(self, url: str, name: str) -> str:
         async with httpx.AsyncClient(timeout=30) as http:
             result = await self._rpc(http, "torrent-add", {"filename": url, "download-dir": ""})
-        torrent = result.get("arguments", {}).get("torrent-added") or result.get("arguments", {}).get("torrent-duplicate", {})
+        torrent = result.get("arguments", {}).get("torrent-added") or result.get(
+            "arguments", {}
+        ).get("torrent-duplicate", {})
         return str(torrent.get("id", "0"))
 
     async def status(self, download_id: str) -> ClientStatus:
@@ -221,14 +231,26 @@ class TransmissionClient(BaseDownloadClient):
             result = await self._rpc(
                 http,
                 "torrent-get",
-                {"ids": [int(download_id)], "fields": ["id", "status", "totalSize", "downloadedEver"]},
+                {
+                    "ids": [int(download_id)],
+                    "fields": ["id", "status", "totalSize", "downloadedEver"],
+                },
             )
         torrents = result.get("arguments", {}).get("torrents", [])
         if not torrents:
-            return ClientStatus(download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0)
+            return ClientStatus(
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+            )
         t = torrents[0]
-        status_map = {0: QueueStatus.PAUSED, 1: QueueStatus.QUEUED, 2: QueueStatus.DOWNLOADING,
-                      3: QueueStatus.QUEUED, 4: QueueStatus.COMPLETED, 5: QueueStatus.QUEUED, 6: QueueStatus.DOWNLOADING}
+        status_map = {
+            0: QueueStatus.PAUSED,
+            1: QueueStatus.QUEUED,
+            2: QueueStatus.DOWNLOADING,
+            3: QueueStatus.QUEUED,
+            4: QueueStatus.COMPLETED,
+            5: QueueStatus.QUEUED,
+            6: QueueStatus.DOWNLOADING,
+        }
         return ClientStatus(
             download_id=download_id,
             status=status_map.get(t.get("status", 0), QueueStatus.DOWNLOADING),

@@ -1,5 +1,20 @@
 from fastapi import APIRouter
-from . import games, platforms, indexers, download_clients, queue, history, wanted, calendar, system, library, igdb, settings, logs
+
+from . import (
+    calendar,
+    download_clients,
+    games,
+    history,
+    igdb,
+    indexers,
+    library,
+    logs,
+    platforms,
+    queue,
+    settings,
+    system,
+    wanted,
+)
 
 router = APIRouter()
 

@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel, computed_field
+
 from ..models.queue_item import QueueStatus
 from .game import GameOut
 

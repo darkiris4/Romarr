@@ -1,13 +1,17 @@
 import json
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ...database import get_db
-from ...services.library_scanner import scan_folder, import_roms, scan_start, scan_status, import_start as _import_start, import_status as _import_status
-from ...services.dat_manager import scan_dat_dir, dat_status as _dat_status
-from ...services.config_service import get_config, set_config
 from ...config import settings
+from ...database import get_db
+from ...services.config_service import get_config, set_config
+from ...services.dat_manager import dat_status as _dat_status
+from ...services.dat_manager import scan_dat_dir
+from ...services.library_scanner import import_start as _import_start
+from ...services.library_scanner import import_status as _import_status
+from ...services.library_scanner import scan_start, scan_status
 
 router = APIRouter()
 
@@ -103,10 +107,11 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
     # If unmatched, auto-create a platform from the DAT header
     platform_created = False
     if not matched or matched.get("status") == "unmatched":
-        from ...services.dat_manager import _dat_header_name, _DATE_SUFFIX
-        from ...models.platform import Platform
-        from .platforms import BUILTIN_PLATFORMS
         import re
+
+        from ...models.platform import Platform
+        from ...services.dat_manager import _DATE_SUFFIX, _dat_header_name
+        from .platforms import BUILTIN_PLATFORMS
 
         header_name = _dat_header_name(dest)
         no_intro_name = _DATE_SUFFIX.sub("", header_name).strip() if header_name else dest.stem
@@ -140,7 +145,9 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
     return {
         "filename": file.filename,
         "size": len(contents),
-        "matched_platform": matched.get("platform_name") if matched and matched.get("status") == "loaded" else None,
+        "matched_platform": matched.get("platform_name")
+        if matched and matched.get("status") == "loaded"
+        else None,
         "status": matched.get("status", "unmatched") if matched else "unmatched",
         "platform_created": platform_created,
     }
@@ -156,8 +163,9 @@ def delete_dat(filename: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="DAT file not found")
 
     # Evict from in-memory index before deleting
-    from ...services.dat_manager import match_dat_to_platform, _DAT_INDEX
     from ...models.platform import Platform
+    from ...services.dat_manager import _DAT_INDEX, match_dat_to_platform
+
     platforms = db.query(Platform).all()
     platform = match_dat_to_platform(target, platforms)
     if platform and platform.id in _DAT_INDEX:
@@ -170,6 +178,7 @@ def delete_dat(filename: str, db: Session = Depends(get_db)):
 def deduplicate_library(db: Session = Depends(get_db)):
     """Find and remove duplicate Game records (CRC32 and title+platform passes)."""
     from ...services.library_scanner import deduplicate_games
+
     return deduplicate_games(db)
 
 

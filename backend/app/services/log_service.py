@@ -28,8 +28,8 @@ logging.addLevelName(TRACE_LEVEL, "TRACE")
 
 _LOG_FMT = "%(asctime)s [%(levelname)-5s] %(name)s: %(message)s"
 _DATE_FMT = "%Y-%m-%d %H:%M:%S"
-_MAX_BYTES = 1_048_576   # 1 MB per file
-_BACKUP_COUNT = 50       # 50 backups + 1 current = 51 total
+_MAX_BYTES = 1_048_576  # 1 MB per file
+_BACKUP_COUNT = 50  # 50 backups + 1 current = 51 total
 
 _handlers: list[RotatingFileHandler] = []
 _lock = threading.Lock()
@@ -42,10 +42,12 @@ def _make_namer(log_dir: Path, stem: str):
     e.g.  romarr.txt.1 → romarr.0.txt
           romarr.debug.txt.1 → romarr.debug.0.txt
     """
+
     def namer(default_name: str) -> str:
         p = Path(default_name)
         n = int(p.suffix.lstrip(".")) - 1
         return str(log_dir / f"{stem}.{n}.txt")
+
     return namer
 
 
@@ -110,12 +112,14 @@ def list_log_files() -> list[dict]:
             log_type = "debug"
         else:
             log_type = "standard"
-        files.append({
-            "filename": name,
-            "size": stat.st_size,
-            "last_modified": stat.st_mtime,
-            "log_type": log_type,
-        })
+        files.append(
+            {
+                "filename": name,
+                "size": stat.st_size,
+                "last_modified": stat.st_mtime,
+                "log_type": log_type,
+            }
+        )
 
     return sorted(files, key=lambda x: x["last_modified"], reverse=True)
 

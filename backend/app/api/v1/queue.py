@@ -19,7 +19,9 @@ def list_queue(db: Session = Depends(get_db)):
 
 
 @router.delete("/{item_id}", status_code=204)
-def remove_from_queue(item_id: int, remove_from_client: bool = False, db: Session = Depends(get_db)):
+def remove_from_queue(
+    item_id: int, remove_from_client: bool = False, db: Session = Depends(get_db)
+):
     item = db.query(QueueItem).filter_by(id=item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Queue item not found")

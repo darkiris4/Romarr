@@ -1,8 +1,10 @@
 import shutil
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ...database import get_db
 from ...models.root_folder import RootFolder
 
@@ -17,7 +19,9 @@ def _fmt_bytes(n: int) -> str:
     for unit, div in [("TiB", 1 << 40), ("GiB", 1 << 30), ("MiB", 1 << 20), ("KiB", 1 << 10)]:
         if n >= div:
             v = n / div
-            return f"{v:.2f} {unit}" if v < 10 else f"{v:.1f} {unit}" if v < 100 else f"{v:.0f} {unit}"
+            return (
+                f"{v:.2f} {unit}" if v < 10 else f"{v:.1f} {unit}" if v < 100 else f"{v:.0f} {unit}"
+            )
     return f"{n} B"
 
 
@@ -39,10 +43,7 @@ def _folder_info(path: str) -> dict:
 @router.get("/root-folders")
 def list_root_folders(db: Session = Depends(get_db)):
     folders = db.query(RootFolder).all()
-    return [
-        {"id": f.id, "path": f.path, **_folder_info(f.path)}
-        for f in folders
-    ]
+    return [{"id": f.id, "path": f.path, **_folder_info(f.path)} for f in folders]
 
 
 @router.post("/root-folders", status_code=201)

@@ -13,15 +13,16 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
 
+from sqlalchemy import or_
+
 from ..config import settings
 from ..database import SessionLocal
-from sqlalchemy import or_
 from ..models.game import Game
-from .igdb_service import fetch_game_metadata_debug, fetch_enrichment_batch
+from .igdb_service import fetch_enrichment_batch, fetch_game_metadata_debug
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +30,17 @@ _DEBUG_LOG = Path(settings.data_dir) / "scrape_debug.jsonl"
 
 # ── In-process scrape state ──────────────────────────────────────────────────
 
+
 class ScrapeState(TypedDict):
     running: bool
-    phase: str          # 'scraping' | 'enriching'
+    phase: str  # 'scraping' | 'enriching'
     total: int
     processed: int
     updated: int
     failed: int
     done: bool
     error: str | None
+
 
 _state: ScrapeState = {
     "running": False,
@@ -75,10 +78,18 @@ def scrape_start() -> dict:
     with _lock:
         if _state["running"]:
             return {"already_running": True, "running": True}
-        _state.update({
-            "running": True, "phase": "scraping", "done": False, "error": None,
-            "total": 0, "processed": 0, "updated": 0, "failed": 0,
-        })
+        _state.update(
+            {
+                "running": True,
+                "phase": "scraping",
+                "done": False,
+                "error": None,
+                "total": 0,
+                "processed": 0,
+                "updated": 0,
+                "failed": 0,
+            }
+        )
 
     t = threading.Thread(target=scrape_pending, daemon=True)
     t.start()
@@ -102,12 +113,12 @@ def scrape_pending() -> dict:
     # Overwrite log for each new run
     _DEBUG_LOG.parent.mkdir(parents=True, exist_ok=True)
     _DEBUG_LOG.write_text("")
-    _log_entry({"event": "run_start", "time": datetime.now(timezone.utc).isoformat()})
+    _log_entry({"event": "run_start", "time": datetime.now(UTC).isoformat()})
 
     _RETRY_AFTER_DAYS = 30  # re-search unmatched games after this many days
 
     try:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=_RETRY_AFTER_DAYS)
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=_RETRY_AFTER_DAYS)
         # Skip games already matched (igdb_id set) — they've been found.
         # Skip games searched recently that still weren't found — retry after 30 days.
         games = (
@@ -139,7 +150,7 @@ def scrape_pending() -> dict:
             try:
                 meta, detail = fetch_game_metadata_debug(game.title, igdb_platform_id)
                 entry["queries"] = detail
-                game.igdb_searched_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
                 if meta:
                     game.igdb_id = meta["igdb_id"]
                     game.cover_url = meta["cover_url"]
@@ -195,7 +206,7 @@ def scrape_pending() -> dict:
 
         _BATCH = 50
         for i in range(0, len(to_enrich), _BATCH):
-            chunk = to_enrich[i:i + _BATCH]
+            chunk = to_enrich[i : i + _BATCH]
             ids = [g.igdb_id for g in chunk]
             try:
                 batch_meta = fetch_enrichment_batch(ids)
@@ -222,11 +233,23 @@ def scrape_pending() -> dict:
         db.commit()
         _log_entry({"event": "enrich_end", "enriched": enriched})
 
-        _log_entry({"event": "run_end", "updated": updated, "failed": failed,
-                    "time": datetime.now(timezone.utc).isoformat()})
-        logger.info("Scrape complete — updated: %d, not found: %d, enriched: %d", updated, failed, enriched)
+        _log_entry(
+            {
+                "event": "run_end",
+                "updated": updated,
+                "failed": failed,
+                "time": datetime.now(UTC).isoformat(),
+            }
+        )
+        logger.info(
+            "Scrape complete — updated: %d, not found: %d, enriched: %d", updated, failed, enriched
+        )
         from .event_service import log_event
-        log_event("MetadataScraper", f"Scrape complete: {updated} matched, {enriched} enriched, {failed} not found")
+
+        log_event(
+            "MetadataScraper",
+            f"Scrape complete: {updated} matched, {enriched} enriched, {failed} not found",
+        )
         return {"updated": updated, "failed": failed}
 
     except Exception as exc:
@@ -234,6 +257,7 @@ def scrape_pending() -> dict:
         _log_entry({"event": "run_error", "error": str(exc)})
         logger.error("Scrape error: %s", exc)
         from .event_service import log_event
+
         log_event("MetadataScraper", f"Scrape failed: {exc}")
         return {"updated": updated, "failed": failed, "error": str(exc)}
     finally:

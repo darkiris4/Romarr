@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..models.platform import Platform
-from .library_scanner import load_dat_for_platform, _DAT_INDEX
+from .library_scanner import _DAT_INDEX, load_dat_for_platform
 
 # Strip trailing " (date-time)" from DAT names / filenames
 _DATE_SUFFIX = re.compile(r"\s*\(\d{8}[-\d]*\)\s*$")
@@ -91,23 +91,27 @@ def scan_dat_dir(db: Session) -> list[dict]:
     for dat_path in sorted(dat_dir.glob("*.dat")):
         platform = match_dat_to_platform(dat_path, platforms)
         if platform is None:
-            results.append({
-                "file": dat_path.name,
-                "status": "unmatched",
-                "platform_id": None,
-                "platform_name": None,
-                "entries": 0,
-            })
+            results.append(
+                {
+                    "file": dat_path.name,
+                    "status": "unmatched",
+                    "platform_id": None,
+                    "platform_name": None,
+                    "entries": 0,
+                }
+            )
             continue
 
         count = load_dat_for_platform(platform.id, dat_path)
-        results.append({
-            "file": dat_path.name,
-            "status": "loaded",
-            "platform_id": platform.id,
-            "platform_name": platform.name,
-            "entries": count,
-        })
+        results.append(
+            {
+                "file": dat_path.name,
+                "status": "loaded",
+                "platform_id": platform.id,
+                "platform_name": platform.name,
+                "entries": count,
+            }
+        )
 
     return results
 
@@ -138,13 +142,15 @@ def dat_status(db: Session) -> list[dict]:
     rows = []
     for pid, platform in sorted(platforms.items(), key=lambda x: x[1].name):
         info = disk_files.get(pid, {})
-        rows.append({
-            "platform_id": pid,
-            "platform_name": platform.name,
-            "dat_file": info.get("filename"),
-            "dat_version": info.get("version"),
-            "dat_date": info.get("date"),
-            "loaded": pid in loaded,
-            "entries": loaded.get(pid, 0),
-        })
+        rows.append(
+            {
+                "platform_id": pid,
+                "platform_name": platform.name,
+                "dat_file": info.get("filename"),
+                "dat_version": info.get("version"),
+                "dat_date": info.get("date"),
+                "loaded": pid in loaded,
+                "entries": loaded.get(pid, 0),
+            }
+        )
     return rows

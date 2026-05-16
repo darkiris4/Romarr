@@ -48,15 +48,14 @@ async def sync_list_source(db: Session, source: ListSource) -> int:
         raise ValueError(f"Unknown plugin: {source.plugin}")
 
     import json
+
     config = json.loads(source.config or "{}")
     plugin = plugin_cls(config)
     items = await plugin.fetch()
 
     added = 0
     for item in items:
-        existing = db.query(Game).filter_by(
-            title=item.title, platform_id=item.platform_id
-        ).first()
+        existing = db.query(Game).filter_by(title=item.title, platform_id=item.platform_id).first()
         if not existing:
             game = Game(
                 title=item.title,

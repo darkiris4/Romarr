@@ -1,7 +1,9 @@
 import enum
 from datetime import datetime
+
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from ..database import Base
 
 
@@ -19,9 +21,7 @@ class HistoryItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     game_id: Mapped[int] = mapped_column(ForeignKey("games.id"), nullable=False)
-    event_type: Mapped[HistoryEventType] = mapped_column(
-        Enum(HistoryEventType), nullable=False
-    )
+    event_type: Mapped[HistoryEventType] = mapped_column(Enum(HistoryEventType), nullable=False)
     source_title: Mapped[str] = mapped_column(String, default="")
     indexer: Mapped[str] = mapped_column(String, default="")
     download_client: Mapped[str] = mapped_column(String, default="")

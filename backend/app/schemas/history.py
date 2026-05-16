@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel
+
 from ..models.history import HistoryEventType
 from .game import GameOut
 

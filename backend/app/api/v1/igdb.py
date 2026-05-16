@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query
 
@@ -18,9 +18,9 @@ def search_igdb(q: str = Query(..., min_length=1)):
     safe_q = q.replace('"', '\\"')
     body = (
         f'search "{safe_q}"; '
-        f'fields id, name, first_release_date, cover.image_id, summary, platforms.id, platforms.name, category,'
-        f' total_rating, aggregated_rating, rating; '
-        f'limit 50;'
+        f"fields id, name, first_release_date, cover.image_id, summary, platforms.id, platforms.name, category,"
+        f" total_rating, aggregated_rating, rating; "
+        f"limit 50;"
     )
     results = _igdb_query(client_id, token, body)
 
@@ -30,10 +30,12 @@ def search_igdb(q: str = Query(..., min_length=1)):
     _PREFERRED_CATEGORIES = {0, 10}  # main_game, expanded_game
     _EXCLUDED_CATEGORIES = {1, 5, 6, 7}  # dlc, mod, episode, season — never ROMs
     results = [g for g in results if g.get("category", 0) not in _EXCLUDED_CATEGORIES]
-    results.sort(key=lambda g: (
-        0 if g.get("category", 0) in _PREFERRED_CATEGORIES else 1,
-        g.get("first_release_date") or float("inf"),
-    ))
+    results.sort(
+        key=lambda g: (
+            0 if g.get("category", 0) in _PREFERRED_CATEGORIES else 1,
+            g.get("first_release_date") or float("inf"),
+        )
+    )
 
     out = []
     for game in results:
@@ -44,32 +46,30 @@ def search_igdb(q: str = Query(..., min_length=1)):
 
         release_year = None
         if ts := game.get("first_release_date"):
-            release_year = datetime.fromtimestamp(ts, tz=timezone.utc).year
+            release_year = datetime.fromtimestamp(ts, tz=UTC).year
 
         platform_names = [
-            p["name"] for p in (game.get("platforms") or [])
+            p["name"]
+            for p in (game.get("platforms") or [])
             if isinstance(p, dict) and p.get("name")
         ]
         platform_ids = [
-            p["id"] for p in (game.get("platforms") or [])
-            if isinstance(p, dict) and p.get("id")
+            p["id"] for p in (game.get("platforms") or []) if isinstance(p, dict) and p.get("id")
         ]
 
-        rating = (
-            game.get("total_rating")
-            or game.get("aggregated_rating")
-            or game.get("rating")
-        )
+        rating = game.get("total_rating") or game.get("aggregated_rating") or game.get("rating")
 
-        out.append({
-            "igdb_id": game["id"],
-            "name": game.get("name"),
-            "cover_url": cover_url,
-            "release_year": release_year,
-            "summary": game.get("summary"),
-            "platforms": platform_names,
-            "platform_ids": platform_ids,
-            "rating": round(rating) if rating else None,
-        })
+        out.append(
+            {
+                "igdb_id": game["id"],
+                "name": game.get("name"),
+                "cover_url": cover_url,
+                "release_year": release_year,
+                "summary": game.get("summary"),
+                "platforms": platform_names,
+                "platform_ids": platform_ids,
+                "rating": round(rating) if rating else None,
+            }
+        )
 
     return out

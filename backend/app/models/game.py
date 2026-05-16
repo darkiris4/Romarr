@@ -1,7 +1,9 @@
 import enum
 from datetime import datetime
+
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from ..database import Base
 
 
@@ -19,9 +21,7 @@ class Game(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id"), nullable=False)
-    status: Mapped[GameStatus] = mapped_column(
-        Enum(GameStatus), default=GameStatus.WANTED
-    )
+    status: Mapped[GameStatus] = mapped_column(Enum(GameStatus), default=GameStatus.WANTED)
     igdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String, nullable=True)
     release_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -44,9 +44,5 @@ class Game(Base):
     )
 
     platform: Mapped["Platform"] = relationship("Platform", back_populates="games")
-    queue_items: Mapped[list["QueueItem"]] = relationship(
-        "QueueItem", back_populates="game"
-    )
-    history_items: Mapped[list["HistoryItem"]] = relationship(
-        "HistoryItem", back_populates="game"
-    )
+    queue_items: Mapped[list["QueueItem"]] = relationship("QueueItem", back_populates="game")
+    history_items: Mapped[list["HistoryItem"]] = relationship("HistoryItem", back_populates="game")

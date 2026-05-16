@@ -1,7 +1,9 @@
 import enum
 from datetime import datetime
+
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from ..database import Base
 
 
@@ -15,9 +17,7 @@ class Indexer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    protocol: Mapped[IndexerProtocol] = mapped_column(
-        Enum(IndexerProtocol), nullable=False
-    )
+    protocol: Mapped[IndexerProtocol] = mapped_column(Enum(IndexerProtocol), nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
     api_key: Mapped[str] = mapped_column(String, default="")
     categories: Mapped[str] = mapped_column(String, default="")

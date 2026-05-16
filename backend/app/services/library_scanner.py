@@ -69,23 +69,41 @@ def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
     with _scan_lock:
         if _scan_state["running"]:
             return {"already_running": True}
-        _scan_state.update({
-            "running": True, "folder": folder_path, "done": False,
-            "error": None, "result": None, "total": 0, "processed": 0,
-        })
+        _scan_state.update(
+            {
+                "running": True,
+                "folder": folder_path,
+                "done": False,
+                "error": None,
+                "result": None,
+                "total": 0,
+                "processed": 0,
+            }
+        )
 
     from ..database import SessionLocal
 
     def _worker():
         from .event_service import log_event
+
         db = SessionLocal()
         try:
             log_event("LibraryScanner", f"Scan started: {folder_path}")
-            summary = scan_folder(db, folder_path, platform_hint_id,
-                                  progress_state=_scan_state, progress_lock=_scan_lock)
+            summary = scan_folder(
+                db,
+                folder_path,
+                platform_hint_id,
+                progress_state=_scan_state,
+                progress_lock=_scan_lock,
+            )
             with _scan_lock:
-                _scan_state.update({"running": False, "done": True, "result": _summary_to_dict(summary)})
-            log_event("LibraryScanner", f"Scan complete: {summary.total_files_seen} files, {summary.matched_dat} DAT matches, {summary.matched_filename} filename matches")
+                _scan_state.update(
+                    {"running": False, "done": True, "result": _summary_to_dict(summary)}
+                )
+            log_event(
+                "LibraryScanner",
+                f"Scan complete: {summary.total_files_seen} files, {summary.matched_dat} DAT matches, {summary.matched_filename} filename matches",
+            )
         except Exception as exc:
             with _scan_lock:
                 _scan_state.update({"running": False, "done": True, "error": str(exc)})
@@ -97,7 +115,7 @@ def scan_start(folder_path: str, platform_hint_id: int | None = None) -> dict:
     return {"started": True}
 
 
-def _summary_to_dict(summary: "ScanSummary") -> dict:
+def _summary_to_dict(summary: ScanSummary) -> dict:
     return {
         "folder": summary.folder,
         "total_files_seen": summary.total_files_seen,
@@ -108,9 +126,14 @@ def _summary_to_dict(summary: "ScanSummary") -> dict:
         "to_import": summary.to_import,
         "roms": [
             {
-                "path": r.path, "filename": r.filename, "title": r.title,
-                "region": r.region, "crc32": r.crc32, "match_source": r.match_source,
-                "confidence": r.confidence, "platform_id": r.platform_id,
+                "path": r.path,
+                "filename": r.filename,
+                "title": r.title,
+                "region": r.region,
+                "crc32": r.crc32,
+                "match_source": r.match_source,
+                "confidence": r.confidence,
+                "platform_id": r.platform_id,
                 "platform_name": r.platform_name,
                 "candidate_platforms": r.candidate_platforms,
                 "already_exists": r.already_exists,
@@ -120,10 +143,10 @@ def _summary_to_dict(summary: "ScanSummary") -> dict:
         ],
     }
 
+
 from ..models.game import Game, GameStatus
 from ..models.platform import Platform
 from .post_processor import load_dat_file
-
 
 # ── Filename cleaning ────────────────────────────────────────────────────────
 
@@ -134,8 +157,7 @@ _STRIP_TAGS = re.compile(
     r"|[Rr]ev\s*[\dA-Za-z]+|[Vv]\d[\d.]*"
     r"|[A-Za-z]{2,3}(?:,\s*[A-Za-z]{2,3})*"  # region codes: USA, Europe, JP ...
     r"|!\]?|T[+-]\w+"
-    r"[\)\]]"
-    ,
+    r"[\)\]]",
     re.VERBOSE,
 )
 
@@ -157,6 +179,7 @@ def _clean_title(stem: str) -> tuple[str, str]:
 
 
 # ── CRC32 ────────────────────────────────────────────────────────────────────
+
 
 def _crc32_raw(path: Path, chunk: int = 1 << 20) -> str:
     val = 0
@@ -195,7 +218,7 @@ def _rom_entries(path: Path) -> list[tuple[str, str, str]]:
 
 # ── DAT index (loaded once per process, keyed by platform id) ────────────────
 
-_DAT_INDEX: dict[int, dict[str, "DatROM"]] = {}
+_DAT_INDEX: dict[int, dict[str, DatROM]] = {}
 
 
 @dataclass
@@ -210,7 +233,6 @@ class DatROM:
 
 def load_dat_for_platform(platform_id: int, dat_path: Path) -> int:
     """Index a No-Intro DAT file for a platform. Returns number of entries loaded."""
-    from .post_processor import load_dat_file
     entries = load_dat_file(dat_path)  # keyed by sha1
     index: dict[str, DatROM] = {}
     for entry in entries.values():
@@ -249,6 +271,7 @@ def lookup_crc32(crc: str) -> DatROM | None:
 
 # ── Extension → platform map ─────────────────────────────────────────────────
 
+
 def _ext_map(platforms: list[Platform]) -> dict[str, list[Platform]]:
     idx: dict[str, list[Platform]] = {}
     for p in platforms:
@@ -274,13 +297,13 @@ class ScannedROM:
     # Identification result
     title: str
     region: str
-    match_source: MatchSource          # how we identified it
-    confidence: float                  # 0.0–1.0
+    match_source: MatchSource  # how we identified it
+    confidence: float  # 0.0–1.0
 
     # Platform
-    platform_id: int | None            # None = ambiguous / unknown
+    platform_id: int | None  # None = ambiguous / unknown
     platform_name: str | None
-    candidate_platforms: list[dict]    # [{id, name}] when ambiguous
+    candidate_platforms: list[dict]  # [{id, name}] when ambiguous
 
     # DB state
     already_exists: bool = False
@@ -315,6 +338,7 @@ class ScanSummary:
 
 
 # ── Main scan entry point ─────────────────────────────────────────────────────
+
 
 def scan_folder(
     db: Session,
@@ -360,7 +384,6 @@ def scan_folder(
             continue  # not a recognized ROM extension
 
         for crc, effective_ext, display_name in _rom_entries(path):
-
             # ── 1. DAT lookup ──────────────────────────────────────────────────
             dat_hit = lookup_crc32(crc)
             if dat_hit:
@@ -430,6 +453,7 @@ def scan_folder(
 
 
 # ── Import ────────────────────────────────────────────────────────────────────
+
 
 def import_roms(
     db: Session,
@@ -520,14 +544,21 @@ def import_roms(
     logger.info(
         "Import complete — folder=%s created=%d updated=%d "
         "skipped_existing=%d skipped_ambiguous=%d dat=%d filename=%d",
-        folder_path, created, updated,
-        skipped_existing, skipped_ambiguous,
-        summary.matched_dat, summary.matched_filename,
+        folder_path,
+        created,
+        updated,
+        skipped_existing,
+        skipped_ambiguous,
+        summary.matched_dat,
+        summary.matched_filename,
     )
     if skipped_ambiguous:
         ambiguous_files = [r.filename for r in summary.roms if r.platform_id is None]
-        logger.warning("Skipped %d ambiguous ROMs (no platform match): %s",
-                       skipped_ambiguous, ambiguous_files[:20])
+        logger.warning(
+            "Skipped %d ambiguous ROMs (no platform match): %s",
+            skipped_ambiguous,
+            ambiguous_files[:20],
+        )
     return result
 
 
@@ -540,14 +571,14 @@ def deduplicate_games(db: Session) -> dict:
          resolve to the same No-Intro title via the DAT).
     In each group the record with the richest metadata is kept.
     """
-    from sqlalchemy import func, tuple_
+    from sqlalchemy import func
 
     def _score(g: Game) -> int:
         return (
-            (1 if g.igdb_id else 0) +
-            (1 if g.cover_url else 0) +
-            (1 if g.summary else 0) +
-            (1 if g.rating is not None else 0)
+            (1 if g.igdb_id else 0)
+            + (1 if g.cover_url else 0)
+            + (1 if g.summary else 0)
+            + (1 if g.rating is not None else 0)
         )
 
     removed = 0
@@ -575,7 +606,7 @@ def deduplicate_games(db: Session) -> dict:
         .having(func.count(Game.id) > 1)
         .all()
     )
-    for (title, platform_id) in title_dupes:
+    for title, platform_id in title_dupes:
         games = db.query(Game).filter_by(title=title, platform_id=platform_id).all()
         games.sort(key=_score, reverse=True)
         for dup in games[1:]:
@@ -605,19 +636,25 @@ def import_start(
 
     def _worker():
         from .event_service import log_event
+
         db = SessionLocal()
         try:
             log_event("LibraryImport", f"Import started: {folder_path}")
             result = import_roms(
-                db, folder_path,
+                db,
+                folder_path,
                 platform_hint_id=platform_hint_id,
                 platform_overrides=platform_overrides,
                 skip_existing=skip_existing,
                 selected_keys=selected_keys,
             )
-            log_event("LibraryImport", f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped")
+            log_event(
+                "LibraryImport",
+                f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped",
+            )
             if result.get("created", 0) > 0:
                 from .metadata_scraper import scrape_start
+
                 scrape_start()
             with _import_lock:
                 _import_state.update({"running": False, "done": True, "result": result})

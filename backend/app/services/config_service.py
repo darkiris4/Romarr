@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from ..database import SessionLocal
 from ..models.app_config import AppConfig
 
