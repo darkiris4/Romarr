@@ -141,17 +141,73 @@ def _normalize_title(title: str) -> str:
     return title
 
 
+# Maps no_intro_name → (query_keyword, release_title_pattern)
+# query_keyword: short term appended to the search query to narrow indexer results
+# release_title_pattern: regex that identifies this platform in release title strings
+_PLATFORM_HINTS: dict[str, tuple[str, str]] = {
+    "Nintendo - Nintendo Entertainment System": ("NES", r"\bNES\b|\bFamicom\b"),
+    "Nintendo - Super Nintendo Entertainment System": ("SNES", r"\bSNES\b|\bSFC\b"),
+    "Nintendo - Nintendo 64": ("N64", r"\bN64\b"),
+    "Nintendo - GameCube": ("GameCube", r"\bGCN\b|\bNGC\b|\bGameCube\b"),
+    "Nintendo - Nintendo GameCube": ("GameCube", r"\bGCN\b|\bNGC\b|\bGameCube\b"),
+    "Nintendo - Wii": ("Wii", r"\bWii\b(?!\s*U)"),
+    "Nintendo - Wii U": ("WiiU", r"\bWiiU\b|\bWii\s+U\b"),
+    "Nintendo - Nintendo Switch": ("Switch", r"\bSwitch\b|\bNSP\b|\bXCI\b"),
+    "Nintendo - Game Boy": ("Game Boy", r"\bGame\s*Boy\b(?!\s*(Advance|Color))"),
+    "Nintendo - Game Boy Color": ("GBC", r"\bGBC\b|\bGame\s*Boy\s*Color\b"),
+    "Nintendo - Game Boy Advance": ("GBA", r"\bGBA\b|\bGame\s*Boy\s*Advance\b"),
+    "Nintendo - Nintendo DS": ("NDS", r"\bNDS\b|\bDS(?!i)\b"),
+    "Nintendo - Nintendo 3DS": ("3DS", r"\b3DS\b"),
+    "Sony - PlayStation": ("PSX", r"\bPSX\b|\bPS1\b"),
+    "Sony - PlayStation 2": ("PS2", r"\bPS2\b"),
+    "Sony - PlayStation 3": ("PS3", r"\bPS3\b"),
+    "Sony - PlayStation 4": ("PS4", r"\bPS4\b"),
+    "Sony - PlayStation 5": ("PS5", r"\bPS5\b"),
+    "Sony - PlayStation Portable": ("PSP", r"\bPSP\b"),
+    "Sony - PlayStation Vita": ("Vita", r"\bVita\b|\bPSVita\b"),
+    "Sega - Mega Drive - Genesis": ("Genesis", r"\bGenesis\b|\bMega\s*Drive\b"),
+    "Sega - Master System - Mark III": ("SMS", r"\bSMS\b|\bMaster\s*System\b"),
+    "Sega - Game Gear": ("Game Gear", r"\bGame\s*Gear\b"),
+    "Sega - 32X": ("32X", r"\b32X\b"),
+    "Sega - Saturn": ("Saturn", r"\bSaturn\b"),
+    "Sega - Dreamcast": ("Dreamcast", r"\bDreamcast\b"),
+    "Atari - 2600": ("Atari 2600", r"\bAtari\b|\b2600\b"),
+    "SNK - Neo Geo Pocket Color": ("NGPC", r"\bNGPC\b|\bNeo\s*Geo\s*Pocket\b"),
+    "Microsoft - Xbox": ("Xbox", r"\bXbox\b|\bXBOX\b"),
+    "Microsoft - Xbox 360": ("Xbox 360", r"\bX360\b|\bXbox\s*360\b"),
+}
+
+# Pre-compiled per-platform patterns (keyed by no_intro_name)
+_PLATFORM_PATTERNS: dict[str, re.Pattern] = {
+    key: re.compile(pat, re.IGNORECASE)
+    for key, (_, pat) in _PLATFORM_HINTS.items()
+}
+
+
+def _other_platform_re(no_intro_name: str) -> re.Pattern | None:
+    """Returns a regex that matches any platform marker EXCEPT the given platform."""
+    others = [pat for key, (_, pat) in _PLATFORM_HINTS.items() if key != no_intro_name]
+    if not others:
+        return None
+    return re.compile("|".join(f"(?:{p})" for p in others), re.IGNORECASE)
+
+
 @router.get("/{game_id}/search")
 async def manual_search(
     game_id: int,
     q: str | None = Query(None, description="Override search query"),
     db: Session = Depends(get_db),
 ):
-    game = db.query(Game).filter_by(id=game_id).first()
+    game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    platform_no_intro = game.platform.no_intro_name if game.platform else None
+    platform_hint = _PLATFORM_HINTS.get(platform_no_intro) if platform_no_intro else None
+
     query = q if q else _normalize_title(game.title)
+    if not q and platform_hint:
+        query = f"{query} {platform_hint[0]}"
 
     # Grab history for this game keyed by release title
     grabbed: dict[str, str] = {
@@ -204,6 +260,20 @@ async def manual_search(
         except Exception as exc:
             logger.warning("Search failed for indexer '%s': %s", indexer.name, exc)
             indexer_errors.append({"indexer": indexer.name, "error": str(exc)})
+
+    # Cross-platform filter: drop results that name a different console.
+    # Only applied when using the auto-generated query (not a manual override).
+    if not q and platform_no_intro:
+        other_re = _other_platform_re(platform_no_intro)
+        if other_re:
+            before = len(all_results)
+            all_results = [r for r in all_results if not other_re.search(r["title"])]
+            removed = before - len(all_results)
+            if removed:
+                logger.info(
+                    "Platform filter removed %d cross-platform result(s) for '%s'",
+                    removed, platform_no_intro,
+                )
 
     all_results.sort(key=lambda r: r["seeders"] or 0, reverse=True)
     log_event(
