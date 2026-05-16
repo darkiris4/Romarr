@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Download, ExternalLink, ChevronUp, ChevronDown, Search, Clock } from 'lucide-react'
+import { X, Download, ExternalLink, ChevronUp, ChevronDown, Clock } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import type { ReleaseResult } from '../../types'
 
@@ -42,12 +42,10 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
   const [sort, setSort] = useState<SortKey>('seeders')
   const [dir, setDir] = useState<SortDir>('desc')
   const [grabbedId, setGrabbedId] = useState<string | null>(null)
-  const [queryInput, setQueryInput] = useState('')
-  const [activeQuery, setActiveQuery] = useState<string | undefined>(undefined)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['search', gameId, activeQuery],
-    queryFn: () => gamesApi.search(gameId, activeQuery),
+    queryKey: ['search', gameId],
+    queryFn: () => gamesApi.search(gameId),
     staleTime: 0,
   })
 
@@ -66,7 +64,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
       setGrabbedId(r.link)
       qc.invalidateQueries({ queryKey: ['game', gameId] })
       qc.invalidateQueries({ queryKey: ['queue'] })
-      qc.invalidateQueries({ queryKey: ['search', gameId, activeQuery] })
+      qc.invalidateQueries({ queryKey: ['search', gameId] })
     },
   })
 
@@ -80,12 +78,6 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
 
   const results = data?.results ?? []
   const searchErrors = data?.errors ?? []
-
-  if (data?.query && !queryInput) setQueryInput(data.query)
-
-  function triggerSearch() {
-    setActiveQuery(queryInput || undefined)
-  }
 
   const sorted = [...results].sort((a, b) => {
     let av: number | string, bv: number | string
@@ -141,19 +133,6 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
           <span className="modal-title">Manual Search — {gameTitle}</span>
           <button className="btn-icon" onClick={onClose}>
             <X size={16} />
-          </button>
-        </div>
-
-        <div className="modal-search-bar">
-          <input
-            className="form-control"
-            value={queryInput}
-            onChange={(e) => setQueryInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
-            placeholder="Search query…"
-          />
-          <button className="btn btn-primary" onClick={triggerSearch} disabled={isLoading}>
-            <Search size={13} /> Search
           </button>
         </div>
 
