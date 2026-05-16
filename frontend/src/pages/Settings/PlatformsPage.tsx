@@ -16,7 +16,7 @@ function PlatformForm({ initial, onSubmit, onCancel, isPending }: PlatformFormPr
   const [noIntroName, setNoIntroName] = useState(initial?.no_intro_name ?? '')
   const [folderName, setFolderName] = useState(initial?.folder_name ?? '')
   const [extensions, setExtensions] = useState(initial?.extensions ?? '')
-  const [enabled, setEnabled] = useState(initial?.enabled ?? true)
+  const enabled = initial?.enabled ?? true
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

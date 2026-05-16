@@ -79,7 +79,7 @@ export default function ConnectPage() {
   const [connections, setConnections] = useState<Connection[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [editConn, setEditConn] = useState<Connection | null>(null)
-  const [editType, setEditType] = useState<string | null>(null)
+  const [_editType, setEditType] = useState<string | null>(null)
 
   function openPicker() {
     setShowPicker(true)

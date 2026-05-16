@@ -60,6 +60,7 @@ export default function AddNewPage() {
     if (enabledPlatforms.length && !platformId) {
       setPlatformId(enabledPlatforms[0].id.toString())
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledPlatforms.length])
 
   // Auto-select first matching platform when a game is selected
@@ -67,11 +68,13 @@ export default function AddNewPage() {
     if (selected && displayPlatforms.length > 0) {
       setPlatformId(displayPlatforms[0].id.toString())
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.igdb_id])
 
   useEffect(() => {
     if (initialQ) handleSearch(initialQ)
     else inputRef.current?.focus()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSearch = useCallback(
@@ -105,6 +108,7 @@ export default function AddNewPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   const addMutation = useMutation({

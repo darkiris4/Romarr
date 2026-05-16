@@ -1,5 +1,4 @@
 import client from './client'
-import type { Platform } from '../types'
 
 export interface ScannedROM {
   path: string

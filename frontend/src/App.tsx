@@ -26,7 +26,6 @@ import EventsPage from './pages/System/EventsPage'
 import LogsPage from './pages/System/LogsPage'
 import AddNewPage from './pages/Games/AddNewPage'
 import LibraryImportPage from './pages/Games/LibraryImportPage'
-import StubPage from './components/StubPage'
 
 export default function App() {
   return (

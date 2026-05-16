@@ -18,7 +18,7 @@ function IndexerModal({
   const [url, setUrl] = useState(initial?.url ?? '')
   const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
   const [priority, setPriority] = useState(initial?.priority ?? 25)
-  const [enabled, setEnabled] = useState(initial?.enabled ?? true)
+  const enabled = initial?.enabled ?? true
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -92,7 +92,7 @@ function IndexerModal({
               <select
                 className="form-control"
                 value={protocol}
-                onChange={(e) => setProtocol(e.target.value as any)}
+                onChange={(e) => setProtocol(e.target.value as 'newznab' | 'torznab')}
               >
                 <option value="torznab">Torznab (torrents)</option>
                 <option value="newznab">Newznab (Usenet)</option>

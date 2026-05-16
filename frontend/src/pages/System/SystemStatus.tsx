@@ -4,7 +4,6 @@ import { systemApi } from '../../api/system'
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null) return '—'
-  const units = ['B', 'KB', 'MB', 'GB', 'TiB']
   const gib = bytes / 1024 ** 3
   if (gib >= 1024) return `${(bytes / 1024 ** 4).toFixed(1)} TiB`
   if (gib >= 1) return `${gib.toFixed(1)} GiB`

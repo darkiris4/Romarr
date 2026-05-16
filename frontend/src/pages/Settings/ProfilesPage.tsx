@@ -39,7 +39,6 @@ const DEFAULT_REGIONS: RegionItem[] = [
 ]
 
 let nextFormatId = 100
-const nextRegionId = 200
 
 export default function ProfilesPage() {
   const [formats, setFormats] = useState<FormatItem[]>(DEFAULT_FORMATS)

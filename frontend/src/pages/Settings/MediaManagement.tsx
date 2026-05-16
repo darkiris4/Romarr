@@ -74,7 +74,7 @@ export default function MediaManagement() {
 
   const datDir = datStatus?.dat_dir
   const platforms = datStatus?.platforms ?? []
-  const loadedCount = platforms.filter((p: any) => p.loaded).length
+  const loadedCount = platforms.filter((p) => p.loaded).length
 
   return (
     <div>
@@ -241,7 +241,7 @@ export default function MediaManagement() {
         <div className="alert alert-danger" style={{ marginBottom: 12 }}>
           <AlertCircle size={13} />
           {String(
-            (addFolderMutation.error as any)?.response?.data?.detail ?? 'Failed to add folder'
+            (addFolderMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to add folder'
           )}
         </div>
       )}
@@ -328,7 +328,7 @@ export default function MediaManagement() {
       {uploadMutation.isError && (
         <div className="alert alert-danger" style={{ marginBottom: 16 }}>
           <AlertCircle size={13} />
-          {String((uploadMutation.error as any)?.response?.data?.detail ?? 'Upload failed')}
+          {String((uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Upload failed')}
         </div>
       )}
 
@@ -416,7 +416,7 @@ export default function MediaManagement() {
                 </tr>
               </thead>
               <tbody>
-                {platforms.map((p: any) => (
+                {platforms.map((p) => (
                   <tr key={p.platform_id}>
                     <td style={{ color: 'var(--text-white)' }}>{p.platform_name}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
