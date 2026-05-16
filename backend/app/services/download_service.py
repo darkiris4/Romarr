@@ -23,6 +23,7 @@ class ClientStatus:
     size: int
     size_downloaded: int
     error: str | None = None
+    not_found: bool = False  # True when item is absent from client (vs explicitly reported failed)
 
 
 class BaseDownloadClient(ABC):
@@ -90,7 +91,8 @@ class QBittorrentClient(BaseDownloadClient):
             data = resp.json()
         if not data:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                not_found=True,
             )
         t = data[0]
         state_map = {
@@ -200,9 +202,10 @@ class SABnzbdClient(BaseDownloadClient):
                         size_downloaded=size,
                     )
 
-        # Gone from both queue and history — treat as failed
+        # Gone from both queue and history — may be a transient gap (auto-clean, API error)
         return ClientStatus(
-            download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+            download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+            not_found=True,
         )
 
     async def remove(self, download_id: str, delete_data: bool = False) -> None:
@@ -286,7 +289,8 @@ class TransmissionClient(BaseDownloadClient):
         torrents = result.get("arguments", {}).get("torrents", [])
         if not torrents:
             return ClientStatus(
-                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0
+                download_id=download_id, status=QueueStatus.FAILED, size=0, size_downloaded=0,
+                not_found=True,
             )
         t = torrents[0]
         status_map = {

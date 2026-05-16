@@ -13,6 +13,12 @@ from .retry_service import handle_download_failure
 
 logger = logging.getLogger(__name__)
 
+# Consecutive not-found counts per queue item ID.
+# Prevents a transient gap (SABnzbd auto-clean, API hiccup) from immediately
+# triggering handle_download_failure.  Resets when the item is found again.
+_not_found_streak: dict[int, int] = {}
+_NOT_FOUND_THRESHOLD = 5  # ~2.5 minutes at the default 30 s poll interval
+
 
 async def poll_downloads():
     db = SessionLocal()
@@ -37,18 +43,40 @@ async def poll_downloads():
                 continue
             try:
                 client = get_client(item.download_client)
-                status = await client.status(item.download_id)
+                cs = await client.status(item.download_id)
                 prev_status = item.status
-                item.size = status.size
-                item.size_downloaded = status.size_downloaded
+                item.size = cs.size
+                item.size_downloaded = cs.size_downloaded
 
-                if status.status == QueueStatus.COMPLETED:
+                if cs.not_found:
+                    # Item absent from client — could be a transient API error or
+                    # SABnzbd auto-cleaning history before we polled COMPLETED.
+                    # Only treat as failure after several consecutive misses.
+                    streak = _not_found_streak.get(item.id, 0) + 1
+                    _not_found_streak[item.id] = streak
+                    if streak < _NOT_FOUND_THRESHOLD:
+                        logger.debug(
+                            "Queue item %d not found in client (%d/%d), holding status",
+                            item.id, streak, _NOT_FOUND_THRESHOLD,
+                        )
+                        continue
+                    logger.warning(
+                        "Queue item %d absent from client for %d consecutive polls — marking failed",
+                        item.id, streak,
+                    )
+                    _not_found_streak.pop(item.id, None)
+                    item.status = QueueStatus.FAILED
+                    failed_items.append(item)
+                elif cs.status == QueueStatus.COMPLETED:
+                    _not_found_streak.pop(item.id, None)
                     item.status = QueueStatus.IMPORT_PENDING
-                elif status.status == QueueStatus.FAILED:
+                elif cs.status == QueueStatus.FAILED:
+                    _not_found_streak.pop(item.id, None)
                     item.status = QueueStatus.FAILED
                     failed_items.append(item)
                 else:
-                    item.status = status.status
+                    _not_found_streak.pop(item.id, None)
+                    item.status = cs.status
 
                 if item.status != prev_status:
                     if item.status == QueueStatus.DOWNLOADING:
