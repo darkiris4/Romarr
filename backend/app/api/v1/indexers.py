@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...database import get_db
@@ -7,6 +8,19 @@ from ...schemas.indexer import IndexerCreate, IndexerOut, IndexerTestResult, Ind
 from ...services.indexer_service import test_indexer
 
 router = APIRouter()
+
+
+class IndexerTestPayload(BaseModel):
+    url: str
+    api_key: str = ""
+
+
+@router.post("/test", response_model=IndexerTestResult)
+async def test_indexer_inline(payload: IndexerTestPayload):
+    """Test connectivity using URL + API key without requiring a saved indexer."""
+    dummy = Indexer(name="", url=payload.url, api_key=payload.api_key)
+    success, message = await test_indexer(dummy)
+    return IndexerTestResult(success=success, message=message)
 
 
 @router.get("", response_model=list[IndexerOut])

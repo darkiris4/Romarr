@@ -53,10 +53,9 @@ function IndexerModal({
   })
 
   async function handleTest() {
-    if (!initial) return
     setTesting(true)
     try {
-      const result = await indexersApi.test(initial.id)
+      const result = await indexersApi.testConnection(url, apiKey)
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -148,11 +147,9 @@ function IndexerModal({
           </div>
         </div>
         <div className="modal-footer">
-          {initial && (
-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing}>
-              {testing ? 'Testing…' : 'Test'}
-            </button>
-          )}
+          <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !url}>
+            {testing ? 'Testing…' : 'Test'}
+          </button>
           <div className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
