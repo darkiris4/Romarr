@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload, FolderInput } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload, FolderInput, ListMusic } from 'lucide-react'
 import { libraryApi } from '../../api/library'
 import { settingsApi } from '../../api/settings'
 
@@ -12,6 +12,7 @@ export default function MediaManagement() {
   const [newPath, setNewPath] = useState('')
   const [curatedPath, setCuratedPath] = useState('')
   const [curatedSaved, setCuratedSaved] = useState(false)
+  const [retroarchPrefix, setRetroarchPrefix] = useState('')
   const [saved, setSaved] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -332,6 +333,41 @@ export default function MediaManagement() {
           </div>
         </div>
       </div>
+
+      {/* ── RetroArch Export ── */}
+      {curatedPath && (
+        <div className="card" style={{ marginBottom: 32 }}>
+          <div className="card-header" style={{ alignItems: 'flex-start', gap: 10 }}>
+            <ListMusic size={16} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div className="card-title" style={{ marginBottom: 4 }}>
+                Export RetroArch Playlists
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                Generates one <code>.lpl</code> per platform — drop them in RetroArch's{' '}
+                <code>playlists/</code> folder. If RetroArch runs on a different machine, enter
+                the path to the curated library as that machine sees it.
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  className="form-control"
+                  value={retroarchPrefix}
+                  onChange={(e) => setRetroarchPrefix(e.target.value)}
+                  placeholder={curatedPath + '  (same machine — leave blank)'}
+                  style={{ maxWidth: 420, fontFamily: 'monospace' }}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  type="button"
+                  onClick={() => libraryApi.downloadRetroarchPlaylists(retroarchPrefix || undefined)}
+                >
+                  Download Playlists
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── DAT Files ── */}
       <div className="settings-section-title">No-Intro DAT Files</div>

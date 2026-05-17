@@ -1,11 +1,16 @@
+import io
 import json
+import zipfile
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
 
 from ...config import settings
 from ...database import get_db
+from ...models.game import Game
 from ...services.config_service import get_config, set_config
 from ...services.dat_manager import dat_status as _dat_status
 from ...services.dat_manager import scan_dat_dir
@@ -205,3 +210,88 @@ def reload_dats(db: Session = Depends(get_db)):
         "loaded": [r for r in results if r["status"] == "loaded"],
         "unmatched": [r for r in results if r["status"] == "unmatched"],
     }
+
+
+@router.get("/retroarch-playlists")
+def export_retroarch_playlists(
+    path_prefix: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate RetroArch .lpl playlist files from the curated library and return
+    them as a ZIP download.  One .lpl is produced per platform sub-directory.
+
+    path_prefix: if RetroArch runs on a different machine, supply the path to
+                 the curated library as that machine sees it (e.g. /home/user/roms).
+                 Leave blank to use the configured curated library path as-is.
+    """
+    curated_root_str = get_config("curated_library_path", "").strip()
+    if not curated_root_str:
+        raise HTTPException(status_code=400, detail="Curated library path is not configured")
+
+    curated_root = Path(curated_root_str).expanduser().resolve()
+    if not curated_root.exists():
+        raise HTTPException(status_code=404, detail="Curated library path does not exist")
+
+    # Build stem → crc32 from the DB. The original ZIP stem matches the
+    # extracted ROM stem, so this lookup works for all No-Intro ZIPs.
+    # Labels intentionally use the full No-Intro filename stem (e.g.
+    # "Super Mario World (USA)") — that is what RetroArch's thumbnail
+    # downloader uses as its filename key.  Using the cleaned game title
+    # would break thumbnail matching.
+    stem_to_crc: dict[str, str] = {}
+    for game in db.query(Game.rom_path, Game.checksum_crc32).filter(
+        Game.rom_path.isnot(None), Game.checksum_crc32.isnot(None)
+    ).all():
+        stem_to_crc[Path(game.rom_path).stem] = game.checksum_crc32
+
+    effective_prefix = path_prefix.strip().rstrip("/\\") or str(curated_root)
+
+    buf = io.BytesIO()
+    playlist_count = 0
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for platform_dir in sorted(curated_root.iterdir()):
+            if not platform_dir.is_dir():
+                continue
+            platform_name = platform_dir.name
+            items = []
+            for rom_file in sorted(platform_dir.iterdir()):
+                if not rom_file.is_file():
+                    continue
+                rel = rom_file.relative_to(curated_root)
+                rom_path = f"{effective_prefix}/{rel.as_posix()}"
+                stem = rom_file.stem
+                label = stem          # full No-Intro name — required for thumbnail matching
+                crc_raw = stem_to_crc.get(stem)
+                crc32 = f"{crc_raw}|crc" if crc_raw else "DETECT"
+                items.append({
+                    "path": rom_path,
+                    "label": label,
+                    "core_path": "DETECT",
+                    "core_name": "DETECT",
+                    "crc32": crc32,
+                    "db_name": f"{platform_name}.lpl",
+                })
+            if items:
+                lpl = {
+                    "version": "1.5",
+                    "default_core_path": "",
+                    "default_core_name": "",
+                    "label_display_mode": 0,
+                    "right_thumbnail_mode": 0,
+                    "left_thumbnail_mode": 0,
+                    "sort_mode": 0,
+                    "items": items,
+                }
+                zf.writestr(f"{platform_name}.lpl", json.dumps(lpl, indent=2))
+                playlist_count += 1
+
+    if playlist_count == 0:
+        raise HTTPException(status_code=404, detail="No platforms found in curated library")
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="retroarch-playlists.zip"'},
+    )

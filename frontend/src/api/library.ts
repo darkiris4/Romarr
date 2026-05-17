@@ -136,4 +136,12 @@ export const libraryApi = {
       }>('/library/dat/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then((r) => r.data)
   },
+
+  downloadRetroarchPlaylists: (pathPrefix?: string) => {
+    const params = pathPrefix?.trim() ? `?path_prefix=${encodeURIComponent(pathPrefix.trim())}` : ''
+    const a = document.createElement('a')
+    a.href = `/api/v1/library/retroarch-playlists${params}`
+    a.download = 'retroarch-playlists.zip'
+    a.click()
+  },
 }
