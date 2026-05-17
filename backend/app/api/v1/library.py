@@ -1,8 +1,10 @@
+import asyncio
 import io
 import json
 import zipfile
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from starlette.responses import StreamingResponse
 from ...config import settings
 from ...database import get_db
 from ...models.game import Game
+from ...models.platform import Platform
 from ...services.config_service import get_config, set_config
 from ...services.dat_manager import dat_status as _dat_status
 from ...services.dat_manager import scan_dat_dir
@@ -294,4 +297,61 @@ def export_retroarch_playlists(
         buf,
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="retroarch-playlists.zip"'},
+    )
+
+
+@router.get("/retroarch-thumbnails")
+async def export_retroarch_thumbnails(db: Session = Depends(get_db)):
+    """
+    Fetch IGDB cover art for every game in the library and package it into a
+    ZIP matching RetroArch's thumbnail directory layout.  Extract the ZIP at
+    the RetroArch root (next to the thumbnails/ folder) to install instantly.
+
+    Fetches run as async tasks (non-blocking); expect ~30-60 s for a full library.
+    """
+    rows = (
+        db.query(Game.cover_url, Game.rom_path, Platform.name)
+        .join(Platform, Game.platform_id == Platform.id)
+        .filter(Game.cover_url.isnot(None), Game.rom_path.isnot(None))
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="No games with cover art found")
+
+    sem = asyncio.Semaphore(32)
+
+    async def _fetch(client: httpx.AsyncClient, row: tuple):
+        cover_url, rom_path, platform_name = row
+        stem = Path(rom_path).stem
+        ext = Path(cover_url).suffix or ".jpg"
+        async with sem:
+            try:
+                r = await client.get(cover_url, timeout=15, follow_redirects=True)
+                r.raise_for_status()
+                return platform_name, stem, ext, r.content
+            except Exception:
+                return platform_name, stem, ext, None
+
+    async with httpx.AsyncClient() as client:
+        results = await asyncio.gather(*[_fetch(client, row) for row in rows])
+
+    buf = io.BytesIO()
+    fetched = 0
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_STORED) as zf:
+        for platform_name, stem, ext, data in results:
+            if data:
+                zf.writestr(
+                    f"thumbnails/{platform_name}/Named_Boxarts/{stem}{ext}",
+                    data,
+                )
+                fetched += 1
+
+    if fetched == 0:
+        raise HTTPException(status_code=502, detail="Could not fetch any cover images")
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="retroarch-thumbnails.zip"'},
     )

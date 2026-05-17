@@ -144,4 +144,14 @@ export const libraryApi = {
     a.download = 'retroarch-playlists.zip'
     a.click()
   },
+
+  downloadRetroarchThumbnails: async (): Promise<void> => {
+    const r = await client.get('/library/retroarch-thumbnails', { responseType: 'blob' })
+    const url = URL.createObjectURL(r.data as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'retroarch-thumbnails.zip'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }

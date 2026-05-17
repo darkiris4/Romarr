@@ -13,6 +13,7 @@ export default function MediaManagement() {
   const [curatedPath, setCuratedPath] = useState('')
   const [curatedSaved, setCuratedSaved] = useState(false)
   const [retroarchPrefix, setRetroarchPrefix] = useState('')
+  const [downloadingThumbnails, setDownloadingThumbnails] = useState(false)
   const [saved, setSaved] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -362,6 +363,21 @@ export default function MediaManagement() {
                   onClick={() => libraryApi.downloadRetroarchPlaylists(retroarchPrefix || undefined)}
                 >
                   Download Playlists
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  type="button"
+                  disabled={downloadingThumbnails}
+                  onClick={async () => {
+                    setDownloadingThumbnails(true)
+                    try {
+                      await libraryApi.downloadRetroarchThumbnails()
+                    } finally {
+                      setDownloadingThumbnails(false)
+                    }
+                  }}
+                >
+                  {downloadingThumbnails ? 'Fetching covers… (30–60 s)' : 'Download Thumbnails'}
                 </button>
               </div>
             </div>
