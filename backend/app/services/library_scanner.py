@@ -14,10 +14,13 @@ human-readable part of the filename.
 from __future__ import annotations
 
 import logging
+import os
 import re
+import shutil
 import threading
 import zipfile
 import zlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -352,7 +355,10 @@ def scan_folder(
       1. Compute CRC32 and check DAT index            → dat match
       2. Fall back to filename parsing                → filename match
       3. Determine platform via DAT / extension / hint
-    Returns a ScanSummary without touching the database.
+
+    File I/O runs in a thread pool (CRC32 is read-only and safe to parallelise).
+    DB existence checks are batched into two queries (CRC IN + title/platform IN)
+    instead of two queries per ROM.
     """
     root = Path(folder_path).expanduser().resolve()
     platforms = db.query(Platform).filter_by(enabled=True).all()
@@ -361,95 +367,183 @@ def scan_folder(
     hint_platform = platform_by_id.get(platform_hint_id) if platform_hint_id else None
 
     summary = ScanSummary(folder=str(root))
-
     if not root.exists():
         return summary
 
     all_exts = set(ext_map.keys()) | {"zip"}
-
-    # Pre-count files for progress reporting
     all_files = [p for p in sorted(root.rglob("*")) if p.is_file()]
+    summary.total_files_seen = len(all_files)
     if progress_state is not None and progress_lock is not None:
         with progress_lock:
             progress_state["total"] = len(all_files)
 
-    for path in all_files:
-        summary.total_files_seen += 1
-        if progress_state is not None and progress_lock is not None:
-            with progress_lock:
-                progress_state["processed"] = summary.total_files_seen
+    # ── Phase 1: parallel file I/O ────────────────────────────────────────────
+    # _rom_entries reads CRC32 from ZIP central-dir or hashes raw files.
+    # All data read here is static (no DB, no shared write state).
 
+    def _scan_path(path: Path) -> list[tuple[str, str | None, str, str]]:
         ext = path.suffix.lstrip(".").lower()
         if ext not in all_exts and hint_platform is None:
-            continue  # not a recognized ROM extension
+            return []
+        return [(str(path), crc, e, name) for crc, e, name in _rom_entries(path)]
 
-        for crc, effective_ext, display_name in _rom_entries(path):
-            # ── 1. DAT lookup ──────────────────────────────────────────────────
-            dat_hit = lookup_crc32(crc)
-            if dat_hit:
-                platform = platform_by_id.get(dat_hit.platform_id)
-                rom = ScannedROM(
-                    path=str(path),
-                    filename=display_name,
-                    extension=effective_ext,
-                    crc32=crc,
-                    title=dat_hit.title,
-                    region=dat_hit.region,
-                    match_source="dat",
-                    confidence=1.0,
-                    platform_id=dat_hit.platform_id if platform else None,
-                    platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
-                    candidate_platforms=[],
-                )
+    workers = min(8, os.cpu_count() or 1)
+    raw_entries: list[tuple[str, str | None, str, str]] = []
+    processed = 0
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futs = {pool.submit(_scan_path, p): p for p in all_files}
+        for fut in as_completed(futs):
+            processed += 1
+            if progress_state is not None and progress_lock is not None:
+                with progress_lock:
+                    progress_state["processed"] = processed
+            try:
+                raw_entries.extend(fut.result())
+            except Exception as exc:
+                logger.warning("Scan error for %s: %s", futs[fut], exc)
+
+    # Restore deterministic order (as_completed breaks the original sorted walk).
+    raw_entries.sort(key=lambda e: (e[0], e[3]))
+
+    # ── Phase 2: build ROM objects (in-memory, no DB) ─────────────────────────
+    partial_roms: list[ScannedROM] = []
+    for path_str, crc, effective_ext, display_name in raw_entries:
+        dat_hit = lookup_crc32(crc) if crc else None
+        if dat_hit:
+            platform = platform_by_id.get(dat_hit.platform_id)
+            rom = ScannedROM(
+                path=path_str,
+                filename=display_name,
+                extension=effective_ext,
+                crc32=crc,
+                title=dat_hit.title,
+                region=dat_hit.region,
+                match_source="dat",
+                confidence=1.0,
+                platform_id=dat_hit.platform_id if platform else None,
+                platform_name=platform.name if platform else f"Platform #{dat_hit.platform_id}",
+                candidate_platforms=[],
+            )
+        else:
+            title, region = _clean_title(Path(display_name).stem)
+            candidates = ext_map.get(effective_ext, [])
+            if hint_platform:
+                resolved = hint_platform
+                candidate_list: list[dict] = []
+            elif len(candidates) == 1:
+                resolved = candidates[0]
+                candidate_list = []
             else:
-                # ── 2. Filename fallback ───────────────────────────────────────
-                title, region = _clean_title(Path(display_name).stem)
+                resolved = None
+                candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
+            rom = ScannedROM(
+                path=path_str,
+                filename=display_name,
+                extension=effective_ext,
+                crc32=crc,
+                title=title,
+                region=region,
+                match_source="filename" if resolved else "unmatched",
+                confidence=0.6 if resolved else 0.0,
+                platform_id=resolved.id if resolved else None,
+                platform_name=resolved.name if resolved else None,
+                candidate_platforms=candidate_list,
+            )
+        partial_roms.append(rom)
 
-                # Determine platform from hint > extension candidates
-                candidates = ext_map.get(effective_ext, [])
-                if hint_platform:
-                    resolved = hint_platform
-                    candidate_list: list[dict] = []
-                elif len(candidates) == 1:
-                    resolved = candidates[0]
-                    candidate_list = []
-                else:
-                    resolved = None
-                    candidate_list = [{"id": p.id, "name": p.name} for p in candidates]
+    # ── Phase 3: batch DB existence checks ───────────────────────────────────
+    # CRC32 batch — one query instead of one per ROM.
+    all_crcs = [r.crc32 for r in partial_roms if r.crc32]
+    existing_by_crc: dict[str, Game] = {}
+    if all_crcs:
+        for g in db.query(Game).filter(Game.checksum_crc32.in_(all_crcs)).all():
+            existing_by_crc[g.checksum_crc32] = g
 
-                rom = ScannedROM(
-                    path=str(path),
-                    filename=display_name,
-                    extension=effective_ext,
-                    crc32=crc,
-                    title=title,
-                    region=region,
-                    match_source="filename" if resolved else "unmatched",
-                    confidence=0.6 if resolved else 0.0,
-                    platform_id=resolved.id if resolved else None,
-                    platform_name=resolved.name if resolved else None,
-                    candidate_platforms=candidate_list,
-                )
+    # Title+platform batch for ROMs not matched by CRC — one query instead of one per ROM.
+    from sqlalchemy import tuple_ as sa_tuple
 
-            # ── 3. DB existence check ──────────────────────────────────────────
-            # CRC32 is checked first — it's content-based and never lies.
-            # Title+platform is the fallback for filename-only matches.
-            existing = None
-            if rom.crc32:
-                existing = db.query(Game).filter_by(checksum_crc32=rom.crc32).first()
-            if not existing and rom.platform_id:
-                existing = (
-                    db.query(Game)
-                    .filter(Game.title == rom.title, Game.platform_id == rom.platform_id)
-                    .first()
-                )
-            if existing:
-                rom.already_exists = True
-                rom.existing_game_id = existing.id
+    unmatched_pairs = list({
+        (r.title, r.platform_id)
+        for r in partial_roms
+        if r.crc32 not in existing_by_crc and r.title and r.platform_id
+    })
+    existing_by_title_platform: dict[tuple[str, int], Game] = {}
+    if unmatched_pairs:
+        for g in db.query(Game).filter(
+            sa_tuple(Game.title, Game.platform_id).in_(unmatched_pairs)
+        ).all():
+            existing_by_title_platform[(g.title, g.platform_id)] = g
 
-            summary.roms.append(rom)
+    # ── Phase 4: mark existing and finalise ───────────────────────────────────
+    for rom in partial_roms:
+        existing = existing_by_crc.get(rom.crc32) if rom.crc32 else None
+        if not existing and rom.title and rom.platform_id:
+            existing = existing_by_title_platform.get((rom.title, rom.platform_id))
+        if existing:
+            rom.already_exists = True
+            rom.existing_game_id = existing.id
+        summary.roms.append(rom)
 
     return summary
+
+
+# ── Curated library copy ──────────────────────────────────────────────────────
+
+
+def _sanitize_dirname(name: str) -> str:
+    return re.sub(r'[<>:"/\\|?*]', "", name).strip() or "Unknown"
+
+
+def _copy_batch_to_curated(roms: list["ScannedROM"], curated_root: Path) -> int:
+    """
+    Copy a batch of ROMs into the curated library.
+
+    Groups by source path so each ZIP is opened at most once.  Uses streaming
+    extraction to avoid buffering whole files in memory.  Parallelises at the
+    source-file level (independent ZIPs / files run concurrently).
+    """
+
+    by_src: dict[str, list[ScannedROM]] = {}
+    for rom in roms:
+        by_src.setdefault(rom.path, []).append(rom)
+
+    def _process_src(src_path: str, src_roms: list[ScannedROM]) -> int:
+        src = Path(src_path)
+        count = 0
+        try:
+            if src.suffix.lower() == ".zip":
+                with zipfile.ZipFile(src, "r") as zf:
+                    for rom in src_roms:
+                        platform_dir = curated_root / _sanitize_dirname(rom.platform_name or "Unknown")
+                        platform_dir.mkdir(parents=True, exist_ok=True)
+                        dest = platform_dir / Path(rom.filename).name
+                        if not dest.exists():
+                            if rom.filename == src.name:
+                                shutil.copy2(str(src), str(dest))
+                            else:
+                                with zf.open(rom.filename) as member, open(dest, "wb") as out:
+                                    shutil.copyfileobj(member, out)
+                            count += 1
+            else:
+                for rom in src_roms:
+                    platform_dir = curated_root / _sanitize_dirname(rom.platform_name or "Unknown")
+                    platform_dir.mkdir(parents=True, exist_ok=True)
+                    dest = platform_dir / Path(rom.filename).name
+                    if not dest.exists():
+                        shutil.copy2(str(src), str(dest))
+                        count += 1
+        except Exception as exc:
+            logger.warning("Curated copy failed for %s: %s", src_path, exc)
+        return count
+
+    workers = min(8, os.cpu_count() or 1)
+    copied = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futs = [pool.submit(_process_src, src, src_roms) for src, src_roms in by_src.items()]
+        for fut in as_completed(futs):
+            copied += fut.result()
+    return copied
 
 
 # ── Import ────────────────────────────────────────────────────────────────────
@@ -462,6 +556,7 @@ def import_roms(
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
     selected_keys: set[str] | None = None,
+    curated_path: str | None = None,
 ) -> dict:
     """
     Scan and create/update Game records.
@@ -470,12 +565,16 @@ def import_roms(
                         to ambiguous files before confirming.
     selected_keys: set of "path::filename" strings identifying exactly which
                    inner ROM entries to import (handles multi-ROM ZIPs correctly).
+    curated_path: if set, copy each selected ROM file into this directory under
+                  a platform-named subfolder, extracting inner ZIP members individually.
     """
     summary = scan_folder(db, folder_path, platform_hint_id)
     overrides = platform_overrides or {}
     platform_by_id = {p.id: p for p in db.query(Platform).all()}
+    curated_root = Path(curated_path).expanduser().resolve() if curated_path else None
 
-    created = updated = skipped_existing = skipped_ambiguous = 0
+    created = updated = skipped_existing = skipped_ambiguous = copied = 0
+    curated_roms: list[ScannedROM] = []
 
     for rom in summary.roms:
         if selected_keys is not None:
@@ -492,6 +591,9 @@ def import_roms(
         if rom.platform_id is None:
             skipped_ambiguous += 1
             continue
+
+        if curated_root is not None:
+            curated_roms.append(rom)
 
         if rom.already_exists:
             if skip_existing:
@@ -532,6 +634,9 @@ def import_roms(
 
     db.commit()
 
+    if curated_root is not None and curated_roms:
+        copied = _copy_batch_to_curated(curated_roms, curated_root)
+
     result = {
         "scanned": summary.total_files_seen,
         "created": created,
@@ -540,10 +645,11 @@ def import_roms(
         "skipped_ambiguous": skipped_ambiguous,
         "dat_matches": summary.matched_dat,
         "filename_matches": summary.matched_filename,
+        "copied": copied,
     }
     logger.info(
         "Import complete — folder=%s created=%d updated=%d "
-        "skipped_existing=%d skipped_ambiguous=%d dat=%d filename=%d",
+        "skipped_existing=%d skipped_ambiguous=%d dat=%d filename=%d copied=%d",
         folder_path,
         created,
         updated,
@@ -551,6 +657,7 @@ def import_roms(
         skipped_ambiguous,
         summary.matched_dat,
         summary.matched_filename,
+        copied,
     )
     if skipped_ambiguous:
         ambiguous_files = [r.filename for r in summary.roms if r.platform_id is None]
@@ -625,6 +732,7 @@ def import_start(
     platform_overrides: dict[str, int] | None = None,
     skip_existing: bool = True,
     selected_keys: set[str] | None = None,
+    curated_path: str | None = None,
 ) -> dict:
     """Start a ROM import in a background thread. Returns immediately."""
     with _import_lock:
@@ -647,10 +755,12 @@ def import_start(
                 platform_overrides=platform_overrides,
                 skip_existing=skip_existing,
                 selected_keys=selected_keys,
+                curated_path=curated_path,
             )
+            copied_msg = f", {result.get('copied', 0)} copied to curated" if curated_path else ""
             log_event(
                 "LibraryImport",
-                f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped",
+                f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped{copied_msg}",
             )
             if result.get("created", 0) > 0:
                 from .metadata_scraper import scrape_start

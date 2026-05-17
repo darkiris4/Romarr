@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload, FolderInput } from 'lucide-react'
 import { libraryApi } from '../../api/library'
 import { settingsApi } from '../../api/settings'
 
@@ -10,6 +10,8 @@ export default function MediaManagement() {
   const [deleteAfterImport, setDeleteAfterImport] = useState(false)
   const [unmonitorDeleted, setUnmonitorDeleted] = useState(false)
   const [newPath, setNewPath] = useState('')
+  const [curatedPath, setCuratedPath] = useState('')
+  const [curatedSaved, setCuratedSaved] = useState(false)
   const [saved, setSaved] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -18,6 +20,24 @@ export default function MediaManagement() {
   const { data: rootFolders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['root-folders'],
     queryFn: settingsApi.listRootFolders,
+  })
+
+  const { data: generalSettings } = useQuery({
+    queryKey: ['general-settings'],
+    queryFn: settingsApi.getGeneral,
+  })
+
+  useEffect(() => {
+    if (generalSettings) setCuratedPath(generalSettings.curated_library_path)
+  }, [generalSettings])
+
+  const saveGeneralMutation = useMutation({
+    mutationFn: (path: string) => settingsApi.saveGeneral({ curated_library_path: path }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['general-settings'] })
+      setCuratedSaved(true)
+      setTimeout(() => setCuratedSaved(false), 2500)
+    },
   })
 
   const addFolderMutation = useMutation({
@@ -263,6 +283,54 @@ export default function MediaManagement() {
         >
           <Plus size={14} /> {addFolderMutation.isPending ? 'Adding…' : 'Add Root Folder'}
         </button>
+      </div>
+
+      {/* ── Curated Library ── */}
+      <div className="settings-section-title">Curated Library</div>
+      <div className="settings-section-desc">
+        During library import, Romarr can copy your filtered ROMs to a separate directory organised
+        by platform — ideal for pointing RetroArch or other emulators at a clean, noise-free
+        collection. Files from multi-ROM ZIPs are extracted individually; only the variants you
+        selected are copied.
+      </div>
+      <div className="card" style={{ marginBottom: 32 }}>
+        <div className="card-header" style={{ alignItems: 'flex-start', gap: 10 }}>
+          <FolderInput size={16} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div className="card-title" style={{ marginBottom: 4 }}>
+              Curated Library Path
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Leave blank to disable. Files are organised as{' '}
+              <code>path / Platform / filename.ext</code>
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input
+                className="form-control"
+                value={curatedPath}
+                onChange={(e) => setCuratedPath(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && saveGeneralMutation.mutate(curatedPath.trim())
+                }
+                placeholder="/media/curated-roms"
+                style={{ maxWidth: 400, fontFamily: 'monospace' }}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                type="button"
+                onClick={() => saveGeneralMutation.mutate(curatedPath.trim())}
+                disabled={saveGeneralMutation.isPending}
+              >
+                {saveGeneralMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              {curatedSaved && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success)' }}>
+                  <CheckCircle size={13} /> Saved
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── DAT Files ── */}

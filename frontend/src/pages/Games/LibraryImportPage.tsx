@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { libraryApi, type ScannedROM, type ScanPreview } from '../../api/library'
 import { platformsApi } from '../../api/platforms'
+import { settingsApi } from '../../api/settings'
 
 type Step = 'path' | 'scanning' | 'preview' | 'importing' | 'done'
 
@@ -157,6 +158,7 @@ export default function LibraryImportPage() {
   const [hintPlatformId, setHintPlatformId] = useState<number | undefined>()
   const [preview, setPreview] = useState<ScanPreview | null>(null)
   const [overrides, setOverrides] = useState<Record<string, number>>({})
+  const [copyToCurated, setCopyToCurated] = useState(false)
   const [result, setResult] = useState<{
     scanned: number
     created: number
@@ -165,6 +167,7 @@ export default function LibraryImportPage() {
     skipped_ambiguous: number
     dat_matches: number
     filename_matches: number
+    copied: number
   } | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   type FilterKey = 'new' | 'dat' | 'filename' | 'ambiguous' | 'exists'
@@ -185,6 +188,11 @@ export default function LibraryImportPage() {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
 
   const { data: platforms = [] } = useQuery({ queryKey: ['platforms'], queryFn: platformsApi.list })
+  const { data: generalSettings } = useQuery({
+    queryKey: ['general-settings'],
+    queryFn: settingsApi.getGeneral,
+  })
+  const curatedLibraryPath = generalSettings?.curated_library_path ?? ''
   const { data: recentFolders = [] } = useQuery({
     queryKey: ['recent-scan-folders'],
     queryFn: libraryApi.recentFolders,
@@ -262,6 +270,7 @@ export default function LibraryImportPage() {
           selectedTypes.size === 0
             ? undefined
             : eligibleKeys,
+        copy_to_curated: copyToCurated,
       }),
     onSuccess: () => setStep('importing'),
   })
@@ -639,6 +648,28 @@ export default function LibraryImportPage() {
             selected={selectedTypes}
             onChange={setSelectedTypes}
           />
+          {curatedLibraryPath && (
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: copyToCurated ? 'var(--text-white)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                padding: '0 4px',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={copyToCurated}
+                onChange={(e) => setCopyToCurated(e.target.checked)}
+                style={{ accentColor: 'var(--accent)' }}
+              />
+              Copy to curated library
+            </label>
+          )}
           <button
             className="btn btn-primary btn-sm"
             style={{ marginLeft: 'auto' }}
@@ -769,6 +800,12 @@ export default function LibraryImportPage() {
           {result.skipped_ambiguous > 0 && (
             <div style={{ color: 'var(--warning)' }}>
               {result.skipped_ambiguous.toLocaleString()} skipped — no platform assigned
+            </div>
+          )}
+          {result.copied > 0 && (
+            <div style={{ color: 'var(--accent)' }}>
+              {result.copied.toLocaleString()} file{result.copied !== 1 ? 's' : ''} copied to
+              curated library
             </div>
           )}
         </div>

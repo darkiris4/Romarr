@@ -183,3 +183,18 @@ def get_profile() -> dict:
 def save_profile(payload: dict) -> dict:
     set_config("profile", json.dumps(payload))
     return payload
+
+
+# ── General Settings ──────────────────────────────────────────────────────────
+
+
+@router.get("/general")
+def get_general() -> dict:
+    return {"curated_library_path": get_config("curated_library_path", "")}
+
+
+@router.put("/general", status_code=200)
+def save_general(payload: dict) -> dict:
+    path = (payload.get("curated_library_path") or "").strip()
+    set_config("curated_library_path", path)
+    return {"curated_library_path": path}

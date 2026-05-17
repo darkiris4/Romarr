@@ -84,7 +84,11 @@ class BulkTagPayload(BaseModel):
 
 @router.post("/bulk-delete", status_code=204)
 def bulk_delete(payload: BulkDeletePayload, db: Session = Depends(get_db)):
-    db.query(Game).filter(Game.id.in_(payload.ids)).delete(synchronize_session=False)
+    ids = payload.ids
+    db.query(HistoryItem).filter(HistoryItem.game_id.in_(ids)).delete(synchronize_session=False)
+    db.query(QueueItem).filter(QueueItem.game_id.in_(ids)).delete(synchronize_session=False)
+    db.query(BlocklistItem).filter(BlocklistItem.game_id.in_(ids)).delete(synchronize_session=False)
+    db.query(Game).filter(Game.id.in_(ids)).delete(synchronize_session=False)
     db.commit()
 
 
@@ -140,6 +144,9 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     log_event("Library", f'Deleted "{game.title}"')
+    db.query(HistoryItem).filter_by(game_id=game_id).delete()
+    db.query(QueueItem).filter_by(game_id=game_id).delete()
+    db.query(BlocklistItem).filter_by(game_id=game_id).delete()
     db.delete(game)
     db.commit()
 

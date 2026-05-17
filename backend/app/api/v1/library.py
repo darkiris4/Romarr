@@ -31,6 +31,7 @@ class ImportRequest(BaseModel):
     platform_overrides: dict[str, int] = {}
     skip_existing: bool = True
     selected_keys: list[str] | None = None  # "path::inner_filename" per ROM entry
+    copy_to_curated: bool = False
 
 
 def _add_recent_folder(path: str):
@@ -73,12 +74,16 @@ def get_import_status():
 @router.post("/import")
 def do_import(payload: ImportRequest):
     """Start a background ROM import. Returns immediately; poll /import/status."""
+    curated_path: str | None = None
+    if payload.copy_to_curated:
+        curated_path = get_config("curated_library_path", "").strip() or None
     return _import_start(
         payload.path,
         platform_hint_id=payload.platform_hint_id,
         platform_overrides=payload.platform_overrides,
         skip_existing=payload.skip_existing,
         selected_keys=set(payload.selected_keys) if payload.selected_keys is not None else None,
+        curated_path=curated_path,
     )
 
 

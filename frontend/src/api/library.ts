@@ -61,6 +61,7 @@ export const libraryApi = {
       platform_overrides?: Record<string, number>
       skip_existing?: boolean
       selected_keys?: string[]
+      copy_to_curated?: boolean
     }
   ) =>
     client
@@ -70,6 +71,7 @@ export const libraryApi = {
         platform_overrides: opts.platform_overrides ?? {},
         skip_existing: opts.skip_existing ?? true,
         selected_keys: opts.selected_keys ?? null,
+        copy_to_curated: opts.copy_to_curated ?? false,
       })
       .then((r) => r.data),
 
@@ -87,6 +89,7 @@ export const libraryApi = {
           skipped_ambiguous: number
           dat_matches: number
           filename_matches: number
+          copied: number
         } | null
       }>('/library/import/status')
       .then((r) => r.data),
