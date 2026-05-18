@@ -137,20 +137,29 @@ export const libraryApi = {
       .then((r) => r.data)
   },
 
-  downloadRetroarchPlaylists: (pathPrefix?: string) => {
+  startRetroarchExport: async (pathPrefix?: string): Promise<void> => {
     const params = pathPrefix?.trim() ? `?path_prefix=${encodeURIComponent(pathPrefix.trim())}` : ''
-    const a = document.createElement('a')
-    a.href = `/api/v1/library/retroarch-playlists${params}`
-    a.download = 'retroarch-playlists.zip'
-    a.click()
+    await client.post(`/library/retroarch-export/start${params}`)
   },
 
-  downloadRetroarchThumbnails: async (): Promise<void> => {
-    const r = await client.get('/library/retroarch-thumbnails', { responseType: 'blob' })
+  retroarchExportStatus: async (): Promise<{
+    running: boolean
+    done: boolean
+    error: string | null
+    stage: 'idle' | 'fetching' | 'building' | 'done'
+    fetched: number
+    total: number
+  }> => {
+    const r = await client.get('/library/retroarch-export/status')
+    return r.data
+  },
+
+  downloadRetroarchExport: async (): Promise<void> => {
+    const r = await client.get('/library/retroarch-export/download', { responseType: 'blob' })
     const url = URL.createObjectURL(r.data as Blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'retroarch-thumbnails.zip'
+    a.download = 'retroarch-export.zip'
     a.click()
     URL.revokeObjectURL(url)
   },

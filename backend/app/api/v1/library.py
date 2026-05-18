@@ -1,8 +1,10 @@
 import asyncio
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -26,6 +28,20 @@ router = APIRouter()
 
 _RECENT_FOLDERS_KEY = "recent_scan_folders"
 _RECENT_FOLDERS_MAX = 10
+
+# Characters RetroArch replaces with underscores when resolving thumbnail paths.
+_RETROARCH_UNSAFE = re.compile(r'[&*/:"<>?\\|]')
+
+# ── RetroArch export background task state ────────────────────────────────────
+_export_state: dict[str, Any] = {
+    "running": False,
+    "done": False,
+    "error": None,
+    "stage": "idle",   # idle | fetching | building | done
+    "fetched": 0,
+    "total": 0,
+}
+_export_result: bytes | None = None
 
 
 class ScanRequest(BaseModel):
@@ -215,19 +231,86 @@ def reload_dats(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/retroarch-playlists")
-def export_retroarch_playlists(
+def _build_zip(
+    platform_items: dict[str, list[dict]],
+    cover_results: list[tuple[str, str, str, bytes | None]],
+) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for platform_name, items in platform_items.items():
+            lpl = {
+                "version": "1.5",
+                "default_core_path": "",
+                "default_core_name": "",
+                "label_display_mode": 0,
+                "right_thumbnail_mode": 0,
+                "left_thumbnail_mode": 0,
+                "sort_mode": 0,
+                "items": items,
+            }
+            zf.writestr(f"playlists/{platform_name}.lpl", json.dumps(lpl, indent=2))
+        for platform_name, sanitized_stem, ext, data in cover_results:
+            if data is None:
+                continue
+            zf.writestr(
+                f"thumbnails/{platform_name}/Named_Boxarts/{sanitized_stem}{ext}",
+                data,
+            )
+    return buf.getvalue()
+
+
+async def _run_export(
+    platform_items: dict[str, list[dict]],
+    cover_tasks: list[tuple[str, str, str, str]],
+) -> None:
+    global _export_result
+    sem = asyncio.Semaphore(32)
+
+    async def _fetch(client: httpx.AsyncClient, task: tuple[str, str, str, str]):
+        platform_name, sanitized_stem, cover_url, ext = task
+        async with sem:
+            try:
+                r = await client.get(cover_url, timeout=15, follow_redirects=True)
+                r.raise_for_status()
+                data: bytes | None = r.content
+            except Exception:
+                data = None
+        _export_state["fetched"] += 1
+        return platform_name, sanitized_stem, ext, data
+
+    try:
+        async with httpx.AsyncClient() as client:
+            cover_results = await asyncio.gather(*[_fetch(client, t) for t in cover_tasks])
+
+        _export_state["stage"] = "building"
+
+        # ZIP assembly is CPU-bound; run in a thread to keep the event loop free
+        # for other requests during what can be a long operation.
+        loop = asyncio.get_event_loop()
+        zip_bytes = await loop.run_in_executor(
+            None, _build_zip, platform_items, list(cover_results)
+        )
+
+        _export_result = zip_bytes
+        _export_state.update({"running": False, "done": True, "stage": "done", "error": None})
+    except Exception as exc:
+        _export_state.update({"running": False, "done": False, "stage": "idle", "error": str(exc)})
+
+
+@router.post("/retroarch-export/start")
+async def start_retroarch_export(
     path_prefix: str = Query(default=""),
     db: Session = Depends(get_db),
 ):
     """
-    Generate RetroArch .lpl playlist files from the curated library and return
-    them as a ZIP download.  One .lpl is produced per platform sub-directory.
+    Start a background export job.  Returns immediately; poll /retroarch-export/status
+    for progress, then download from /retroarch-export/download when done.
 
-    path_prefix: if RetroArch runs on a different machine, supply the path to
-                 the curated library as that machine sees it (e.g. /home/user/roms).
-                 Leave blank to use the configured curated library path as-is.
+    If an export is already running, returns the current state without starting a new one.
     """
+    if _export_state["running"]:
+        return dict(_export_state)
+
     curated_root_str = get_config("curated_library_path", "").strip()
     if not curated_root_str:
         raise HTTPException(status_code=400, detail="Curated library path is not configured")
@@ -236,122 +319,73 @@ def export_retroarch_playlists(
     if not curated_root.exists():
         raise HTTPException(status_code=404, detail="Curated library path does not exist")
 
-    # Build stem → crc32 from the DB. The original ZIP stem matches the
-    # extracted ROM stem, so this lookup works for all No-Intro ZIPs.
-    # Labels intentionally use the full No-Intro filename stem (e.g.
-    # "Super Mario World (USA)") — that is what RetroArch's thumbnail
-    # downloader uses as its filename key.  Using the cleaned game title
-    # would break thumbnail matching.
-    stem_to_crc: dict[str, str] = {}
-    for game in db.query(Game.rom_path, Game.checksum_crc32).filter(
-        Game.rom_path.isnot(None), Game.checksum_crc32.isnot(None)
-    ).all():
-        stem_to_crc[Path(game.rom_path).stem] = game.checksum_crc32
+    stem_to_info: dict[str, tuple[str | None, str | None]] = {
+        Path(g.rom_path).stem: (g.checksum_crc32, g.cover_url)
+        for g in db.query(Game.rom_path, Game.checksum_crc32, Game.cover_url)
+        .filter(Game.rom_path.isnot(None))
+        .all()
+    }
 
     effective_prefix = path_prefix.strip().rstrip("/\\") or str(curated_root)
+    platform_items: dict[str, list[dict]] = {}
+    cover_tasks: list[tuple[str, str, str, str]] = []
 
-    buf = io.BytesIO()
-    playlist_count = 0
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for platform_dir in sorted(curated_root.iterdir()):
-            if not platform_dir.is_dir():
+    for platform_dir in sorted(curated_root.iterdir()):
+        if not platform_dir.is_dir():
+            continue
+        platform_name = platform_dir.name
+        items = []
+        for rom_file in sorted(platform_dir.iterdir()):
+            if not rom_file.is_file():
                 continue
-            platform_name = platform_dir.name
-            items = []
-            for rom_file in sorted(platform_dir.iterdir()):
-                if not rom_file.is_file():
-                    continue
-                rel = rom_file.relative_to(curated_root)
-                rom_path = f"{effective_prefix}/{rel.as_posix()}"
-                stem = rom_file.stem
-                label = stem          # full No-Intro name — required for thumbnail matching
-                crc_raw = stem_to_crc.get(stem)
-                crc32 = f"{crc_raw}|crc" if crc_raw else "DETECT"
-                items.append({
-                    "path": rom_path,
-                    "label": label,
-                    "core_path": "DETECT",
-                    "core_name": "DETECT",
-                    "crc32": crc32,
-                    "db_name": f"{platform_name}.lpl",
-                })
-            if items:
-                lpl = {
-                    "version": "1.5",
-                    "default_core_path": "",
-                    "default_core_name": "",
-                    "label_display_mode": 0,
-                    "right_thumbnail_mode": 0,
-                    "left_thumbnail_mode": 0,
-                    "sort_mode": 0,
-                    "items": items,
-                }
-                zf.writestr(f"{platform_name}.lpl", json.dumps(lpl, indent=2))
-                playlist_count += 1
+            rel = rom_file.relative_to(curated_root)
+            rom_path_str = f"{effective_prefix}/{rel.as_posix()}"
+            stem = rom_file.stem
+            label = stem
+            crc_raw, cover_url = stem_to_info.get(stem, (None, None))
+            crc32 = f"{crc_raw}|crc" if crc_raw else "DETECT"
+            items.append({
+                "path": rom_path_str,
+                "label": label,
+                "core_path": "DETECT",
+                "core_name": "DETECT",
+                "crc32": crc32,
+                "db_name": f"{platform_name}.lpl",
+            })
+            if cover_url:
+                sanitized = _RETROARCH_UNSAFE.sub("_", label)
+                ext = Path(cover_url).suffix or ".jpg"
+                cover_tasks.append((platform_name, sanitized, cover_url, ext))
+        if items:
+            platform_items[platform_name] = items
 
-    if playlist_count == 0:
+    if not platform_items:
         raise HTTPException(status_code=404, detail="No platforms found in curated library")
 
-    buf.seek(0)
+    _export_state.update({
+        "running": True,
+        "done": False,
+        "error": None,
+        "stage": "fetching",
+        "fetched": 0,
+        "total": len(cover_tasks),
+    })
+
+    asyncio.create_task(_run_export(platform_items, cover_tasks))
+    return dict(_export_state)
+
+
+@router.get("/retroarch-export/status")
+def get_retroarch_export_status():
+    return dict(_export_state)
+
+
+@router.get("/retroarch-export/download")
+def download_retroarch_export():
+    if not _export_state["done"] or _export_result is None:
+        raise HTTPException(status_code=400, detail="Export not ready — start an export first")
     return StreamingResponse(
-        buf,
+        io.BytesIO(_export_result),
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="retroarch-playlists.zip"'},
-    )
-
-
-@router.get("/retroarch-thumbnails")
-async def export_retroarch_thumbnails(db: Session = Depends(get_db)):
-    """
-    Fetch IGDB cover art for every game in the library and package it into a
-    ZIP matching RetroArch's thumbnail directory layout.  Extract the ZIP at
-    the RetroArch root (next to the thumbnails/ folder) to install instantly.
-
-    Fetches run as async tasks (non-blocking); expect ~30-60 s for a full library.
-    """
-    rows = (
-        db.query(Game.cover_url, Game.rom_path, Platform.name)
-        .join(Platform, Game.platform_id == Platform.id)
-        .filter(Game.cover_url.isnot(None), Game.rom_path.isnot(None))
-        .all()
-    )
-    if not rows:
-        raise HTTPException(status_code=404, detail="No games with cover art found")
-
-    sem = asyncio.Semaphore(32)
-
-    async def _fetch(client: httpx.AsyncClient, row: tuple):
-        cover_url, rom_path, platform_name = row
-        stem = Path(rom_path).stem
-        ext = Path(cover_url).suffix or ".jpg"
-        async with sem:
-            try:
-                r = await client.get(cover_url, timeout=15, follow_redirects=True)
-                r.raise_for_status()
-                return platform_name, stem, ext, r.content
-            except Exception:
-                return platform_name, stem, ext, None
-
-    async with httpx.AsyncClient() as client:
-        results = await asyncio.gather(*[_fetch(client, row) for row in rows])
-
-    buf = io.BytesIO()
-    fetched = 0
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_STORED) as zf:
-        for platform_name, stem, ext, data in results:
-            if data:
-                zf.writestr(
-                    f"thumbnails/{platform_name}/Named_Boxarts/{stem}{ext}",
-                    data,
-                )
-                fetched += 1
-
-    if fetched == 0:
-        raise HTTPException(status_code=502, detail="Could not fetch any cover images")
-
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
-        media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="retroarch-thumbnails.zip"'},
+        headers={"Content-Disposition": 'attachment; filename="retroarch-export.zip"'},
     )

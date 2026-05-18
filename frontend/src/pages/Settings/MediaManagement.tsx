@@ -13,7 +13,7 @@ export default function MediaManagement() {
   const [curatedPath, setCuratedPath] = useState('')
   const [curatedSaved, setCuratedSaved] = useState(false)
   const [retroarchPrefix, setRetroarchPrefix] = useState('')
-  const [downloadingThumbnails, setDownloadingThumbnails] = useState(false)
+  const [exportStarted, setExportStarted] = useState(false)
   const [saved, setSaved] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -54,6 +54,21 @@ export default function MediaManagement() {
     mutationFn: (id: number) => settingsApi.deleteRootFolder(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['root-folders'] }),
   })
+
+  const { data: exportStatus } = useQuery({
+    queryKey: ['retroarch-export-status'],
+    queryFn: libraryApi.retroarchExportStatus,
+    refetchInterval: exportStarted ? 800 : false,
+  })
+
+  const exportRunning = exportStatus?.running ?? false
+  const exportDone = exportStatus?.done ?? false
+
+  useEffect(() => {
+    if (!exportDone) return
+    setExportStarted(false)
+    libraryApi.downloadRetroarchExport()
+  }, [exportDone])
 
   const { data: datStatus } = useQuery({
     queryKey: ['dat-status'],
@@ -342,44 +357,97 @@ export default function MediaManagement() {
             <ListMusic size={16} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
               <div className="card-title" style={{ marginBottom: 4 }}>
-                Export RetroArch Playlists
+                Export RetroArch Package
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                Generates one <code>.lpl</code> per platform — drop them in RetroArch's{' '}
-                <code>playlists/</code> folder. If RetroArch runs on a different machine, enter
-                the path to the curated library as that machine sees it.
+                Downloads a single ZIP containing <code>playlists/</code> and{' '}
+                <code>thumbnails/</code> — extract it at the RetroArch root and everything is
+                ready with no scanning or downloading required inside RetroArch. Filenames are
+                sanitized to match RetroArch's thumbnail lookup rules. If RetroArch runs on a
+                different machine, enter the path to your curated library as that machine sees it.
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: exportRunning ? 12 : 0 }}>
                 <input
                   className="form-control"
                   value={retroarchPrefix}
                   onChange={(e) => setRetroarchPrefix(e.target.value)}
                   placeholder={curatedPath + '  (same machine — leave blank)'}
                   style={{ maxWidth: 420, fontFamily: 'monospace' }}
+                  disabled={exportRunning}
                 />
                 <button
                   className="btn btn-primary btn-sm"
                   type="button"
-                  onClick={() => libraryApi.downloadRetroarchPlaylists(retroarchPrefix || undefined)}
-                >
-                  Download Playlists
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  type="button"
-                  disabled={downloadingThumbnails}
+                  disabled={exportRunning}
                   onClick={async () => {
-                    setDownloadingThumbnails(true)
-                    try {
-                      await libraryApi.downloadRetroarchThumbnails()
-                    } finally {
-                      setDownloadingThumbnails(false)
-                    }
+                    setExportStarted(true)
+                    await libraryApi.startRetroarchExport(retroarchPrefix || undefined)
                   }}
                 >
-                  {downloadingThumbnails ? 'Fetching covers… (30–60 s)' : 'Download Thumbnails'}
+                  Export RetroArch Package
                 </button>
               </div>
+
+              {exportRunning && (
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span>
+                      {exportStatus?.stage === 'fetching' ? 'Fetching cover art…' : 'Building ZIP…'}
+                    </span>
+                    {exportStatus?.stage === 'fetching' && (exportStatus?.total ?? 0) > 0 && (
+                      <span>
+                        {exportStatus.fetched.toLocaleString()} / {exportStatus.total.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      height: 6,
+                      background: 'rgba(255,255,255,.08)',
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {(() => {
+                      const pct =
+                        exportStatus?.stage === 'fetching' && (exportStatus?.total ?? 0) > 0
+                          ? Math.round(((exportStatus?.fetched ?? 0) / exportStatus.total) * 100)
+                          : null
+                      return (
+                        <div
+                          style={{
+                            height: '100%',
+                            width: pct !== null ? `${pct}%` : '100%',
+                            background: 'var(--accent)',
+                            borderRadius: 3,
+                            transition: pct !== null ? 'width .4s ease' : undefined,
+                            animation: pct !== null ? undefined : 'progress-indeterminate 1.4s ease infinite',
+                          }}
+                        />
+                      )
+                    })()}
+                  </div>
+                  {exportStatus?.stage === 'fetching' && (exportStatus?.total ?? 0) > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
+                      {Math.round(((exportStatus?.fetched ?? 0) / exportStatus.total) * 100)}%
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exportStatus?.error && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--danger)', marginTop: 8 }}>
+                  <AlertCircle size={13} /> {exportStatus.error}
+                </div>
+              )}
             </div>
           </div>
         </div>
