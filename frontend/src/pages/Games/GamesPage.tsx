@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -20,11 +20,13 @@ import {
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
 import { platformsApi } from '../../api/platforms'
+import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
+import LoadingScreen from '../../components/LoadingScreen'
 import GamesTable from './GamesTable'
 import GamesPosters from './GamesPosters'
 import GamesOverview from './GamesOverview'
-import type { Game } from '../../types'
+import type { Game, ReleaseProfile } from '../../types'
 
 type View = 'table' | 'posters' | 'overview'
 type SortKey =
@@ -156,6 +158,58 @@ function PlatformModal({
   )
 }
 
+function ProfileModal({
+  profiles,
+  count,
+  onApply,
+  onCancel,
+}: {
+  profiles: ReleaseProfile[]
+  count: number
+  onApply: (id: number | null) => void
+  onCancel: () => void
+}) {
+  const [selected, setSelected] = useState<string>('')
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Assign Release Profile</span>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            Applying to <strong style={{ color: 'var(--text-white)' }}>{count}</strong> game
+            {count !== 1 ? 's' : ''}.
+          </p>
+          <select
+            className="form-control"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            <option value="">Platform / global default</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => onApply(selected ? Number(selected) : null)}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function GamesPage() {
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
@@ -164,6 +218,7 @@ export default function GamesPage() {
   const [showTagsModal, setShowTagsModal] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [showPlatformModal, setShowPlatformModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -194,11 +249,17 @@ export default function GamesPage() {
   const { data: allGames = [], isLoading } = useQuery({
     queryKey: ['games'],
     queryFn: () => gamesApi.list({}),
+    staleTime: 30_000,
   })
 
   const { data: platforms = [] } = useQuery({
     queryKey: ['platforms'],
     queryFn: platformsApi.list,
+  })
+
+  const { data: releaseProfiles = [] } = useQuery({
+    queryKey: ['release-profiles'],
+    queryFn: releaseProfilesApi.list,
   })
 
   const deleteMutation = useMutation({
@@ -237,6 +298,15 @@ export default function GamesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['games'] })
       setShowPlatformModal(false)
+    },
+  })
+
+  const bulkProfileMutation = useMutation({
+    mutationFn: (release_profile_id: number | null) =>
+      gamesApi.bulkProfile([...selected], release_profile_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['games'] })
+      setShowProfileModal(false)
     },
   })
 
@@ -302,14 +372,14 @@ export default function GamesPage() {
     localStorage.setItem('games-view', v)
   }
 
-  function toggleSelect(id: number) {
+  const toggleSelect = useCallback((id: number) => {
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }
+  }, [])
 
   function stopSelecting() {
     setSelecting(false)
@@ -600,6 +670,13 @@ export default function GamesPage() {
               </button>
               <button
                 className="btn btn-secondary btn-sm"
+                onClick={() => setShowProfileModal(true)}
+                disabled={selected.size === 0}
+              >
+                <CheckSquare size={13} /> Profile
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
                 onClick={() => setShowTagsModal(true)}
                 disabled={selected.size === 0}
               >
@@ -629,9 +706,7 @@ export default function GamesPage() {
       )}
 
       {isLoading ? (
-        <div className="loading-page">
-          <div className="spinner" /> Loading…
-        </div>
+        <LoadingScreen />
       ) : games.length === 0 ? (
         <div className="empty-state">
           <Gamepad2 size={48} />
@@ -686,6 +761,15 @@ export default function GamesPage() {
           count={selected.size}
           onApply={(id) => bulkPlatformMutation.mutate(id)}
           onCancel={() => setShowPlatformModal(false)}
+        />
+      )}
+
+      {showProfileModal && (
+        <ProfileModal
+          profiles={releaseProfiles}
+          count={selected.size}
+          onApply={(id) => bulkProfileMutation.mutate(id)}
+          onCancel={() => setShowProfileModal(false)}
         />
       )}
     </div>

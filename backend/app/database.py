@@ -95,8 +95,12 @@ def _migrate():
     _add_column_if_missing("download_clients", "remove_failed", "BOOLEAN DEFAULT 1")
     _add_column_if_missing("indexers", "tags", "TEXT DEFAULT ''")
     _add_column_if_missing("download_clients", "tags", "TEXT DEFAULT ''")
+    _add_column_if_missing("games", "release_profile_id", "INTEGER")
+    _add_column_if_missing("games", "delay_grab_until", "DATETIME")
+    _add_column_if_missing("platforms", "release_profile_id", "INTEGER")
     _seed_platforms()
     _seed_igdb_platform_ids()
+    _seed_default_profiles()
 
 
 def _seed_platforms():
@@ -129,6 +133,44 @@ def _seed_igdb_platform_ids():
                 {"igdb_id": igdb_id, "name": no_intro_name},
             )
         conn.commit()
+
+
+def _seed_default_profiles():
+    """Ensure at least one default release profile and one default delay profile exist."""
+    import json
+
+    from .models.delay_profile import DelayProfile
+    from .models.release_profile import ReleaseProfile
+
+    db = SessionLocal()
+    try:
+        if not db.query(ReleaseProfile).filter_by(is_default=True).first():
+            db.add(
+                ReleaseProfile(
+                    name="Default",
+                    is_default=True,
+                    region_priority=json.dumps(["USA", "World", "Europe", "Japan"]),
+                    prefer_no_intro=True,
+                    accept_hacks=False,
+                    accept_unlicensed=False,
+                    preferred_formats=json.dumps([]),
+                )
+            )
+        if not db.query(DelayProfile).filter_by(is_default=True).first():
+            db.add(
+                DelayProfile(
+                    name="Default",
+                    is_default=True,
+                    preferred_protocol="any",
+                    usenet_delay=0,
+                    torrent_delay=0,
+                    bypass_if_only_one=True,
+                    tags="",
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
 
 
 def _add_column_if_missing(table: str, column: str, col_type: str):

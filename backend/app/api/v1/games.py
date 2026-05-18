@@ -98,6 +98,11 @@ class BulkSearchPayload(BaseModel):
     ids: list[int]
 
 
+class BulkProfilePayload(BaseModel):
+    ids: list[int]
+    release_profile_id: int | None = None
+
+
 @router.post("/bulk-delete", status_code=204)
 def bulk_delete(payload: BulkDeletePayload, db: Session = Depends(get_db)):
     ids = payload.ids
@@ -146,6 +151,16 @@ async def bulk_search(payload: BulkSearchPayload):
     return {"queued": len(payload.ids)}
 
 
+@router.patch("/bulk-profile")
+def bulk_profile(payload: BulkProfilePayload, db: Session = Depends(get_db)):
+    db.query(Game).filter(Game.id.in_(payload.ids)).update(
+        {"release_profile_id": payload.release_profile_id}, synchronize_session=False
+    )
+    db.commit()
+    log_event("Library", f"Bulk profile change for {len(payload.ids)} game(s)")
+    return {"updated": len(payload.ids)}
+
+
 @router.get("/{game_id}", response_model=GameOut)
 def get_game(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
@@ -173,7 +188,7 @@ def update_game(game_id: int, payload: GameUpdate, db: Session = Depends(get_db)
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    updates = payload.model_dump(exclude_none=True)
+    updates = payload.model_dump(exclude_unset=True)
     if "monitored" in updates and updates["monitored"] != game.monitored:
         state = "Monitored" if updates["monitored"] else "Unmonitored"
         log_event("Library", f'"{game.title}" set to {state}')

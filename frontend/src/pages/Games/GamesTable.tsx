@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -13,7 +14,7 @@ interface Props {
   onToggleSelect?: (id: number) => void
 }
 
-export default function GamesTable({
+export default memo(function GamesTable({
   games,
   platformMap,
   onDelete,
@@ -120,4 +121,4 @@ export default function GamesTable({
       </div>
     </div>
   )
-}
+})

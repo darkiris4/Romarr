@@ -30,6 +30,7 @@ class GameUpdate(BaseModel):
     monitored: bool | None = None
     status: GameStatus | None = None
     tags: str | None = None
+    release_profile_id: int | None = None
 
 
 class GameOut(GameBase):
@@ -48,6 +49,7 @@ class GameOut(GameBase):
     similar_games: str | None = None
     tags: str | None = None
     last_searched_at: datetime | None = None
+    release_profile_id: int | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

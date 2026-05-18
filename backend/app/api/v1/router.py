@@ -12,6 +12,7 @@ from . import (
     library,
     logs,
     platforms,
+    profiles,
     queue,
     settings,
     system,
@@ -35,3 +36,4 @@ router.include_router(library.router, prefix="/library", tags=["Library"])
 router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 router.include_router(connect.router, prefix="/connect", tags=["Connect"])
 router.include_router(logs.router, prefix="/logs", tags=["Logs"])
+router.include_router(profiles.router, prefix="/profiles", tags=["Profiles"])
