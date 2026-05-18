@@ -261,7 +261,7 @@ export default function ConnectPage() {
 
       {/* Type picker modal */}
       {showPicker && (
-        <div className="modal-backdrop" onClick={() => setShowPicker(false)}>
+        <div className="modal-overlay" onClick={() => setShowPicker(false)}>
           <div className="modal" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Add Connection</span>
@@ -336,40 +336,25 @@ export default function ConnectPage() {
           </div>
 
           <div style={{ marginTop: 24, marginBottom: 8 }}>
-            <div className="settings-section-title" style={{ margin: '0 0 8px' }}>
+            <div className="settings-section-title" style={{ margin: '0 0 4px' }}>
               Notification Triggers
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                {EVENT_ROWS.map((row) => (
-                  <tr key={row.key} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td
-                      style={{
-                        padding: '10px 0',
-                        color: 'var(--text-primary)',
-                        fontSize: 14,
-                        width: '40%',
-                      }}
-                    >
-                      {row.label}
-                    </td>
-                    <td style={{ padding: '10px 0', color: 'var(--text-muted)', fontSize: 12 }}>
-                      {row.hint}
-                    </td>
-                    <td style={{ padding: '10px 0', textAlign: 'right', width: 48 }}>
-                      <label className="toggle">
-                        <input
-                          type="checkbox"
-                          checked={!!editConn[row.key as keyof EditConn]}
-                          onChange={() => toggleEvent(row.key)}
-                        />
-                        <span className="toggle-slider" />
-                      </label>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Click to toggle. Filled = enabled.
+            </div>
+            <div className="connect-triggers-grid">
+              {EVENT_ROWS.map((row) => (
+                <button
+                  key={row.key}
+                  className={`connect-trigger-pill${editConn[row.key as keyof EditConn] ? ' active' : ''}`}
+                  onClick={() => toggleEvent(row.key)}
+                  title={row.hint}
+                  type="button"
+                >
+                  {row.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {testResult && (

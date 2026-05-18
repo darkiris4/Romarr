@@ -418,6 +418,7 @@ function EditGameModal({
   const [region, setRegion] = useState(game.region)
   const [monitored, setMonitored] = useState(game.monitored)
   const [tags, setTags] = useState(game.tags ?? '')
+  const [confirmSave, setConfirmSave] = useState(false)
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -432,7 +433,7 @@ function EditGameModal({
   })
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Edit Game</span>
@@ -499,17 +500,48 @@ function EditGameModal({
             </label>
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending}
-          >
-            {saveMut.isPending ? 'Saving…' : 'Save Changes'}
-          </button>
+        <div
+          className="modal-footer"
+          style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}
+        >
+          {confirmSave ? (
+            <>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--warning, #f39c12)',
+                  background: 'rgba(243,156,18,0.1)',
+                  border: '1px solid rgba(243,156,18,0.3)',
+                  borderRadius: 6,
+                  padding: '10px 14px',
+                }}
+              >
+                Manual edits to Title, Platform, or Region may conflict with DAT-matched data and
+                could affect future CRC matching. Continue?
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn btn-secondary" onClick={() => setConfirmSave(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => saveMut.mutate()}
+                  disabled={saveMut.isPending}
+                >
+                  {saveMut.isPending ? 'Saving…' : 'Confirm Changes'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={() => setConfirmSave(true)}>
+                Save Changes
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

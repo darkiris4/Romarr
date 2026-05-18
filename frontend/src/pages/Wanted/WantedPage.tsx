@@ -26,8 +26,8 @@ export default function WantedPage() {
   })
 
   const searchMutation = useMutation({
-    mutationFn: (id: number) => gamesApi.search(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['games'] }),
+    mutationFn: (ids: number[]) => gamesApi.bulkSearch(ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wanted-missing'] }),
   })
 
   if (isLoading)
@@ -56,7 +56,8 @@ export default function WantedPage() {
         <div className="spacer" />
         <button
           className="btn btn-primary"
-          onClick={() => games.forEach((g) => searchMutation.mutate(g.id))}
+          onClick={() => searchMutation.mutate(games.map((g) => g.id))}
+          disabled={searchMutation.isPending}
         >
           <RotateCcw size={14} /> Search All
         </button>
@@ -107,7 +108,7 @@ export default function WantedPage() {
                       <button
                         className="btn-icon"
                         title="Search now"
-                        onClick={() => searchMutation.mutate(game.id)}
+                        onClick={() => searchMutation.mutate([game.id])}
                         disabled={searchMutation.isPending}
                       >
                         <RotateCcw size={14} />
