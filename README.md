@@ -7,13 +7,13 @@
 > A Sonarr/Radarr-style automated ROM manager for retro game collections.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Status: Early Development](https://img.shields.io/badge/status-early%20development-orange.svg)]()
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-blueviolet.svg)]()
 [![CI](https://github.com/darkiris4/Romarr/actions/workflows/ci.yml/badge.svg)](https://github.com/darkiris4/Romarr/actions/workflows/ci.yml)
 
 ---
 
 > [!WARNING]
-> **Romarr is early-stage software under active development.** Expect breaking changes, missing features, and rough edges. It is not yet recommended for production use. Contributions and bug reports are very welcome.
+> **Romarr is alpha software.** The core workflows are functional but the project has not been hardened for production use. No authentication, no Alembic migrations, and the torrent download path is untested. Usenet (SABnzbd) end-to-end has been validated. Contributions and bug reports are very welcome.
 
 ---
 
@@ -34,16 +34,18 @@ Romarr automates the management, organisation, and metadata enrichment of ROM fi
 | Area | What's implemented |
 |---|---|
 | **Library import** | Scan existing ROM folders; progress bar; recent folders list; CRC32 matching against No-Intro DATs (ZIP-transparent); multi-ROM ZIP support (each inner file importable separately); stackable filters (DAT match, region, type, new-only) |
+| **Curated library** | Optional second library root; imported ROMs are copied into `{curated_root}/{platform}/` at import time |
+| **RetroArch export** | One-click export from Settings → Media Management; background job fetches IGDB cover art and builds a drop-in ZIP (`playlists/` + `thumbnails/`) ready to extract at the RetroArch root; determinate progress bar |
 | **DAT management** | Drag-and-drop upload via Settings → Platforms; auto-creates platform on upload; version/date display; per-row delete; manual placement in `data/dats/` also supported |
 | **Metadata scraper** | IGDB cover art, summary, rating, game modes, themes, similar games; tiered exact/fuzzy search; Japanese→English title alias map; batched enrichment (50/request); 30-day retry skip for unmatched titles |
-| **Download pipeline** | Indexer search, grab, queue tracking, download client integration (qBittorrent, SABnzbd, Transmission), post-processor |
+| **Download pipeline** | Indexer search, grab, queue tracking, download client integration (qBittorrent, SABnzbd, Transmission), post-processor; NZB/SABnzbd route validated end-to-end |
 | **Game views** | Table, poster grid, and overview list; multi-dimension filter (platform, status, region, missing metadata); 8 sort options; active filter count |
 | **Game detail page** | Radarr-style hero with blurred backdrop, inline metadata grid, file info, similar games row |
 | **Platforms** | 15+ pre-seeded platforms with No-Intro names and IGDB platform IDs |
-| **Settings UI** | Media management, platforms (with DAT management), indexers, download clients, list sources, general/IGDB config, profiles (region priority) |
+| **Settings UI** | Media management (root folders, remote path mappings, curated library), platforms, indexers, download clients, list sources, general/IGDB config, profiles (region priority), UI, tags |
 | **Plugin system** | Drop-in list source plugins; IGDB list plugin included |
-| **Scheduler** | Background jobs: metadata scraper (6 h), download poller (30 s), wanted searcher (15 min), health check (6 h), backup (7 days), deduplication (24 h) |
-| **System pages** | Status (health checks, disk space, about), Tasks (scheduled + queue), Events log, Backup (create/download/restore/delete) |
+| **Scheduler** | Background jobs: metadata scraper (6 h), download poller (5 s), wanted searcher (15 min), health check (6 h), backup (7 days), deduplication (24 h) |
+| **System pages** | Status (health checks, disk space, about), Tasks (scheduled + queue), Events log, Backup (create/download/restore/delete), Logs |
 
 ---
 
@@ -66,14 +68,10 @@ Romarr automates the management, organisation, and metadata enrichment of ROM fi
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/darkiris4/Romarr.git
-cd Romarr
-cp .env.example .env
-# Edit .env — at minimum set ROM_LIBRARY_PATH to your ROM folder
 docker compose up -d
 ```
 
-Open **http://localhost:7878** in your browser.
+The image is pulled automatically from GHCR (`ghcr.io/darkiris4/romarr:latest`). Open **http://localhost:7878** in your browser.
 
 > **IGDB cover art** requires free Twitch developer credentials. See [IGDB Setup](#igdb-setup) below.
 
@@ -148,15 +146,18 @@ Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identif
 - [x] Manual search UI — indexer results with one-click grab
 - [x] History and activity feed
 - [x] DAT upload UI with auto-platform creation
-- [x] System pages — Status, Tasks, Events, Backup
+- [x] System pages — Status, Tasks, Events, Backup, Logs
 - [x] CI pipeline (Ruff + ESLint + Prettier + tsc)
-- [ ] End-to-end download pipeline validation (requires real indexer + download client)
-- [ ] Pagination on the games list
-- [ ] First-run IGDB setup wizard (banner/modal guiding Twitch app registration)
+- [x] Curated library with per-import copy
+- [x] RetroArch export package (playlists + thumbnails, drop-in ZIP)
+- [x] NZB/SABnzbd download pipeline (validated end-to-end)
+- [ ] Torrent download pipeline validation (qBittorrent / Transmission)
+- [ ] User authentication
+- [ ] Pagination on the games list (client-side is fine up to ~10k games)
+- [ ] Alembic database migrations (currently uses in-place `ALTER TABLE`)
+- [ ] First-run IGDB setup wizard
 - [ ] More list source plugins (LaunchBox, ScreenScraper)
 - [ ] Deluge download client support
-- [ ] User authentication
-- [ ] Alembic database migrations (currently uses in-place `ALTER TABLE`)
 
 ---
 
