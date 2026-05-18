@@ -47,6 +47,7 @@ class GameOut(GameBase):
     themes: str | None = None
     similar_games: str | None = None
     tags: str | None = None
+    last_searched_at: datetime | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

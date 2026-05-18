@@ -20,6 +20,7 @@ class DownloadClientBase(BaseModel):
     enabled: bool = True
     remove_completed: bool = False
     remove_failed: bool = True
+    tags: str = ""
 
 
 class DownloadClientCreate(DownloadClientBase):
@@ -40,6 +41,7 @@ class DownloadClientUpdate(BaseModel):
     enabled: bool | None = None
     remove_completed: bool | None = None
     remove_failed: bool | None = None
+    tags: str | None = None
 
 
 class DownloadClientOut(DownloadClientBase):

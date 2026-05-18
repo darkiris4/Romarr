@@ -54,4 +54,12 @@ export const gamesApi = {
   bulkDelete: (ids: number[]) => client.post('/games/bulk-delete', { ids }),
 
   bulkTag: (ids: number[], tags: string) => client.patch('/games/bulk-tag', { ids, tags }),
+
+  bulkMonitor: (ids: number[], monitored: boolean) =>
+    client.patch('/games/bulk-monitor', { ids, monitored }),
+
+  bulkPlatform: (ids: number[], platform_id: number) =>
+    client.patch('/games/bulk-platform', { ids, platform_id }),
+
+  bulkSearch: (ids: number[]) => client.post('/games/bulk-search', { ids }),
 }

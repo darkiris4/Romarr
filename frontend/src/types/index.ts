@@ -35,6 +35,7 @@ export interface Game {
   themes?: string
   similar_games?: string
   tags?: string | null
+  last_searched_at?: string | null
   added_at: string
   updated_at: string
 }
@@ -87,6 +88,7 @@ export interface Indexer {
   priority: number
   enabled: boolean
   prowlarr_id?: number
+  tags: string
   created_at: string
   updated_at: string
 }
@@ -109,6 +111,7 @@ export interface DownloadClient {
   enabled: boolean
   remove_completed: boolean
   remove_failed: boolean
+  tags: string
   created_at: string
   updated_at: string
 }

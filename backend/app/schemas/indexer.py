@@ -14,6 +14,7 @@ class IndexerBase(BaseModel):
     priority: int = 25
     enabled: bool = True
     prowlarr_id: int | None = None
+    tags: str = ""
 
 
 class IndexerCreate(IndexerBase):
@@ -29,6 +30,7 @@ class IndexerUpdate(BaseModel):
     priority: int | None = None
     enabled: bool | None = None
     prowlarr_id: int | None = None
+    tags: str | None = None
 
 
 class IndexerOut(IndexerBase):

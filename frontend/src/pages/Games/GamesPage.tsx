@@ -12,6 +12,10 @@ import {
   Trash2,
   Filter,
   ArrowUpDown,
+  Eye,
+  EyeOff,
+  Search,
+  Layers,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
@@ -104,6 +108,54 @@ function TagsModal({
   )
 }
 
+function PlatformModal({
+  platforms,
+  count,
+  onApply,
+  onCancel,
+}: {
+  platforms: import('../../types').Platform[]
+  count: number
+  onApply: (id: number) => void
+  onCancel: () => void
+}) {
+  const [selected, setSelected] = useState(platforms[0]?.id ?? 0)
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Change Platform</span>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            Applying to <strong style={{ color: 'var(--text-white)' }}>{count}</strong> game
+            {count !== 1 ? 's' : ''}.
+          </p>
+          <select
+            className="form-control"
+            value={selected}
+            onChange={(e) => setSelected(Number(e.target.value))}
+          >
+            {platforms.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={() => onApply(selected)}>
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function GamesPage() {
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
@@ -111,6 +163,7 @@ export default function GamesPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [showTagsModal, setShowTagsModal] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [showPlatformModal, setShowPlatformModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -172,6 +225,23 @@ export default function GamesPage() {
       qc.invalidateQueries({ queryKey: ['games'] })
       setShowTagsModal(false)
     },
+  })
+
+  const bulkMonitorMutation = useMutation({
+    mutationFn: (monitored: boolean) => gamesApi.bulkMonitor([...selected], monitored),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['games'] }),
+  })
+
+  const bulkPlatformMutation = useMutation({
+    mutationFn: (platform_id: number) => gamesApi.bulkPlatform([...selected], platform_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['games'] })
+      setShowPlatformModal(false)
+    },
+  })
+
+  const bulkSearchMutation = useMutation({
+    mutationFn: () => gamesApi.bulkSearch([...selected]),
   })
 
   const updateAllMutation = useMutation({
@@ -499,13 +569,41 @@ export default function GamesPage() {
             <span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>
               {selected.size} selected
             </span>
-            <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+            <div style={{ display: 'flex', gap: 6, marginLeft: 8, flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkMonitorMutation.mutate(true)}
+                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
+              >
+                <Eye size={13} /> Monitor
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkMonitorMutation.mutate(false)}
+                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
+              >
+                <EyeOff size={13} /> Unmonitor
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkSearchMutation.mutate()}
+                disabled={selected.size === 0 || bulkSearchMutation.isPending}
+              >
+                <Search size={13} /> {bulkSearchMutation.isPending ? 'Searching…' : 'Search'}
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowPlatformModal(true)}
+                disabled={selected.size === 0}
+              >
+                <Layers size={13} /> Platform
+              </button>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowTagsModal(true)}
                 disabled={selected.size === 0}
               >
-                <Tag size={13} /> Set Tags
+                <Tag size={13} /> Tags
               </button>
               <button
                 className="btn btn-sm"
@@ -579,6 +677,15 @@ export default function GamesPage() {
           count={selected.size}
           onApply={(tags) => bulkTagMutation.mutate(tags)}
           onCancel={() => setShowTagsModal(false)}
+        />
+      )}
+
+      {showPlatformModal && (
+        <PlatformModal
+          platforms={platforms}
+          count={selected.size}
+          onApply={(id) => bulkPlatformMutation.mutate(id)}
+          onCancel={() => setShowPlatformModal(false)}
         />
       )}
     </div>

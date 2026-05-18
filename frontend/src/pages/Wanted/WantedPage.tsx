@@ -5,6 +5,17 @@ import { gamesApi } from '../../api/games'
 import client from '../../api/client'
 import type { Game } from '../../types'
 
+function lastSearchedLabel(iso: string | null | undefined): string {
+  if (!iso) return 'Never'
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 export default function WantedPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -61,6 +72,7 @@ export default function WantedPage() {
                 <th>Platform</th>
                 <th>Region</th>
                 <th>Year</th>
+                <th>Last Searched</th>
                 <th className="col-actions" />
               </tr>
             </thead>
@@ -87,6 +99,9 @@ export default function WantedPage() {
                   <td className="text-muted">{game.platform?.name ?? '—'}</td>
                   <td className="text-muted">{game.region}</td>
                   <td className="text-muted">{game.release_year ?? '—'}</td>
+                  <td className="text-muted" style={{ fontSize: 12 }}>
+                    {lastSearchedLabel(game.last_searched_at)}
+                  </td>
                   <td>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button

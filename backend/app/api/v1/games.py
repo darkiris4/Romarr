@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -83,6 +84,20 @@ class BulkTagPayload(BaseModel):
     tags: str
 
 
+class BulkMonitorPayload(BaseModel):
+    ids: list[int]
+    monitored: bool
+
+
+class BulkPlatformPayload(BaseModel):
+    ids: list[int]
+    platform_id: int
+
+
+class BulkSearchPayload(BaseModel):
+    ids: list[int]
+
+
 @router.post("/bulk-delete", status_code=204)
 def bulk_delete(payload: BulkDeletePayload, db: Session = Depends(get_db)):
     ids = payload.ids
@@ -100,6 +115,35 @@ def bulk_tag(payload: BulkTagPayload, db: Session = Depends(get_db)):
     )
     db.commit()
     return {"updated": len(payload.ids)}
+
+
+@router.patch("/bulk-monitor")
+def bulk_monitor(payload: BulkMonitorPayload, db: Session = Depends(get_db)):
+    db.query(Game).filter(Game.id.in_(payload.ids)).update(
+        {"monitored": payload.monitored}, synchronize_session=False
+    )
+    db.commit()
+    state = "monitored" if payload.monitored else "unmonitored"
+    log_event("Library", f"Bulk {state} {len(payload.ids)} game(s)")
+    return {"updated": len(payload.ids)}
+
+
+@router.patch("/bulk-platform")
+def bulk_platform(payload: BulkPlatformPayload, db: Session = Depends(get_db)):
+    db.query(Game).filter(Game.id.in_(payload.ids)).update(
+        {"platform_id": payload.platform_id}, synchronize_session=False
+    )
+    db.commit()
+    log_event("Library", f"Bulk platform change for {len(payload.ids)} game(s)")
+    return {"updated": len(payload.ids)}
+
+
+@router.post("/bulk-search")
+async def bulk_search(payload: BulkSearchPayload):
+    from ...services.rss_search import search_wanted_for_ids
+
+    asyncio.create_task(search_wanted_for_ids(payload.ids))
+    return {"queued": len(payload.ids)}
 
 
 @router.get("/{game_id}", response_model=GameOut)
@@ -246,6 +290,21 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     )
     if not clients:
         raise HTTPException(status_code=400, detail="No download clients configured")
+
+    # Prefer clients whose tags overlap the game's tags; fall back to untagged ones
+    game_tag_set = {t.strip().lower() for t in (game.tags or "").split(",") if t.strip()}
+    if game_tag_set:
+        tag_matched = [
+            c
+            for c in clients
+            if any(
+                t.strip().lower() in game_tag_set for t in (c.tags or "").split(",") if t.strip()
+            )
+        ]
+        if not tag_matched:
+            tag_matched = [c for c in clients if not (c.tags or "").strip()]
+        if tag_matched:
+            clients = tag_matched
 
     client_model = clients[0]
     client = get_client(client_model)
