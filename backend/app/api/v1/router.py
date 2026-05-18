@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from . import (
     blocklist,
     calendar,
+    connect,
     download_clients,
     games,
     history,
@@ -32,4 +33,5 @@ router.include_router(calendar.router, prefix="/calendar", tags=["Calendar"])
 router.include_router(system.router, prefix="/system", tags=["System"])
 router.include_router(library.router, prefix="/library", tags=["Library"])
 router.include_router(settings.router, prefix="/settings", tags=["Settings"])
+router.include_router(connect.router, prefix="/connect", tags=["Connect"])
 router.include_router(logs.router, prefix="/logs", tags=["Logs"])

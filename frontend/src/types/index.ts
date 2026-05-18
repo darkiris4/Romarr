@@ -190,3 +190,21 @@ export interface TestResult {
   success: boolean
   message: string
 }
+
+export interface Connection {
+  id: number
+  name: string
+  type: string
+  config: Record<string, string>
+  tags: string
+  on_grab: boolean
+  on_import: boolean
+  on_upgrade: boolean
+  on_rename: boolean
+  on_delete: boolean
+  on_health_issue: boolean
+  on_download_failure: boolean
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}

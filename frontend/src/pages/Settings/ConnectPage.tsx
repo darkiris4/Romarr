@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { Plus, Trash2, X, MessageSquare, Webhook, Mail, Send, Bell, Rss } from 'lucide-react'
-
-interface Connection {
-  id: number
-  name: string
-  type: string
-  onGrab: boolean
-  onImport: boolean
-  onUpgrade: boolean
-  onRename: boolean
-  onDelete: boolean
-  onHealthIssue: boolean
-  onDownloadFailure: boolean
-}
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Plus,
+  Trash2,
+  X,
+  MessageSquare,
+  Webhook,
+  Mail,
+  Send,
+  Bell,
+  Rss,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react'
+import { connectApi } from '../../api/connect'
+import type { Connection } from '../../types'
 
 const CONNECTION_TYPES = [
   {
@@ -54,87 +56,133 @@ const CONNECTION_TYPES = [
 ]
 
 const EVENT_ROWS = [
-  { key: 'onGrab', label: 'On Grab', hint: 'Fires when Romarr grabs a release from an indexer.' },
+  { key: 'on_grab', label: 'On Grab', hint: 'Fires when Romarr grabs a release from an indexer.' },
   {
-    key: 'onImport',
+    key: 'on_import',
     label: 'On Import',
     hint: 'Fires when a download is imported into the library.',
   },
-  { key: 'onUpgrade', label: 'On Upgrade', hint: 'Fires when a better version is imported.' },
-  { key: 'onRename', label: 'On Rename', hint: 'Fires when a ROM file is renamed.' },
-  { key: 'onDelete', label: 'On Delete', hint: 'Fires when a game or ROM file is removed.' },
-  { key: 'onDownloadFailure', label: 'On Download Failure', hint: 'Fires when a download fails.' },
+  { key: 'on_upgrade', label: 'On Upgrade', hint: 'Fires when a better version is imported.' },
+  { key: 'on_rename', label: 'On Rename', hint: 'Fires when a ROM file is renamed.' },
+  { key: 'on_delete', label: 'On Delete', hint: 'Fires when a game or ROM file is removed.' },
   {
-    key: 'onHealthIssue',
+    key: 'on_download_failure',
+    label: 'On Download Failure',
+    hint: 'Fires when a download fails.',
+  },
+  {
+    key: 'on_health_issue',
     label: 'On Health Issue',
     hint: 'Fires when a health check warning or error is detected.',
   },
 ] as const
 
 type EventKey = (typeof EVENT_ROWS)[number]['key']
+type EditConn = Omit<Connection, 'id' | 'created_at' | 'updated_at'> & { id?: number }
 
-let nextId = 1
+function blankConn(type: string): EditConn {
+  return {
+    name: '',
+    type,
+    config: {},
+    tags: '',
+    on_grab: true,
+    on_import: true,
+    on_upgrade: true,
+    on_rename: false,
+    on_delete: false,
+    on_health_issue: true,
+    on_download_failure: true,
+    enabled: true,
+  }
+}
 
 export default function ConnectPage() {
-  const [connections, setConnections] = useState<Connection[]>([])
+  const qc = useQueryClient()
+  const { data: connections = [] } = useQuery({
+    queryKey: ['connections'],
+    queryFn: connectApi.list,
+  })
+
   const [showPicker, setShowPicker] = useState(false)
-  const [editConn, setEditConn] = useState<Connection | null>(null)
-  const [_editType, setEditType] = useState<string | null>(null)
+  const [editConn, setEditConn] = useState<EditConn | null>(null)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [testing, setTesting] = useState(false)
 
-  function openPicker() {
-    setShowPicker(true)
-    setEditConn(null)
-    setEditType(null)
-  }
-  function closePicker() {
+  const createMut = useMutation({
+    mutationFn: connectApi.create,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['connections'] })
+      setEditConn(null)
+    },
+  })
+  const updateMut = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number
+      payload: Omit<Connection, 'id' | 'created_at' | 'updated_at'>
+    }) => connectApi.update(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['connections'] })
+      setEditConn(null)
+    },
+  })
+  const deleteMut = useMutation({
+    mutationFn: connectApi.delete,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['connections'] }),
+  })
+
+  function selectType(type: string) {
     setShowPicker(false)
+    setEditConn(blankConn(type))
+    setTestResult(null)
   }
 
-  function selectType(typeKey: string) {
-    setEditType(typeKey)
-    setShowPicker(false)
-    setEditConn({
-      id: nextId++,
-      name: '',
-      type: typeKey,
-      onGrab: true,
-      onImport: true,
-      onUpgrade: true,
-      onRename: false,
-      onDelete: false,
-      onHealthIssue: true,
-      onDownloadFailure: true,
-    })
-  }
-
-  function editExisting(conn: Connection) {
+  function openEdit(conn: Connection) {
     setEditConn({ ...conn })
-    setEditType(conn.type)
-    setShowPicker(false)
+    setTestResult(null)
+  }
+
+  function closeEdit() {
+    setEditConn(null)
+    setTestResult(null)
+  }
+
+  function setConfig(key: string, value: string) {
+    setEditConn((prev) => (prev ? { ...prev, config: { ...prev.config, [key]: value } } : prev))
+  }
+
+  function toggleEvent(key: EventKey) {
+    setEditConn((prev) => (prev ? { ...prev, [key]: !prev[key as keyof EditConn] } : prev))
   }
 
   function saveConn() {
     if (!editConn) return
-    setConnections((prev) => {
-      const exists = prev.find((c) => c.id === editConn.id)
-      return exists ? prev.map((c) => (c.id === editConn.id ? editConn : c)) : [...prev, editConn]
-    })
-    setEditConn(null)
-    setEditType(null)
-  }
-
-  function deleteConn(id: number) {
-    setConnections((prev) => prev.filter((c) => c.id !== id))
-    if (editConn?.id === id) {
-      setEditConn(null)
-      setEditType(null)
+    const { id, ...payload } = editConn as Connection
+    if (id) {
+      updateMut.mutate({ id, payload })
+    } else {
+      createMut.mutate(payload)
     }
   }
 
-  function toggleEvent(key: EventKey) {
-    if (!editConn) return
-    setEditConn((prev) => (prev ? { ...prev, [key]: !prev[key as keyof Connection] } : prev))
+  async function testConn() {
+    if (!editConn || !editConn.id) return
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const result = await connectApi.test(editConn.id)
+      setTestResult(result)
+    } catch {
+      setTestResult({ success: false, message: 'Request failed' })
+    } finally {
+      setTesting(false)
+    }
   }
+
+  const saving = createMut.isPending || updateMut.isPending
 
   return (
     <div>
@@ -143,9 +191,8 @@ export default function ConnectPage() {
         Configure notifications for grab, import, failure, and health events.
       </div>
 
-      {/* ── Connections list ── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button className="btn btn-primary" onClick={openPicker}>
+        <button className="btn btn-primary" onClick={() => setShowPicker(true)}>
           <Plus size={14} /> Add Connection
         </button>
       </div>
@@ -174,7 +221,7 @@ export default function ConnectPage() {
             </thead>
             <tbody>
               {connections.map((conn) => (
-                <tr key={conn.id} style={{ cursor: 'pointer' }} onClick={() => editExisting(conn)}>
+                <tr key={conn.id} style={{ cursor: 'pointer' }} onClick={() => openEdit(conn)}>
                   <td style={{ color: 'var(--text-white)', fontWeight: 500 }}>
                     {conn.name || <em style={{ color: 'var(--text-muted)' }}>Unnamed</em>}
                   </td>
@@ -182,22 +229,23 @@ export default function ConnectPage() {
                     {conn.type}
                   </td>
                   <td>
-                    <EventDot active={conn.onGrab} />
+                    <EventDot active={conn.on_grab} />
                   </td>
                   <td>
-                    <EventDot active={conn.onImport} />
+                    <EventDot active={conn.on_import} />
                   </td>
                   <td>
-                    <EventDot active={conn.onDownloadFailure} />
+                    <EventDot active={conn.on_download_failure} />
                   </td>
                   <td>
-                    <EventDot active={conn.onHealthIssue} />
+                    <EventDot active={conn.on_health_issue} />
                   </td>
                   <td
                     className="col-action"
                     onClick={(e) => {
                       e.stopPropagation()
-                      deleteConn(conn.id)
+                      deleteMut.mutate(conn.id)
+                      if (editConn && (editConn as Connection).id === conn.id) closeEdit()
                     }}
                   >
                     <button className="btn-icon" title="Remove">
@@ -211,13 +259,13 @@ export default function ConnectPage() {
         </div>
       )}
 
-      {/* ── Type picker modal ── */}
+      {/* Type picker modal */}
       {showPicker && (
-        <div className="modal-backdrop" onClick={closePicker}>
+        <div className="modal-backdrop" onClick={() => setShowPicker(false)}>
           <div className="modal" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Add Connection</span>
-              <button className="modal-close" onClick={closePicker}>
+              <button className="modal-close" onClick={() => setShowPicker(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -242,20 +290,14 @@ export default function ConnectPage() {
         </div>
       )}
 
-      {/* ── Edit connection panel ── */}
+      {/* Edit panel */}
       {editConn && (
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card-header">
             <span className="card-title" style={{ textTransform: 'capitalize' }}>
               {editConn.type} Connection
             </span>
-            <button
-              className="btn-icon"
-              onClick={() => {
-                setEditConn(null)
-                setEditType(null)
-              }}
-            >
+            <button className="btn-icon" onClick={closeEdit}>
               <X size={16} />
             </button>
           </div>
@@ -274,7 +316,24 @@ export default function ConnectPage() {
             />
           </div>
 
-          <ConnTypeFields type={editConn.type} />
+          <ConnTypeFields type={editConn.type} config={editConn.config} setConfig={setConfig} />
+
+          <div className="form-group">
+            <label className="form-label">Tags</label>
+            <input
+              className="form-control"
+              placeholder="e.g. nintendo, sega (comma-separated)"
+              value={editConn.tags}
+              onChange={(e) =>
+                setEditConn((prev) => (prev ? { ...prev, tags: e.target.value } : prev))
+              }
+              style={{ maxWidth: 360 }}
+            />
+            <div className="form-hint">
+              Only fire this connection if the game has a matching tag. Leave empty to fire for all
+              games.
+            </div>
+          </div>
 
           <div style={{ marginTop: 24, marginBottom: 8 }}>
             <div className="settings-section-title" style={{ margin: '0 0 8px' }}>
@@ -301,7 +360,7 @@ export default function ConnectPage() {
                       <label className="toggle">
                         <input
                           type="checkbox"
-                          checked={!!editConn[row.key as keyof Connection]}
+                          checked={!!editConn[row.key as keyof EditConn]}
                           onChange={() => toggleEvent(row.key)}
                         />
                         <span className="toggle-slider" />
@@ -313,18 +372,36 @@ export default function ConnectPage() {
             </table>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setEditConn(null)
-                setEditType(null)
+          {testResult && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 16,
+                padding: '10px 14px',
+                borderRadius: 6,
+                background: testResult.success ? 'rgba(46,204,113,0.1)' : 'rgba(231,76,60,0.1)',
+                color: testResult.success ? 'var(--success)' : 'var(--danger)',
+                fontSize: 13,
               }}
             >
+              {testResult.success ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+              {testResult.message}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button className="btn btn-secondary" onClick={closeEdit}>
               Cancel
             </button>
-            <button className="btn btn-primary" onClick={saveConn}>
-              {connections.find((c) => c.id === editConn.id) ? 'Save Changes' : 'Add Connection'}
+            {(editConn as Connection).id && (
+              <button className="btn btn-secondary" onClick={testConn} disabled={testing}>
+                {testing ? 'Testing…' : 'Test'}
+              </button>
+            )}
+            <button className="btn btn-primary" onClick={saveConn} disabled={saving}>
+              {saving ? 'Saving…' : (editConn as Connection).id ? 'Save Changes' : 'Add Connection'}
             </button>
           </div>
         </div>
@@ -347,27 +424,26 @@ function EventDot({ active }: { active: boolean }) {
   )
 }
 
-function ConnTypeFields({ type }: { type: string }) {
-  const [url, setUrl] = useState('')
-  const [token, setToken] = useState('')
-  const [chatId, setChatId] = useState('')
-  const [email, setEmail] = useState('')
-  const [smtpHost, setSmtpHost] = useState('')
-  const [smtpPort, setSmtpPort] = useState('587')
-  const [smtpUser, setSmtpUser] = useState('')
-  const [smtpPass, setSmtpPass] = useState('')
-  const [topic, setTopic] = useState('')
-  const [ntfyUrl, setNtfyUrl] = useState('')
+interface ConnTypeFieldsProps {
+  type: string
+  config: Record<string, string>
+  setConfig: (key: string, value: string) => void
+}
 
+function ConnTypeFields({ type, config, setConfig }: ConnTypeFieldsProps) {
   if (type === 'discord' || type === 'slack')
     return (
       <div className="form-group">
         <label className="form-label">Webhook URL</label>
         <input
           className="form-control"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://discord.com/api/webhooks/..."
+          value={config.url ?? ''}
+          onChange={(e) => setConfig('url', e.target.value)}
+          placeholder={
+            type === 'discord'
+              ? 'https://discord.com/api/webhooks/...'
+              : 'https://hooks.slack.com/services/...'
+          }
           style={{ maxWidth: 480 }}
         />
         <div className="form-hint">
@@ -384,8 +460,8 @@ function ConnTypeFields({ type }: { type: string }) {
         <label className="form-label">URL</label>
         <input
           className="form-control"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          value={config.url ?? ''}
+          onChange={(e) => setConfig('url', e.target.value)}
           placeholder="https://example.com/hook"
           style={{ maxWidth: 480 }}
         />
@@ -403,8 +479,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <input
             className="form-control"
             type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
+            value={config.token ?? ''}
+            onChange={(e) => setConfig('token', e.target.value)}
             placeholder="123456789:AAF..."
             style={{ maxWidth: 360 }}
           />
@@ -416,8 +492,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <label className="form-label">Chat ID</label>
           <input
             className="form-control"
-            value={chatId}
-            onChange={(e) => setChatId(e.target.value)}
+            value={config.chat_id ?? ''}
+            onChange={(e) => setConfig('chat_id', e.target.value)}
             placeholder="-1001234567890"
             style={{ maxWidth: 240 }}
           />
@@ -435,8 +511,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <label className="form-label">Server URL</label>
           <input
             className="form-control"
-            value={ntfyUrl}
-            onChange={(e) => setNtfyUrl(e.target.value)}
+            value={config.url ?? ''}
+            onChange={(e) => setConfig('url', e.target.value)}
             placeholder="https://ntfy.sh"
             style={{ maxWidth: 360 }}
           />
@@ -445,8 +521,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <label className="form-label">Topic</label>
           <input
             className="form-control"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
+            value={config.topic ?? ''}
+            onChange={(e) => setConfig('topic', e.target.value)}
             placeholder="romarr-alerts"
             style={{ maxWidth: 240 }}
           />
@@ -465,8 +541,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <input
             className="form-control"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={config.from_to ?? ''}
+            onChange={(e) => setConfig('from_to', e.target.value)}
             placeholder="alerts@example.com"
             style={{ maxWidth: 360 }}
           />
@@ -476,16 +552,16 @@ function ConnTypeFields({ type }: { type: string }) {
           <div style={{ display: 'flex', gap: 8, maxWidth: 400 }}>
             <input
               className="form-control"
-              value={smtpHost}
-              onChange={(e) => setSmtpHost(e.target.value)}
+              value={config.smtp_host ?? ''}
+              onChange={(e) => setConfig('smtp_host', e.target.value)}
               placeholder="smtp.example.com"
               style={{ flex: 1 }}
             />
             <input
               className="form-control"
               type="number"
-              value={smtpPort}
-              onChange={(e) => setSmtpPort(e.target.value)}
+              value={config.smtp_port ?? '587'}
+              onChange={(e) => setConfig('smtp_port', e.target.value)}
               style={{ width: 90 }}
             />
           </div>
@@ -494,8 +570,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <label className="form-label">Username</label>
           <input
             className="form-control"
-            value={smtpUser}
-            onChange={(e) => setSmtpUser(e.target.value)}
+            value={config.smtp_user ?? ''}
+            onChange={(e) => setConfig('smtp_user', e.target.value)}
             style={{ maxWidth: 280 }}
           />
         </div>
@@ -504,8 +580,8 @@ function ConnTypeFields({ type }: { type: string }) {
           <input
             className="form-control"
             type="password"
-            value={smtpPass}
-            onChange={(e) => setSmtpPass(e.target.value)}
+            value={config.smtp_pass ?? ''}
+            onChange={(e) => setConfig('smtp_pass', e.target.value)}
             style={{ maxWidth: 280 }}
           />
         </div>

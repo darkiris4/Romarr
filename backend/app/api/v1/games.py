@@ -19,6 +19,7 @@ from ...schemas.game import GameCreate, GameOut, GameUpdate
 from ...services.download_service import get_client
 from ...services.event_service import log_event
 from ...services.indexer_service import search_indexer
+from ...services.notification_service import notify_event
 from ...services.search_utils import (
     normalize_title,
     other_platform_re,
@@ -290,5 +291,12 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         "Grab",
         f'Grabbed "{payload.title}" for "{game.title}" via {client_model.name} '
         f"({payload.protocol}, download_id={download_id})",
+    )
+    notify_event(
+        "on_grab",
+        game_title=game.title,
+        game_tags=game.tags or "",
+        body=f'Grabbed "{payload.title}" via {client_model.name}',
+        db=db,
     )
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}
