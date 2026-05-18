@@ -31,6 +31,7 @@ export default memo(function GamesPosters({
         return (
           <div
             key={game.id}
+            id={`game-row-${game.id}`}
             className={`poster-card${isSelected ? ' selected' : ''}`}
             onClick={() => (selecting ? onToggleSelect?.(game.id) : navigate(`/games/${game.id}`))}
             style={{ cursor: 'pointer' }}
