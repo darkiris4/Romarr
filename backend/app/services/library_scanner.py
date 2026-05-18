@@ -463,16 +463,18 @@ def scan_folder(
     # Title+platform batch for ROMs not matched by CRC — one query instead of one per ROM.
     from sqlalchemy import tuple_ as sa_tuple
 
-    unmatched_pairs = list({
-        (r.title, r.platform_id)
-        for r in partial_roms
-        if r.crc32 not in existing_by_crc and r.title and r.platform_id
-    })
+    unmatched_pairs = list(
+        {
+            (r.title, r.platform_id)
+            for r in partial_roms
+            if r.crc32 not in existing_by_crc and r.title and r.platform_id
+        }
+    )
     existing_by_title_platform: dict[tuple[str, int], Game] = {}
     if unmatched_pairs:
-        for g in db.query(Game).filter(
-            sa_tuple(Game.title, Game.platform_id).in_(unmatched_pairs)
-        ).all():
+        for g in (
+            db.query(Game).filter(sa_tuple(Game.title, Game.platform_id).in_(unmatched_pairs)).all()
+        ):
             existing_by_title_platform[(g.title, g.platform_id)] = g
 
     # ── Phase 4: mark existing and finalise ───────────────────────────────────
@@ -515,7 +517,9 @@ def _copy_batch_to_curated(roms: list[ScannedROM], curated_root: Path) -> int:
             if src.suffix.lower() == ".zip":
                 with zipfile.ZipFile(src, "r") as zf:
                     for rom in src_roms:
-                        platform_dir = curated_root / _sanitize_dirname(rom.platform_name or "Unknown")
+                        platform_dir = curated_root / _sanitize_dirname(
+                            rom.platform_name or "Unknown"
+                        )
                         platform_dir.mkdir(parents=True, exist_ok=True)
                         dest = platform_dir / Path(rom.filename).name
                         if not dest.exists():

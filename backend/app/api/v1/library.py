@@ -36,7 +36,7 @@ _export_state: dict[str, Any] = {
     "running": False,
     "done": False,
     "error": None,
-    "stage": "idle",   # idle | fetching | building | done
+    "stage": "idle",  # idle | fetching | building | done
     "fetched": 0,
     "total": 0,
 }
@@ -343,14 +343,16 @@ async def start_retroarch_export(
             label = stem
             crc_raw, cover_url = stem_to_info.get(stem, (None, None))
             crc32 = f"{crc_raw}|crc" if crc_raw else "DETECT"
-            items.append({
-                "path": rom_path_str,
-                "label": label,
-                "core_path": "DETECT",
-                "core_name": "DETECT",
-                "crc32": crc32,
-                "db_name": f"{platform_name}.lpl",
-            })
+            items.append(
+                {
+                    "path": rom_path_str,
+                    "label": label,
+                    "core_path": "DETECT",
+                    "core_name": "DETECT",
+                    "crc32": crc32,
+                    "db_name": f"{platform_name}.lpl",
+                }
+            )
             if cover_url:
                 sanitized = _RETROARCH_UNSAFE.sub("_", label)
                 ext = Path(cover_url).suffix or ".jpg"
@@ -361,14 +363,16 @@ async def start_retroarch_export(
     if not platform_items:
         raise HTTPException(status_code=404, detail="No platforms found in curated library")
 
-    _export_state.update({
-        "running": True,
-        "done": False,
-        "error": None,
-        "stage": "fetching",
-        "fetched": 0,
-        "total": len(cover_tasks),
-    })
+    _export_state.update(
+        {
+            "running": True,
+            "done": False,
+            "error": None,
+            "stage": "fetching",
+            "fetched": 0,
+            "total": len(cover_tasks),
+        }
+    )
 
     asyncio.create_task(_run_export(platform_items, cover_tasks))
     return dict(_export_state)
