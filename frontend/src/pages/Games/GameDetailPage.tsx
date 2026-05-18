@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft,
@@ -19,6 +19,7 @@ import { gamesApi } from '../../api/games'
 import { platformsApi } from '../../api/platforms'
 import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
+import LoadingScreen from '../../components/LoadingScreen'
 import ManualSearchModal from './ManualSearchModal'
 import type { Game, ReleaseProfile } from '../../types'
 
@@ -57,10 +58,18 @@ function formatDate(iso: string): string {
 export default function GameDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const qc = useQueryClient()
   const [showDelete, setShowDelete] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+
+  useEffect(() => {
+    if (location.state?.openSearch) setShowSearch(true)
+    if (location.state?.openEdit) setShowEdit(true)
+    if (location.state?.openSearch || location.state?.openEdit) window.history.replaceState({}, '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: game, isLoading } = useQuery<Game>({
     queryKey: ['game', Number(id)],
@@ -94,12 +103,7 @@ export default function GameDetailPage() {
     },
   })
 
-  if (isLoading)
-    return (
-      <div className="loading-page">
-        <div className="spinner" /> Loading…
-      </div>
-    )
+  if (isLoading) return <LoadingScreen />
   if (!game)
     return (
       <div className="empty-state">

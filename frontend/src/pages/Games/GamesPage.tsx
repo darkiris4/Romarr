@@ -391,6 +391,29 @@ export default function GamesPage() {
     else setSelected(new Set(games.map((g) => g.id)))
   }
 
+  function handleSort(col: 'title' | 'platform' | 'year') {
+    const colKeys: Record<string, string[]> = {
+      title: ['name_asc', 'name_desc'],
+      platform: ['platform'],
+      year: ['year_asc', 'year_desc'],
+    }
+    const toggle: Record<string, string> = {
+      name_asc: 'name_desc',
+      name_desc: 'name_asc',
+      year_desc: 'year_asc',
+      year_asc: 'year_desc',
+    }
+    const defaults: Record<string, string> = {
+      title: 'name_asc',
+      platform: 'platform',
+      year: 'year_desc',
+    }
+    const newSort = colKeys[col].includes(sortBy)
+      ? (toggle[sortBy] ?? defaults[col])
+      : defaults[col]
+    updateParams({ sort: newSort === 'name_asc' ? null : newSort })
+  }
+
   function updateParams(updates: Record<string, string | null>) {
     setSearchParams(
       (prev) => {
@@ -718,7 +741,7 @@ export default function GamesPage() {
           </small>
         </div>
       ) : view === 'table' ? (
-        <GamesTable {...viewProps} />
+        <GamesTable {...viewProps} sortBy={sortBy} onSort={handleSort} />
       ) : view === 'posters' ? (
         <GamesPosters {...viewProps} />
       ) : (

@@ -1,9 +1,11 @@
 import { memo } from 'react'
 import { Link } from 'react-router-dom'
-import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
+import { RotateCcw, Trash2, Gamepad2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import StatusBadge from '../../components/StatusBadge'
 import type { Game } from '../../types'
+
+type SortableCol = 'title' | 'platform' | 'year'
 
 interface Props {
   games: Game[]
@@ -12,6 +14,16 @@ interface Props {
   selecting?: boolean
   selected?: Set<number>
   onToggleSelect?: (id: number) => void
+  sortBy?: string
+  onSort?: (col: SortableCol) => void
+}
+
+function SortIcon({ col, sortBy }: { col: SortableCol; sortBy?: string }) {
+  const asc = col === 'title' ? 'name_asc' : col === 'platform' ? 'platform' : 'year_asc'
+  const desc = col === 'title' ? 'name_desc' : col === 'platform' ? 'platform' : 'year_desc'
+  if (sortBy === asc) return <ArrowUp size={12} style={{ marginLeft: 4 }} />
+  if (sortBy === desc) return <ArrowDown size={12} style={{ marginLeft: 4 }} />
+  return <ArrowUpDown size={12} style={{ marginLeft: 4, opacity: 0.35 }} />
 }
 
 export default memo(function GamesTable({
@@ -21,6 +33,8 @@ export default memo(function GamesTable({
   selecting,
   selected,
   onToggleSelect,
+  sortBy,
+  onSort,
 }: Props) {
   return (
     <div className="card" style={{ padding: 0 }}>
@@ -30,10 +44,28 @@ export default memo(function GamesTable({
             <tr>
               {selecting && <th className="col-check" />}
               <th className="col-cover" />
-              <th>Title</th>
-              <th>Platform</th>
+              <th
+                className={onSort ? 'sortable' : ''}
+                onClick={onSort ? () => onSort('title') : undefined}
+              >
+                Title
+                {onSort && <SortIcon col="title" sortBy={sortBy} />}
+              </th>
+              <th
+                className={onSort ? 'sortable' : ''}
+                onClick={onSort ? () => onSort('platform') : undefined}
+              >
+                Platform
+                {onSort && <SortIcon col="platform" sortBy={sortBy} />}
+              </th>
               <th>Region</th>
-              <th>Year</th>
+              <th
+                className={onSort ? 'sortable' : ''}
+                onClick={onSort ? () => onSort('year') : undefined}
+              >
+                Year
+                {onSort && <SortIcon col="year" sortBy={sortBy} />}
+              </th>
               <th className="col-status">Status</th>
               {!selecting && <th className="col-actions" />}
             </tr>

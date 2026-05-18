@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { List, RefreshCw, Info, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { historyApi } from '../../api/history'
+import LoadingScreen from '../../components/LoadingScreen'
 import type { HistoryEventType, HistoryItem } from '../../types'
 
 const EVENT_META: Record<string, { label: string; color: string }> = {
@@ -67,9 +68,7 @@ export default function HistoryPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-page">
-          <div className="spinner" /> Loading…
-        </div>
+        <LoadingScreen />
       ) : items.length === 0 ? (
         <div className="empty-state">
           <List size={48} />
