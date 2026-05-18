@@ -260,7 +260,8 @@ function ReleaseProfileEditor({ profileId, initial, onClose, onSaved }: ReleaseE
   }
 
   function save() {
-    profileId ? updateMut.mutate() : createMut.mutate()
+    if (profileId) updateMut.mutate()
+    else createMut.mutate()
   }
 
   const availableRegions = KNOWN_REGIONS.filter((r) => !regionPriority.includes(r))
