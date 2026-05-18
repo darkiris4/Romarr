@@ -15,7 +15,6 @@ from starlette.responses import StreamingResponse
 from ...config import settings
 from ...database import get_db
 from ...models.game import Game
-from ...models.platform import Platform
 from ...services.config_service import get_config, set_config
 from ...services.dat_manager import dat_status as _dat_status
 from ...services.dat_manager import scan_dat_dir

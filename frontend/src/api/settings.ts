@@ -62,8 +62,7 @@ export const settingsApi = {
   saveProfile: (profile: Profile): Promise<Profile> =>
     client.put('/settings/profile', profile).then((r) => r.data),
 
-  getGeneral: (): Promise<GeneralSettings> =>
-    client.get('/settings/general').then((r) => r.data),
+  getGeneral: (): Promise<GeneralSettings> => client.get('/settings/general').then((r) => r.data),
 
   saveGeneral: (payload: GeneralSettings): Promise<GeneralSettings> =>
     client.put('/settings/general', payload).then((r) => r.data),

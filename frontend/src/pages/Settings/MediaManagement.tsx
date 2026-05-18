@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, CheckCircle, AlertCircle, Plus, X, Upload, FolderInput, ListMusic } from 'lucide-react'
+import {
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  X,
+  Upload,
+  FolderInput,
+  ListMusic,
+} from 'lucide-react'
 import { libraryApi } from '../../api/library'
 import { settingsApi } from '../../api/settings'
 
@@ -341,7 +350,15 @@ export default function MediaManagement() {
                 {saveGeneralMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               {curatedSaved && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success)' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    color: 'var(--success)',
+                  }}
+                >
                   <CheckCircle size={13} /> Saved
                 </span>
               )}
@@ -361,12 +378,20 @@ export default function MediaManagement() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 Downloads a single ZIP containing <code>playlists/</code> and{' '}
-                <code>thumbnails/</code> — extract it at the RetroArch root and everything is
-                ready with no scanning or downloading required inside RetroArch. Filenames are
-                sanitized to match RetroArch's thumbnail lookup rules. If RetroArch runs on a
-                different machine, enter the path to your curated library as that machine sees it.
+                <code>thumbnails/</code> — extract it at the RetroArch root and everything is ready
+                with no scanning or downloading required inside RetroArch. Filenames are sanitized
+                to match RetroArch's thumbnail lookup rules. If RetroArch runs on a different
+                machine, enter the path to your curated library as that machine sees it.
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: exportRunning ? 12 : 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  marginBottom: exportRunning ? 12 : 0,
+                }}
+              >
                 <input
                   className="form-control"
                   value={retroarchPrefix}
@@ -404,7 +429,8 @@ export default function MediaManagement() {
                     </span>
                     {exportStatus?.stage === 'fetching' && (exportStatus?.total ?? 0) > 0 && (
                       <span>
-                        {exportStatus.fetched.toLocaleString()} / {exportStatus.total.toLocaleString()}
+                        {exportStatus.fetched.toLocaleString()} /{' '}
+                        {exportStatus.total.toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -429,7 +455,10 @@ export default function MediaManagement() {
                             background: 'var(--accent)',
                             borderRadius: 3,
                             transition: pct !== null ? 'width .4s ease' : undefined,
-                            animation: pct !== null ? undefined : 'progress-indeterminate 1.4s ease infinite',
+                            animation:
+                              pct !== null
+                                ? undefined
+                                : 'progress-indeterminate 1.4s ease infinite',
                           }}
                         />
                       )
@@ -444,7 +473,16 @@ export default function MediaManagement() {
               )}
 
               {exportStatus?.error && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--danger)', marginTop: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                    color: 'var(--danger)',
+                    marginTop: 8,
+                  }}
+                >
                   <AlertCircle size={13} /> {exportStatus.error}
                 </div>
               )}

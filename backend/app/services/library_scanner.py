@@ -495,7 +495,7 @@ def _sanitize_dirname(name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', "", name).strip() or "Unknown"
 
 
-def _copy_batch_to_curated(roms: list["ScannedROM"], curated_root: Path) -> int:
+def _copy_batch_to_curated(roms: list[ScannedROM], curated_root: Path) -> int:
     """
     Copy a batch of ROMs into the curated library.
 
