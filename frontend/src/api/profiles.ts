@@ -5,8 +5,10 @@ export const releaseProfilesApi = {
   list: () => client.get<ReleaseProfile[]>('/profiles/release').then((r) => r.data),
   create: (payload: Omit<ReleaseProfile, 'id' | 'is_default' | 'created_at' | 'updated_at'>) =>
     client.post<ReleaseProfile>('/profiles/release', payload).then((r) => r.data),
-  update: (id: number, payload: Partial<Omit<ReleaseProfile, 'id' | 'created_at' | 'updated_at'>>) =>
-    client.put<ReleaseProfile>(`/profiles/release/${id}`, payload).then((r) => r.data),
+  update: (
+    id: number,
+    payload: Partial<Omit<ReleaseProfile, 'id' | 'created_at' | 'updated_at'>>
+  ) => client.put<ReleaseProfile>(`/profiles/release/${id}`, payload).then((r) => r.data),
   delete: (id: number) => client.delete(`/profiles/release/${id}`),
 }
 

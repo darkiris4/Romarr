@@ -6,7 +6,24 @@ import type { DelayProfile, ReleaseProfile } from '../../types'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-const KNOWN_REGIONS = ['USA', 'World', 'Europe', 'Japan', 'Germany', 'France', 'Spain', 'Italy', 'Australia', 'Brazil', 'Korea', 'China', 'Netherlands', 'Sweden', 'Norway', 'Denmark']
+const KNOWN_REGIONS = [
+  'USA',
+  'World',
+  'Europe',
+  'Japan',
+  'Germany',
+  'France',
+  'Spain',
+  'Italy',
+  'Australia',
+  'Brazil',
+  'Korea',
+  'China',
+  'Netherlands',
+  'Sweden',
+  'Norway',
+  'Denmark',
+]
 
 function blankRelease(): Omit<ReleaseProfile, 'id' | 'is_default' | 'created_at' | 'updated_at'> {
   return {
@@ -691,7 +708,11 @@ function DelayProfileEditor({ profileId, initial, onClose, onSaved }: DelayEdito
         <button className="btn btn-secondary" onClick={onClose}>
           Cancel
         </button>
-        <button className="btn btn-primary" onClick={() => profileId ? updateMut.mutate() : createMut.mutate()} disabled={!name.trim() || isPending}>
+        <button
+          className="btn btn-primary"
+          onClick={() => (profileId ? updateMut.mutate() : createMut.mutate())}
+          disabled={!name.trim() || isPending}
+        >
           {isPending ? 'Saving…' : profileId ? 'Save Changes' : 'Add Profile'}
         </button>
       </div>

@@ -13,13 +13,19 @@ interface PlatformFormProps {
   isPending: boolean
 }
 
-function PlatformForm({ initial, releaseProfiles, onSubmit, onCancel, isPending }: PlatformFormProps) {
+function PlatformForm({
+  initial,
+  releaseProfiles,
+  onSubmit,
+  onCancel,
+  isPending,
+}: PlatformFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [noIntroName, setNoIntroName] = useState(initial?.no_intro_name ?? '')
   const [folderName, setFolderName] = useState(initial?.folder_name ?? '')
   const [extensions, setExtensions] = useState(initial?.extensions ?? '')
   const [releaseProfileId, setReleaseProfileId] = useState<number | null>(
-    initial?.release_profile_id ?? null,
+    initial?.release_profile_id ?? null
   )
   const enabled = initial?.enabled ?? true
 
@@ -233,7 +239,11 @@ export default function PlatformsPage() {
                         <button className="btn-icon" onClick={() => setEditTarget(p)} title="Edit">
                           <Pencil size={14} />
                         </button>
-                        <button className="btn-icon" onClick={() => deleteMutation.mutate(p.id)} title="Delete">
+                        <button
+                          className="btn-icon"
+                          onClick={() => deleteMutation.mutate(p.id)}
+                          title="Delete"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>

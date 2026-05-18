@@ -2408,19 +2408,21 @@ tr.selecting.selected td {
   width: 0;
   height: 0;
   box-shadow:
-      0px -20px 0 3px rgba(123, 104, 238, 1.00),   /* N  — head  */
-     14px -14px 0 3px rgba(123, 104, 238, 0.75),   /* NE         */
-     20px   0px 0 3px rgba(123, 104, 238, 0.50),   /* E          */
-     14px  14px 0 3px rgba(123, 104, 238, 0.28),   /* SE         */
-      0px  20px 0 3px rgba(123, 104, 238, 0.14),   /* S          */
-    -14px  14px 0 3px rgba(123, 104, 238, 0.07),   /* SW         */
-    -20px   0px 0 3px rgba(123, 104, 238, 0.03),   /* W          */
-    -14px -14px 0 3px rgba(123, 104, 238, 0.01);   /* NW — tail  */
+    0px -20px 0 3px rgba(123, 104, 238, 1),
+    /* N  — head  */ 14px -14px 0 3px rgba(123, 104, 238, 0.75),
+    /* NE         */ 20px 0px 0 3px rgba(123, 104, 238, 0.5),
+    /* E          */ 14px 14px 0 3px rgba(123, 104, 238, 0.28),
+    /* SE         */ 0px 20px 0 3px rgba(123, 104, 238, 0.14),
+    /* S          */ -14px 14px 0 3px rgba(123, 104, 238, 0.07),
+    /* SW         */ -20px 0px 0 3px rgba(123, 104, 238, 0.03),
+    /* W          */ -14px -14px 0 3px rgba(123, 104, 238, 0.01); /* NW — tail  */
   animation: pixel-spin 1s steps(8) infinite;
 }
 
 @keyframes pixel-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes spin {

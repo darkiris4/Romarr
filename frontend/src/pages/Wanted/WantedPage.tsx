@@ -172,9 +172,7 @@ function RevisionUnmetTab() {
       <div className="empty-state">
         <ArrowUpCircle size={48} />
         <p>All revisions are current</p>
-        <small>
-          No imported ROMs have a newer revision available in the loaded No-Intro DATs.
-        </small>
+        <small>No imported ROMs have a newer revision available in the loaded No-Intro DATs.</small>
       </div>
     )
   }

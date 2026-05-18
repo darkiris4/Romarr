@@ -428,7 +428,7 @@ function EditGameModal({
   const [monitored, setMonitored] = useState(game.monitored)
   const [tags, setTags] = useState(game.tags ?? '')
   const [releaseProfileId, setReleaseProfileId] = useState<number | null>(
-    game.release_profile_id ?? null,
+    game.release_profile_id ?? null
   )
   const [confirmSave, setConfirmSave] = useState(false)
 
@@ -515,7 +515,9 @@ function EditGameModal({
                   </option>
                 ))}
               </select>
-              <div className="form-hint">Override the platform's default profile for this game.</div>
+              <div className="form-hint">
+                Override the platform's default profile for this game.
+              </div>
             </div>
           )}
           <div className="form-group">
