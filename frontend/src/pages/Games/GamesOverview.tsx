@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -19,7 +20,7 @@ function romFilename(path: string | null | undefined) {
   return path.split('/').pop() ?? path
 }
 
-export default function GamesOverview({
+export default memo(function GamesOverview({
   games,
   platformMap,
   onDelete,
@@ -121,4 +122,4 @@ export default function GamesOverview({
       })}
     </div>
   )
-}
+})

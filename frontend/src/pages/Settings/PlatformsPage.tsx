@@ -1,26 +1,44 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, X, MonitorPlay } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MonitorPlay, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { platformsApi } from '../../api/platforms'
-import type { Platform } from '../../types'
+import { releaseProfilesApi } from '../../api/profiles'
+import type { Platform, ReleaseProfile } from '../../types'
 
 interface PlatformFormProps {
   initial?: Partial<Platform>
+  releaseProfiles: ReleaseProfile[]
   onSubmit: (data: Omit<Platform, 'id' | 'created_at' | 'updated_at'>) => void
   onCancel: () => void
   isPending: boolean
 }
 
-function PlatformForm({ initial, onSubmit, onCancel, isPending }: PlatformFormProps) {
+function PlatformForm({
+  initial,
+  releaseProfiles,
+  onSubmit,
+  onCancel,
+  isPending,
+}: PlatformFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [noIntroName, setNoIntroName] = useState(initial?.no_intro_name ?? '')
   const [folderName, setFolderName] = useState(initial?.folder_name ?? '')
   const [extensions, setExtensions] = useState(initial?.extensions ?? '')
+  const [releaseProfileId, setReleaseProfileId] = useState<number | null>(
+    initial?.release_profile_id ?? null
+  )
   const enabled = initial?.enabled ?? true
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSubmit({ name, no_intro_name: noIntroName, folder_name: folderName, extensions, enabled })
+    onSubmit({
+      name,
+      no_intro_name: noIntroName,
+      folder_name: folderName,
+      extensions,
+      enabled,
+      release_profile_id: releaseProfileId,
+    })
   }
 
   return (
@@ -75,6 +93,29 @@ function PlatformForm({ initial, onSubmit, onCancel, isPending }: PlatformFormPr
               />
               <div className="form-hint">Comma-separated, no dots.</div>
             </div>
+            {releaseProfiles.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Default Release Profile</label>
+                <select
+                  className="form-control"
+                  value={releaseProfileId ?? ''}
+                  onChange={(e) =>
+                    setReleaseProfileId(e.target.value ? Number(e.target.value) : null)
+                  }
+                  style={{ maxWidth: 280 }}
+                >
+                  <option value="">Use global default</option>
+                  {releaseProfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="form-hint">
+                  Applied to all games on this platform unless overridden per-game.
+                </div>
+              </div>
+            )}
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onCancel}>
@@ -102,6 +143,10 @@ export default function PlatformsPage() {
   const { data: builtins = [] } = useQuery({
     queryKey: ['platforms-builtin'],
     queryFn: platformsApi.builtin,
+  })
+  const { data: releaseProfiles = [] } = useQuery({
+    queryKey: ['release-profiles'],
+    queryFn: releaseProfilesApi.list,
   })
 
   const createMutation = useMutation({
@@ -190,8 +235,15 @@ export default function PlatformsPage() {
                       </label>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="btn-icon" onClick={() => deleteMutation.mutate(p.id)}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <button className="btn-icon" onClick={() => setEditTarget(p)} title="Edit">
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={() => deleteMutation.mutate(p.id)}
+                          title="Delete"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -240,6 +292,7 @@ export default function PlatformsPage() {
       {(showForm || editTarget) && (
         <PlatformForm
           initial={editTarget ?? undefined}
+          releaseProfiles={releaseProfiles}
           isPending={createMutation.isPending || updateMutation.isPending}
           onCancel={() => {
             setShowForm(false)

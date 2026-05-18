@@ -62,4 +62,7 @@ export const gamesApi = {
     client.patch('/games/bulk-platform', { ids, platform_id }),
 
   bulkSearch: (ids: number[]) => client.post('/games/bulk-search', { ids }),
+
+  bulkProfile: (ids: number[], release_profile_id: number | null) =>
+    client.patch('/games/bulk-profile', { ids, release_profile_id }),
 }

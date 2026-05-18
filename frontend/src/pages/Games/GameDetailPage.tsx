@@ -17,9 +17,10 @@ import {
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { platformsApi } from '../../api/platforms'
+import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
 import ManualSearchModal from './ManualSearchModal'
-import type { Game } from '../../types'
+import type { Game, ReleaseProfile } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
   imported: 'var(--success)',
@@ -70,6 +71,11 @@ export default function GameDetailPage() {
   const { data: platforms = [] } = useQuery({
     queryKey: ['platforms'],
     queryFn: platformsApi.list,
+  })
+
+  const { data: releaseProfiles = [] } = useQuery({
+    queryKey: ['release-profiles'],
+    queryFn: releaseProfilesApi.list,
   })
 
   const toggleMonitored = useMutation({
@@ -338,6 +344,7 @@ export default function GameDetailPage() {
         <EditGameModal
           game={game}
           platforms={platforms}
+          releaseProfiles={releaseProfiles}
           onClose={() => setShowEdit(false)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ['game', Number(id)] })
@@ -405,11 +412,13 @@ function HeroItem({ label, value }: { label: string; value: string }) {
 function EditGameModal({
   game,
   platforms,
+  releaseProfiles,
   onClose,
   onSaved,
 }: {
   game: Game
   platforms: import('../../types').Platform[]
+  releaseProfiles: ReleaseProfile[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -418,6 +427,9 @@ function EditGameModal({
   const [region, setRegion] = useState(game.region)
   const [monitored, setMonitored] = useState(game.monitored)
   const [tags, setTags] = useState(game.tags ?? '')
+  const [releaseProfileId, setReleaseProfileId] = useState<number | null>(
+    game.release_profile_id ?? null
+  )
   const [confirmSave, setConfirmSave] = useState(false)
 
   const saveMut = useMutation({
@@ -428,6 +440,7 @@ function EditGameModal({
         region,
         monitored,
         tags: tags || null,
+        release_profile_id: releaseProfileId,
       }),
     onSuccess: onSaved,
   })
@@ -484,6 +497,29 @@ function EditGameModal({
             />
             <div className="form-hint">Comma-separated.</div>
           </div>
+          {releaseProfiles.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Release Profile</label>
+              <select
+                className="form-control"
+                value={releaseProfileId ?? ''}
+                onChange={(e) =>
+                  setReleaseProfileId(e.target.value ? Number(e.target.value) : null)
+                }
+                style={{ maxWidth: 280 }}
+              >
+                <option value="">Platform / global default</option>
+                {releaseProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="form-hint">
+                Override the platform's default profile for this game.
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
               <label className="toggle">

@@ -13,7 +13,7 @@ class PlatformBase(BaseModel):
 
 
 class PlatformCreate(PlatformBase):
-    pass
+    release_profile_id: int | None = None
 
 
 class PlatformUpdate(BaseModel):
@@ -23,10 +23,12 @@ class PlatformUpdate(BaseModel):
     extensions: str | None = None
     enabled: bool | None = None
     igdb_platform_id: int | None = None
+    release_profile_id: int | None = None
 
 
 class PlatformOut(PlatformBase):
     id: int
+    release_profile_id: int | None = None
     created_at: datetime
     updated_at: datetime
 

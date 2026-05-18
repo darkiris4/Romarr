@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -13,7 +14,7 @@ interface Props {
   onToggleSelect?: (id: number) => void
 }
 
-export default function GamesPosters({
+export default memo(function GamesPosters({
   games,
   platformMap,
   onDelete,
@@ -85,4 +86,4 @@ export default function GamesPosters({
       })}
     </div>
   )
-}
+})

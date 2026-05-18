@@ -232,6 +232,7 @@ class DatROM:
     sha1: str
     md5: str
     platform_id: int
+    full_title: str = ""
 
 
 def load_dat_for_platform(platform_id: int, dat_path: Path) -> int:
@@ -244,6 +245,7 @@ def load_dat_for_platform(platform_id: int, dat_path: Path) -> int:
             region = _extract_region(entry.name)
             index[entry.crc32] = DatROM(
                 title=_strip_region_tags(entry.name),
+                full_title=entry.name,
                 region=region,
                 crc32=entry.crc32,
                 sha1=entry.sha1,

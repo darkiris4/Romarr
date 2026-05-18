@@ -39,6 +39,10 @@ class Game(Base):
     tags: Mapped[str | None] = mapped_column(String, nullable=True)
     igdb_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    release_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("release_profiles.id"), nullable=True
+    )
+    delay_grab_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

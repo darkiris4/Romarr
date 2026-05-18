@@ -1,5 +1,43 @@
 export type GameStatus = 'wanted' | 'grabbed' | 'downloading' | 'imported' | 'failed'
 
+export interface ReleaseProfile {
+  id: number
+  name: string
+  is_default: boolean
+  region_priority: string[]
+  prefer_no_intro: boolean
+  accept_hacks: boolean
+  accept_unlicensed: boolean
+  preferred_formats: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface DelayProfile {
+  id: number
+  name: string
+  is_default: boolean
+  preferred_protocol: 'usenet' | 'torrent' | 'any'
+  usenet_delay: number
+  torrent_delay: number
+  bypass_if_only_one: boolean
+  tags: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RevisionUnmetEntry {
+  id: number
+  title: string
+  platform: string | null
+  platform_id: number
+  region: string
+  cover_url: string | null
+  current_revision: string
+  latest_revision: string
+  added_at: string
+}
+
 export interface Platform {
   id: number
   name: string
@@ -8,6 +46,7 @@ export interface Platform {
   extensions: string
   enabled: boolean
   igdb_platform_id?: number | null
+  release_profile_id?: number | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +75,7 @@ export interface Game {
   similar_games?: string
   tags?: string | null
   last_searched_at?: string | null
+  release_profile_id?: number | null
   added_at: string
   updated_at: string
 }

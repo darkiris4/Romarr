@@ -18,9 +18,9 @@ Generated from a deep-dive comparison of Radarr v5 against Romarr. The goal is m
 
 ---
 
-## Stage 1 — Close the honesty gaps
+## Stage 1 — Close the honesty gaps ✅ Complete
 
-> Target branch: `feat/arr-parity-stage-1`
+> Branch: `feat/arr-parity-stage-1` — merged, tested
 >
 > Fix what the UI implies works but doesn't, and close critical UX gaps affecting daily use.
 
@@ -70,6 +70,8 @@ No visibility into when a game was last searched or why it's still missing.
 
 ## Stage 2 — Release & Delay Profiles
 
+> Target branch: `feat/arr-parity-stage-2`
+>
 > The biggest conceptual gap. Without profiles, Romarr grabs indiscriminately.
 
 **Profile scoping: per-platform default + per-game override** (mirrors Radarr exactly)

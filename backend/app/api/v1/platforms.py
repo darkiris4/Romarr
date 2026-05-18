@@ -231,7 +231,7 @@ def update_platform(platform_id: int, payload: PlatformUpdate, db: Session = Dep
     platform = db.query(Platform).filter_by(id=platform_id).first()
     if not platform:
         raise HTTPException(status_code=404, detail="Platform not found")
-    for key, value in payload.model_dump(exclude_none=True).items():
+    for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(platform, key, value)
     db.commit()
     db.refresh(platform)
