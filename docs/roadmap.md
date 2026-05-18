@@ -108,9 +108,9 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 
 ---
 
-## Stage 3 — Library UX parity 🔄 In Progress
+## Stage 3 — Library UX parity ✅ Complete
 
-> Branch: `feat/arr-parity-stage-3`
+> Branch: `feat/arr-parity-stage-3` — merged, tested
 >
 > Polish and power-user features that make the library feel as capable as Radarr's.
 
@@ -120,11 +120,11 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 | **Poster hover actions** | Quick-access search, edit, delete on poster grid items | ✅ Done |
 | **Revision Unmet retry** | Navigate to game + auto-open manual search; tab description subtitle | ✅ Done |
 | **Witty loading screen** | LoadingScreen on History, Queue, Wanted, GameDetail pages | ✅ Done |
-| **Custom filter presets** | Save current filter state with a name; selectable from filter menu | — |
-| **Jump bar** | Alphabetical quick-nav rail when sorted by title | — |
-| **Keyboard shortcuts** | J/K navigate rows, E edit, S search, M toggle monitored | — |
-| **Column chooser** | Show/hide and drag-reorder columns in table view; persisted per user | — |
-| **Server-side pagination** | Required before 10k+ libraries become sluggish | — |
+| **Custom filter presets** | Save current filter state with a name; selectable from filter menu | ✅ Done |
+| **Jump bar** | Alphabetical quick-nav rail when sorted by title | ✅ Done |
+| **Keyboard shortcuts** | J/K navigate rows, E edit, S search, M toggle monitored, ? help | ✅ Done |
+| **Column chooser** | Show/hide and drag-reorder columns in table view; persisted per user | ✅ Done |
+| **Virtual scroll** | @tanstack/react-virtual — eliminates DOM bottleneck on large libraries | ✅ Done |
 
 ---
 
