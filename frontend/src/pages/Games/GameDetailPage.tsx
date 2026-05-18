@@ -12,8 +12,11 @@ import {
   Download,
   AlertTriangle,
   Gamepad2,
+  Pencil,
+  X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
+import { platformsApi } from '../../api/platforms'
 import ConfirmModal from '../../components/ConfirmModal'
 import ManualSearchModal from './ManualSearchModal'
 import type { Game } from '../../types'
@@ -56,11 +59,17 @@ export default function GameDetailPage() {
   const qc = useQueryClient()
   const [showDelete, setShowDelete] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   const { data: game, isLoading } = useQuery<Game>({
     queryKey: ['game', Number(id)],
     queryFn: () => gamesApi.get(Number(id)),
     enabled: !!id,
+  })
+
+  const { data: platforms = [] } = useQuery({
+    queryKey: ['platforms'],
+    queryFn: platformsApi.list,
   })
 
   const toggleMonitored = useMutation({
@@ -196,6 +205,9 @@ export default function GameDetailPage() {
               <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
                 <Search size={13} /> Search
               </button>
+              <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>
+                <Pencil size={13} /> Edit
+              </button>
               <button
                 className="btn btn-secondary"
                 onClick={() => toggleMonitored.mutate()}
@@ -322,6 +334,19 @@ export default function GameDetailPage() {
         </div>
       )}
 
+      {showEdit && (
+        <EditGameModal
+          game={game}
+          platforms={platforms}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['games'] })
+            setShowEdit(false)
+          }}
+        />
+      )}
+
       {showSearch && (
         <ManualSearchModal
           gameId={Number(id)}
@@ -373,6 +398,152 @@ function HeroItem({ label, value }: { label: string; value: string }) {
     <div className="detail-hero-grid-item">
       <div className="detail-hero-grid-key">{label}</div>
       <div className="detail-hero-grid-val">{value}</div>
+    </div>
+  )
+}
+
+function EditGameModal({
+  game,
+  platforms,
+  onClose,
+  onSaved,
+}: {
+  game: Game
+  platforms: import('../../types').Platform[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [title, setTitle] = useState(game.title)
+  const [platformId, setPlatformId] = useState(game.platform_id)
+  const [region, setRegion] = useState(game.region)
+  const [monitored, setMonitored] = useState(game.monitored)
+  const [tags, setTags] = useState(game.tags ?? '')
+  const [confirmSave, setConfirmSave] = useState(false)
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      gamesApi.update(game.id, {
+        title,
+        platform_id: platformId,
+        region,
+        monitored,
+        tags: tags || null,
+      }),
+    onSuccess: onSaved,
+  })
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Edit Game</span>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Title</label>
+            <input
+              className="form-control"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Platform</label>
+            <select
+              className="form-control"
+              value={platformId}
+              onChange={(e) => setPlatformId(Number(e.target.value))}
+            >
+              {platforms.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Region</label>
+            <input
+              className="form-control"
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              style={{ maxWidth: 200 }}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tags</label>
+            <input
+              className="form-control"
+              placeholder="action, rpg, favorite…"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+            <div className="form-hint">Comma-separated.</div>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={monitored}
+                  onChange={(e) => setMonitored(e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+              <span className="form-label" style={{ margin: 0 }}>
+                Monitored
+              </span>
+            </label>
+          </div>
+        </div>
+        <div
+          className="modal-footer"
+          style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}
+        >
+          {confirmSave ? (
+            <>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--warning, #f39c12)',
+                  background: 'rgba(243,156,18,0.1)',
+                  border: '1px solid rgba(243,156,18,0.3)',
+                  borderRadius: 6,
+                  padding: '10px 14px',
+                }}
+              >
+                Manual edits to Title, Platform, or Region may conflict with DAT-matched data and
+                could affect future CRC matching. Continue?
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn btn-secondary" onClick={() => setConfirmSave(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => saveMut.mutate()}
+                  disabled={saveMut.isPending}
+                >
+                  {saveMut.isPending ? 'Saving…' : 'Confirm Changes'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={() => setConfirmSave(true)}>
+                Save Changes
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

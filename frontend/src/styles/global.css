@@ -2904,6 +2904,40 @@ tr.selecting.selected td {
   line-height: 1.4;
 }
 
+/* ── Settings: Connect — notification trigger pills ── */
+.connect-triggers-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.connect-trigger-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.connect-trigger-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.connect-trigger-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.connect-trigger-pill.active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
 /* ── Settings: Quality page — format chips ── */
 .format-chip {
   display: inline-flex;

@@ -33,6 +33,7 @@ function ClientModal({
   const [category, setCategory] = useState(initial?.category ?? 'romarr')
   const [removeCompleted, setRemoveCompleted] = useState(initial?.remove_completed ?? false)
   const [removeFailed, setRemoveFailed] = useState(initial?.remove_failed ?? true)
+  const [tags, setTags] = useState(initial?.tags ?? '')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -58,6 +59,7 @@ function ClientModal({
             priority: 0,
             remove_completed: removeCompleted,
             remove_failed: removeFailed,
+            tags,
           })
         : downloadClientsApi.create({
             name,
@@ -74,6 +76,7 @@ function ClientModal({
             priority: 0,
             remove_completed: removeCompleted,
             remove_failed: removeFailed,
+            tags,
           }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['download-clients'] })
@@ -221,6 +224,18 @@ function ClientModal({
               </div>
             </div>
           )}
+          <div className="form-group">
+            <label className="form-label">Tags</label>
+            <input
+              className="form-control"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="nintendo, sega…"
+            />
+            <div className="form-hint">
+              Limit this client to games with matching tags. Leave empty to use for all games.
+            </div>
+          </div>
           <div className="toggle-row" style={{ paddingTop: 8 }}>
             <div className="toggle-label">Use SSL</div>
             <label className="toggle">

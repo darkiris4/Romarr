@@ -19,6 +19,7 @@ function IndexerModal({
   const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
   const [categories, setCategories] = useState(initial?.categories ?? '')
   const [priority, setPriority] = useState(initial?.priority ?? 25)
+  const [tags, setTags] = useState(initial?.tags ?? '')
   const enabled = initial?.enabled ?? true
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -36,6 +37,7 @@ function IndexerModal({
             categories,
             priority,
             enabled,
+            tags,
           })
         : indexersApi.create({
             name,
@@ -45,6 +47,7 @@ function IndexerModal({
             priority,
             enabled,
             categories,
+            tags,
           }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['indexers'] })
@@ -143,6 +146,18 @@ function IndexerModal({
             <div className="form-hint">
               Comma-separated Newznab/Torznab category IDs to filter search results. Leave blank for
               all categories.
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tags</label>
+            <input
+              className="form-control"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="nintendo, sega…"
+            />
+            <div className="form-hint">
+              Limit this indexer to games with matching tags. Leave empty to search for all games.
             </div>
           </div>
         </div>

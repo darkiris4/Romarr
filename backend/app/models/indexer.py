@@ -25,6 +25,7 @@ class Indexer(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     # Prowlarr-compatible: set base_url to Prowlarr and use indexer_id
     prowlarr_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tags: Mapped[str] = mapped_column(String, default="")
     extra_fields: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

@@ -38,6 +38,7 @@ class Game(Base):
     similar_games: Mapped[str | None] = mapped_column(String, nullable=True)
     tags: Mapped[str | None] = mapped_column(String, nullable=True)
     igdb_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

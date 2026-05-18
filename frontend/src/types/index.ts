@@ -35,6 +35,7 @@ export interface Game {
   themes?: string
   similar_games?: string
   tags?: string | null
+  last_searched_at?: string | null
   added_at: string
   updated_at: string
 }
@@ -87,6 +88,7 @@ export interface Indexer {
   priority: number
   enabled: boolean
   prowlarr_id?: number
+  tags: string
   created_at: string
   updated_at: string
 }
@@ -109,6 +111,7 @@ export interface DownloadClient {
   enabled: boolean
   remove_completed: boolean
   remove_failed: boolean
+  tags: string
   created_at: string
   updated_at: string
 }
@@ -189,4 +192,22 @@ export interface RemotePathMapping {
 export interface TestResult {
   success: boolean
   message: string
+}
+
+export interface Connection {
+  id: number
+  name: string
+  type: string
+  config: Record<string, string>
+  tags: string
+  on_grab: boolean
+  on_import: boolean
+  on_upgrade: boolean
+  on_rename: boolean
+  on_delete: boolean
+  on_health_issue: boolean
+  on_download_failure: boolean
+  enabled: boolean
+  created_at: string
+  updated_at: string
 }

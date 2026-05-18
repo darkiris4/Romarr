@@ -17,6 +17,7 @@ from ..models.root_folder import RootFolder
 from .download_service import get_client
 from .event_service import log_event
 from .library_scanner import _rom_entries
+from .notification_service import notify_event
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +199,7 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
     indexer_name = item.indexer.name if item.indexer else ""
     game_id = game.id
     game_title = game.title
+    game_tags = game.tags or ""
 
     db.add(
         HistoryItem(
@@ -219,6 +221,13 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
     db.commit()
 
     log_event("Import", f'Imported "{rom_file.name}" for "{game_title}" → {dest}')
+    notify_event(
+        "on_import",
+        game_title=game_title,
+        game_tags=game_tags,
+        body=f'Imported "{rom_file.name}" → {dest}',
+        db=db,
+    )
 
     # CRC32 is computed in the background — large ROMs (10GB+) can take 30-60s on a network share
     def _compute_crc32():

@@ -32,6 +32,7 @@ class DownloadClient(Base):
     category: Mapped[str] = mapped_column(String, default="romarr")
     priority: Mapped[int] = mapped_column(Integer, default=0)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    tags: Mapped[str] = mapped_column(String, default="")
     remove_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     remove_failed: Mapped[bool] = mapped_column(Boolean, default=True)
     extra_fields: Mapped[str] = mapped_column(Text, default="{}")
