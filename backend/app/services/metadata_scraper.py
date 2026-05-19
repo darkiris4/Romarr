@@ -76,8 +76,10 @@ def scrape_log(limit: int = 500) -> list[dict]:
     return entries
 
 
-def scrape_start() -> dict:
-    """Start a scrape in a background thread. Returns immediately."""
+def scrape_start(force: bool = False) -> dict:
+    """Start a scrape in a background thread. Returns immediately.
+    force=True re-enriches all IGDB-matched games, not just those missing fields.
+    """
     with _lock:
         if _state["running"]:
             return {"already_running": True, "running": True}
@@ -94,7 +96,7 @@ def scrape_start() -> dict:
             }
         )
 
-    t = threading.Thread(target=scrape_pending, daemon=True)
+    t = threading.Thread(target=scrape_pending, args=(force,), daemon=True)
     t.start()
     return {"already_running": False, "running": True}
 
@@ -105,9 +107,10 @@ def _log_entry(entry: dict) -> None:
         f.write(json.dumps(entry) + "\n")
 
 
-def scrape_pending() -> dict:
+def scrape_pending(force: bool = False) -> dict:
     """
-    Worker: fetch IGDB metadata for every game with no cover_url.
+    Worker: fetch IGDB metadata for unmatched games, then enrich matched games.
+    force=True re-enriches all IGDB-matched games regardless of existing fields.
     Safe to call directly (scheduler) or via scrape_start() (API).
     """
     db = SessionLocal()
@@ -138,8 +141,8 @@ def scrape_pending() -> dict:
         _state["processed"] = 0
 
         if not games:
-            _log_entry({"event": "run_end", "updated": 0, "failed": 0})
-            return {"updated": 0, "failed": 0}
+            _log_entry({"event": "no_unmatched"})
+            # fall through to enrichment pass
 
         for game in games:
             igdb_platform_id = getattr(game.platform, "igdb_platform_id", None)
@@ -196,19 +199,19 @@ def scrape_pending() -> dict:
 
         db.commit()
 
-        # ── Enrichment pass: fill new fields for already-matched games (batched) ──
-        to_enrich = (
-            db.query(Game)
-            .filter(
-                Game.igdb_id.isnot(None),
+        # ── Enrichment pass ──────────────────────────────────────────────────────
+        # force=True  → re-enrich every IGDB-matched game (full refresh)
+        # force=False → only games still missing summary / rating / collection
+        enrich_query = db.query(Game).filter(Game.igdb_id.isnot(None))
+        if not force:
+            enrich_query = enrich_query.filter(
                 or_(
                     Game.summary.is_(None),
                     Game.rating.is_(None),
                     Game.collection_id.is_(None),
-                ),
+                )
             )
-            .all()
-        )
+        to_enrich = enrich_query.all()
         enriched = 0
         _state["phase"] = "enriching"
         _state["total"] = len(to_enrich)

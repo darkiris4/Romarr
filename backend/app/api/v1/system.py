@@ -204,11 +204,13 @@ def test_igdb():
 
 
 @router.post("/scrape")
-def run_scrape():
-    """Start the metadata scraper in a background thread."""
+def run_scrape(force: bool = False):
+    """Start the metadata scraper in a background thread.
+    force=True re-enriches all IGDB-matched games (used by Update All).
+    """
     from ...services.metadata_scraper import scrape_start
 
-    return scrape_start()
+    return scrape_start(force=force)
 
 
 @router.get("/scrape/status")

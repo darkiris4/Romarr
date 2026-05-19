@@ -353,7 +353,7 @@ export default function GamesPage() {
   })
 
   const updateAllMutation = useMutation({
-    mutationFn: () => systemApi.scrape(),
+    mutationFn: () => systemApi.scrape(true),
     onSuccess: () => {
       setUpdateAllDone(true)
       setTimeout(() => setUpdateAllDone(false), 2500)
