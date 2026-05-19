@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Trash2, Clock, RefreshCw, HardDriveDownload, CheckCircle, AlertCircle } from 'lucide-react'
 import { queueApi } from '../../api/queue'
+import LoadingScreen from '../../components/LoadingScreen'
 import type { QueueItem } from '../../types'
 
 function formatBytes(bytes: number) {
@@ -117,9 +118,7 @@ export default function QueuePage() {
       )}
 
       {isLoading ? (
-        <div className="loading-page">
-          <div className="spinner" /> Loading…
-        </div>
+        <LoadingScreen />
       ) : items.length === 0 ? (
         <div className="empty-state">
           <Clock size={48} />

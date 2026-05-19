@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { BookX, RotateCcw, Gamepad2, ArrowUpCircle } from 'lucide-react'
+import { BookX, RotateCcw, Gamepad2, ArrowUpCircle, Search } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import client from '../../api/client'
+import LoadingScreen from '../../components/LoadingScreen'
 import type { Game, RevisionUnmetEntry } from '../../types'
 
 function lastSearchedLabel(iso: string | null | undefined): string {
@@ -37,6 +38,13 @@ export default function WantedPage() {
         </button>
       </div>
 
+      {tab === 'revision' && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-16px 0 20px' }}>
+          These games have a newer No-Intro revision available than the ROM you currently have on
+          disk.
+        </p>
+      )}
+
       {tab === 'missing' && <MissingTab />}
       {tab === 'revision' && <RevisionUnmetTab />}
     </div>
@@ -57,12 +65,7 @@ function MissingTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wanted-missing'] }),
   })
 
-  if (isLoading)
-    return (
-      <div className="loading-page">
-        <div className="spinner" /> Loading…
-      </div>
-    )
+  if (isLoading) return <LoadingScreen />
 
   if (games.length === 0) {
     return (
@@ -160,12 +163,7 @@ function RevisionUnmetTab() {
     queryFn: () => client.get<RevisionUnmetEntry[]>('/wanted/revision-unmet').then((r) => r.data),
   })
 
-  if (isLoading)
-    return (
-      <div className="loading-page">
-        <div className="spinner" /> Loading…
-      </div>
-    )
+  if (isLoading) return <LoadingScreen />
 
   if (entries.length === 0) {
     return (
@@ -229,10 +227,12 @@ function RevisionUnmetTab() {
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
                         className="btn-icon"
-                        title="Go to game"
-                        onClick={() => navigate(`/games/${entry.id}`)}
+                        title="Search for newer revision"
+                        onClick={() =>
+                          navigate(`/games/${entry.id}`, { state: { openSearch: true } })
+                        }
                       >
-                        <RotateCcw size={14} />
+                        <Search size={14} />
                       </button>
                     </div>
                   </td>

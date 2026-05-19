@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RotateCcw, Trash2, Gamepad2 } from 'lucide-react'
+import { RotateCcw, Trash2, Gamepad2, Pencil } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { getStatusColor } from '../../utils/gameStatus'
 import type { Game } from '../../types'
@@ -31,6 +31,7 @@ export default memo(function GamesPosters({
         return (
           <div
             key={game.id}
+            id={`game-row-${game.id}`}
             className={`poster-card${isSelected ? ' selected' : ''}`}
             onClick={() => (selecting ? onToggleSelect?.(game.id) : navigate(`/games/${game.id}`))}
             style={{ cursor: 'pointer' }}
@@ -65,6 +66,13 @@ export default memo(function GamesPosters({
                   onClick={() => gamesApi.search(game.id)}
                 >
                   <RotateCcw size={14} />
+                </button>
+                <button
+                  className="btn-icon"
+                  title="Edit"
+                  onClick={() => navigate(`/games/${game.id}`, { state: { openEdit: true } })}
+                >
+                  <Pencil size={14} />
                 </button>
                 <button className="btn-icon" title="Delete" onClick={() => onDelete(game)}>
                   <Trash2 size={14} />

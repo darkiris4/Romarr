@@ -16,6 +16,9 @@ import {
   EyeOff,
   Search,
   Layers,
+  Settings2,
+  BookmarkPlus,
+  X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
@@ -23,10 +26,30 @@ import { platformsApi } from '../../api/platforms'
 import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
 import LoadingScreen from '../../components/LoadingScreen'
-import GamesTable from './GamesTable'
+import ColumnChooser, { loadColumns, saveColumns } from '../../components/ColumnChooser'
+import type { ColumnConfig } from '../../components/ColumnChooser'
+import GamesTable, { type GamesTableHandle } from './GamesTable'
 import GamesPosters from './GamesPosters'
 import GamesOverview from './GamesOverview'
+import JumpBar from './JumpBar'
 import type { Game, ReleaseProfile } from '../../types'
+
+const PRESETS_KEY = 'games-filter-presets'
+
+interface FilterPreset {
+  name: string
+  params: string
+}
+
+function loadPresets(): FilterPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {
+    // ignore malformed JSON
+  }
+  return []
+}
 
 type View = 'table' | 'posters' | 'overview'
 type SortKey =
@@ -220,6 +243,11 @@ export default function GamesPage() {
   const [showPlatformModal, setShowPlatformModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
+  const [showColumnChooser, setShowColumnChooser] = useState(false)
+  const [columns, setColumns] = useState<ColumnConfig[]>(loadColumns)
+  const [presets, setPresets] = useState<FilterPreset[]>(loadPresets)
+  const [presetName, setPresetName] = useState('')
+  const [showSavePreset, setShowSavePreset] = useState(false)
 
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -234,6 +262,7 @@ export default function GamesPage() {
   const [showSort, setShowSort] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
   const sortRef = useRef<HTMLDivElement>(null)
+  const tableRef = useRef<GamesTableHandle>(null)
 
   const qc = useQueryClient()
 
@@ -367,6 +396,72 @@ export default function GamesPage() {
     })
   }, [filteredGames, sortBy, platformMap])
 
+  // Custom filter presets
+  function savePreset() {
+    const name = presetName.trim()
+    if (!name || presets.length >= 10) return
+    const filterParams = new URLSearchParams()
+    for (const [k, v] of searchParams.entries()) {
+      if (k !== 'sort') filterParams.set(k, v)
+    }
+    const updated = [...presets, { name, params: filterParams.toString() }]
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(updated))
+    setPresets(updated)
+    setPresetName('')
+    setShowSavePreset(false)
+  }
+
+  function deletePreset(index: number) {
+    const updated = presets.filter((_, i) => i !== index)
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(updated))
+    setPresets(updated)
+  }
+
+  function applyPreset(preset: FilterPreset) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams()
+        const currentSort = prev.get('sort')
+        if (currentSort) next.set('sort', currentSort)
+        for (const [k, v] of new URLSearchParams(preset.params).entries()) next.set(k, v)
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  // Column chooser
+  function handleColumnsChange(cols: ColumnConfig[]) {
+    setColumns(cols)
+    saveColumns(cols)
+  }
+
+  // Jump bar
+  const jumpAvailable = useMemo(() => {
+    if (sortBy !== 'name_asc' && sortBy !== 'name_desc') return new Set<string>()
+    const set = new Set<string>()
+    for (const g of games) {
+      const first = g.title[0]?.toUpperCase() ?? '#'
+      set.add(/[A-Z]/.test(first) ? first : '#')
+    }
+    return set
+  }, [games, sortBy])
+
+  function handleJump(letter: string) {
+    const index = games.findIndex((g) => {
+      const first = g.title[0]?.toUpperCase() ?? '#'
+      return (/[A-Z]/.test(first) ? first : '#') === letter
+    })
+    if (index < 0) return
+    if (view === 'table') {
+      tableRef.current?.scrollToIndex(index)
+    } else {
+      document
+        .getElementById(`game-row-${games[index].id}`)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
+  }
+
   function changeView(v: View) {
     setView(v)
     localStorage.setItem('games-view', v)
@@ -389,6 +484,29 @@ export default function GamesPage() {
   function toggleSelectAll() {
     if (selected.size === games.length) setSelected(new Set())
     else setSelected(new Set(games.map((g) => g.id)))
+  }
+
+  function handleSort(col: 'title' | 'platform' | 'year') {
+    const colKeys: Record<string, string[]> = {
+      title: ['name_asc', 'name_desc'],
+      platform: ['platform'],
+      year: ['year_asc', 'year_desc'],
+    }
+    const toggle: Record<string, string> = {
+      name_asc: 'name_desc',
+      name_desc: 'name_asc',
+      year_desc: 'year_asc',
+      year_asc: 'year_desc',
+    }
+    const defaults: Record<string, string> = {
+      title: 'name_asc',
+      platform: 'platform',
+      year: 'year_desc',
+    }
+    const newSort = colKeys[col].includes(sortBy)
+      ? (toggle[sortBy] ?? defaults[col])
+      : defaults[col]
+    updateParams({ sort: newSort === 'name_asc' ? null : newSort })
   }
 
   function updateParams(updates: Record<string, string | null>) {
@@ -551,6 +669,42 @@ export default function GamesPage() {
                     </>
                   )}
 
+                  <div className="toolbar-dropdown-divider" />
+                  {showSavePreset ? (
+                    <div style={{ padding: '6px 12px', display: 'flex', gap: 6 }}>
+                      <input
+                        className="form-control"
+                        style={{ fontSize: 12, padding: '3px 8px', flex: 1 }}
+                        placeholder="Preset name…"
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') savePreset()
+                          if (e.key === 'Escape') setShowSavePreset(false)
+                        }}
+                        autoFocus
+                      />
+                      <button className="btn btn-primary btn-sm" onClick={savePreset}>
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="toolbar-dropdown-item"
+                      style={{
+                        color:
+                          activeFilterCount > 0 && presets.length < 10
+                            ? 'var(--accent)'
+                            : 'var(--text-muted)',
+                      }}
+                      disabled={activeFilterCount === 0 || presets.length >= 10}
+                      onClick={() => setShowSavePreset(true)}
+                    >
+                      <BookmarkPlus size={13} style={{ marginRight: 6 }} />
+                      {presets.length >= 10 ? 'Max 10 presets reached' : 'Save current filters'}
+                    </button>
+                  )}
+
                   {activeFilterCount > 0 && (
                     <>
                       <div className="toolbar-dropdown-divider" />
@@ -600,6 +754,17 @@ export default function GamesPage() {
                 </div>
               )}
             </div>
+
+            {view === 'table' && (
+              <button
+                className={`toolbar-icon-btn${showColumnChooser ? ' active' : ''}`}
+                onClick={() => setShowColumnChooser(true)}
+                title="Choose columns"
+              >
+                <Settings2 size={18} />
+                <span>Columns</span>
+              </button>
+            )}
 
             <div className="view-switcher">
               <button
@@ -699,6 +864,25 @@ export default function GamesPage() {
         )}
       </div>
 
+      {presets.length > 0 && (
+        <div className="preset-chips">
+          {presets.map((preset, i) => (
+            <span key={i} className="preset-chip">
+              <button className="preset-chip-apply" onClick={() => applyPreset(preset)}>
+                {preset.name}
+              </button>
+              <button
+                className="preset-chip-delete"
+                title="Remove preset"
+                onClick={() => deletePreset(i)}
+              >
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {activeFilterCount > 0 && !isLoading && (
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
           Showing {games.length.toLocaleString()} of {allGames.length.toLocaleString()} games
@@ -718,7 +902,13 @@ export default function GamesPage() {
           </small>
         </div>
       ) : view === 'table' ? (
-        <GamesTable {...viewProps} />
+        <GamesTable
+          ref={tableRef}
+          {...viewProps}
+          sortBy={sortBy}
+          onSort={handleSort}
+          columns={columns}
+        />
       ) : view === 'posters' ? (
         <GamesPosters {...viewProps} />
       ) : (
@@ -771,6 +961,18 @@ export default function GamesPage() {
           onApply={(id) => bulkProfileMutation.mutate(id)}
           onCancel={() => setShowProfileModal(false)}
         />
+      )}
+
+      {showColumnChooser && (
+        <ColumnChooser
+          columns={columns}
+          onChange={handleColumnsChange}
+          onClose={() => setShowColumnChooser(false)}
+        />
+      )}
+
+      {(sortBy === 'name_asc' || sortBy === 'name_desc') && (
+        <JumpBar available={jumpAvailable} onJump={handleJump} />
       )}
     </div>
   )

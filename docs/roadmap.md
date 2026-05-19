@@ -68,9 +68,9 @@ No visibility into when a game was last searched or why it's still missing.
 
 ---
 
-## Stage 2 — Release & Delay Profiles
+## Stage 2 — Release & Delay Profiles ✅ Complete
 
-> Target branch: `feat/arr-parity-stage-2`
+> Branch: `feat/arr-parity-stage-2` — merged, tested
 >
 > The biggest conceptual gap. Without profiles, Romarr grabs indiscriminately.
 
@@ -108,19 +108,22 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 
 ---
 
-## Stage 3 — Library UX parity
+## Stage 3 — Library UX parity ✅ Complete
 
+> Branch: `feat/arr-parity-stage-3` — merged, tested
+>
 > Polish and power-user features that make the library feel as capable as Radarr's.
 
-| Item | Detail |
-|---|---|
-| **Column chooser** | Show/hide and drag-reorder columns in table view; persisted per user |
-| **Custom filter presets** | Save current filter state with a name; selectable from filter menu |
-| **Jump bar** | Alphabetical quick-nav rail when sorted by title |
-| **Server-side pagination** | Required before 10k+ libraries become sluggish |
-| **Keyboard shortcuts** | J/K navigate rows, E edit, S search, D delete, M toggle monitored |
-| **Sort indicators** | Clear column header arrows for active sort + direction |
-| **Poster hover actions** | Quick-access search, edit, delete on poster grid items |
+| Item | Detail | Status |
+|---|---|---|
+| **Sort indicators** | Clear column header arrows for active sort + direction | ✅ Done |
+| **Poster hover actions** | Quick-access search, edit, delete on poster grid items | ✅ Done |
+| **Revision Unmet retry** | Navigate to game + auto-open manual search; tab description subtitle | ✅ Done |
+| **Witty loading screen** | LoadingScreen on History, Queue, Wanted, GameDetail pages | ✅ Done |
+| **Custom filter presets** | Save current filter state with a name; selectable from filter menu | ✅ Done |
+| **Jump bar** | Alphabetical quick-nav rail when sorted by title | ✅ Done |
+| **Column chooser** | Show/hide and drag-reorder columns in table view; persisted per user | ✅ Done |
+| **Virtual scroll** | @tanstack/react-virtual — eliminates DOM bottleneck on large libraries | ✅ Done |
 
 ---
 
