@@ -23,13 +23,15 @@ import {
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { historyApi } from '../../api/history'
+import { igdbApi } from '../../api/igdb'
 import { platformsApi } from '../../api/platforms'
 import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
 import LoadingScreen from '../../components/LoadingScreen'
 import ManualSearchModal from './ManualSearchModal'
+import QuickAddModal from './QuickAddModal'
 import RenamePreviewModal from './RenamePreviewModal'
-import type { Game, ReleaseProfile } from '../../types'
+import type { Game, IgdbSearchResult, ReleaseProfile } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
   imported: 'var(--success)',
@@ -75,6 +77,7 @@ export default function GameDetailPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [showManageFiles, setShowManageFiles] = useState(false)
   const [searchGameDone, setSearchGameDone] = useState(false)
+  const [quickAddGame, setQuickAddGame] = useState<IgdbSearchResult | null>(null)
 
   useEffect(() => {
     if (location.state?.openSearch) setShowSearch(true)
@@ -97,6 +100,17 @@ export default function GameDetailPage() {
   const { data: releaseProfiles = [] } = useQuery({
     queryKey: ['release-profiles'],
     queryFn: releaseProfilesApi.list,
+  })
+
+  const { data: allGames = [] } = useQuery<Game[]>({
+    queryKey: ['games'],
+    queryFn: () => gamesApi.list({}),
+  })
+
+  const { data: collectionGames = [] } = useQuery<IgdbSearchResult[]>({
+    queryKey: ['igdb-collection', game?.collection_id],
+    queryFn: () => igdbApi.collection(game!.collection_id!),
+    enabled: !!game?.collection_id,
   })
 
   const refreshMutation = useMutation({
@@ -133,10 +147,26 @@ export default function GameDetailPage() {
     },
   })
 
-  const cachedGames = qc.getQueryData<Game[]>(['games']) ?? []
-  const seriesGames = game?.collection_id
-    ? cachedGames.filter((g) => g.collection_id === game.collection_id && g.id !== game.id)
-    : []
+  const libraryByIgdbId = new Map(allGames.filter((g) => g.igdb_id != null).map((g) => [g.igdb_id!, g]))
+
+  // Map profile region names → IGDB region codes
+  const REGION_TO_IGDB: Record<string, number[]> = {
+    'USA': [2], 'Europe': [1, 3, 4], 'Japan': [5], 'World': [8],
+    'USA, Europe': [1, 2, 3, 4], 'USA, Japan': [2, 5],
+  }
+  const defaultProfile = releaseProfiles.find((p) => p.is_default) ?? releaseProfiles[0]
+  const allowedIgdbRegions = new Set<number>([8]) // worldwide always included
+  for (const r of defaultProfile?.region_priority ?? []) {
+    for (const code of REGION_TO_IGDB[r] ?? []) allowedIgdbRegions.add(code)
+  }
+  const userPlatformIgdbIds = new Set(platforms.map((p) => p.igdb_platform_id).filter(Boolean) as number[])
+
+  const seriesGames = collectionGames.filter((cg) => {
+    if (cg.igdb_id === game?.igdb_id) return false
+    const regionOk = !cg.regions?.length || cg.regions.some((r) => allowedIgdbRegions.has(r))
+    const platformOk = !cg.platform_ids?.length || cg.platform_ids.some((id) => userPlatformIgdbIds.has(id))
+    return regionOk && platformOk
+  })
 
   if (isLoading) return <LoadingScreen />
   if (!game)
@@ -375,18 +405,49 @@ export default function GameDetailPage() {
               </span>
             </div>
             <div className="detail-similar-row">
-              {seriesGames.map((sg) => (
-                <Link key={sg.id} to={`/games/${sg.id}`} className="detail-similar-card">
-                  {sg.cover_url ? (
-                    <img src={sg.cover_url} alt={sg.title} className="detail-similar-cover" />
-                  ) : (
-                    <div className="detail-similar-cover detail-similar-cover--empty">
-                      <ImageOff size={20} />
+              {seriesGames.map((sg) => {
+                const libraryGame = libraryByIgdbId.get(sg.igdb_id)
+                return libraryGame ? (
+                  <Link key={sg.igdb_id} to={`/games/${libraryGame.id}`} className="detail-similar-card">
+                    <div className="detail-similar-cover-wrap">
+                      {sg.cover_url ? (
+                        <img src={sg.cover_url} alt={sg.name} className="detail-similar-cover" />
+                      ) : (
+                        <div className="detail-similar-cover detail-similar-cover--empty">
+                          <ImageOff size={20} />
+                        </div>
+                      )}
+                      <span className="detail-series-badge detail-series-badge--owned" title="In your library">
+                        <CheckCircle size={14} />
+                      </span>
                     </div>
-                  )}
-                  <div className="detail-similar-name">{sg.title}</div>
-                </Link>
-              ))}
+                    <div className="detail-similar-name">{sg.name}</div>
+                    {sg.platforms.length > 0 && (
+                      <div className="detail-similar-platform">{sg.platforms.join(', ')}</div>
+                    )}
+                  </Link>
+                ) : (
+                  <button
+                    key={sg.igdb_id}
+                    className="detail-similar-card detail-similar-card--btn"
+                    onClick={() => setQuickAddGame(sg)}
+                  >
+                    <div className="detail-similar-cover-wrap">
+                      {sg.cover_url ? (
+                        <img src={sg.cover_url} alt={sg.name} className="detail-similar-cover" />
+                      ) : (
+                        <div className="detail-similar-cover detail-similar-cover--empty">
+                          <ImageOff size={20} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="detail-similar-name">{sg.name}</div>
+                    {sg.platforms.length > 0 && (
+                      <div className="detail-similar-platform">{sg.platforms.join(', ')}</div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -475,6 +536,12 @@ export default function GameDetailPage() {
             qc.invalidateQueries({ queryKey: ['games'] })
             setShowManageFiles(false)
           }}
+        />
+      )}
+      {quickAddGame && (
+        <QuickAddModal
+          game={quickAddGame}
+          onClose={() => setQuickAddGame(null)}
         />
       )}
     </div>

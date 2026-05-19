@@ -2893,9 +2893,41 @@ tr.selecting.selected td {
   text-decoration: none;
   color: inherit;
 }
-a.detail-similar-card:hover .detail-similar-cover {
+a.detail-similar-card:hover .detail-similar-cover,
+.detail-similar-card--btn:hover .detail-similar-cover {
   opacity: 0.85;
   transition: opacity 0.15s;
+}
+.detail-similar-card--btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.detail-similar-cover-wrap {
+  position: relative;
+  width: 130px;
+  height: 184px;
+}
+.detail-similar-cover-wrap .detail-similar-cover {
+  width: 100%;
+  height: 100%;
+}
+.detail-series-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.detail-series-badge--owned {
+  background: var(--success);
+  color: #fff;
 }
 
 .detail-similar-cover {
@@ -2924,6 +2956,15 @@ a.detail-similar-card:hover .detail-similar-cover {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.detail-similar-platform {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ── Indeterminate progress bar animation ── */
@@ -3332,6 +3373,71 @@ a.detail-similar-card:hover .detail-similar-cover {
 .column-chooser-row.dragging {
   opacity: 0.4;
   border-color: var(--accent);
+}
+
+/* ── Quick Add Modal ── */
+.quick-add-modal {
+  width: 780px;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.modal-close:hover { color: var(--text-primary); }
+.quick-add-body {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+}
+.quick-add-cover {
+  flex-shrink: 0;
+  width: 120px;
+}
+.quick-add-cover img {
+  width: 120px;
+  border-radius: 4px;
+  display: block;
+}
+.quick-add-cover--empty {
+  width: 120px;
+  height: 170px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.25);
+}
+.quick-add-info {
+  flex: 1;
+  min-width: 0;
+}
+.quick-add-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-white);
+  margin-bottom: 4px;
+}
+.quick-add-year {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.quick-add-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .drag-handle {

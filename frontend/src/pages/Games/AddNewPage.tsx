@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, ImageOff, ChevronLeft } from 'lucide-react'
 import { igdbApi } from '../../api/igdb'
@@ -18,6 +18,7 @@ function ratingClass(score: number) {
 export default function AddNewPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const qc = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -29,6 +30,16 @@ export default function AddNewPage() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [selected, setSelected] = useState<IgdbSearchResult | null>(null)
+
+  useEffect(() => {
+    const preselected: IgdbSearchResult | null = (location.state as any)?.igdbGame ?? null
+    if (preselected) {
+      setSelected(preselected)
+      setStep('confirm')
+      window.history.replaceState({}, '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [platformId, setPlatformId] = useState('')
   const [region, setRegion] = useState('USA')
   const [monitored, setMonitored] = useState(true)
@@ -112,15 +123,16 @@ export default function AddNewPage() {
     [query]
   )
 
-  // Debounced search as user types
+  // Debounced search as user types (skip when in confirm mode)
   useEffect(() => {
+    if (step === 'confirm') return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => handleSearch(query), 400)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query])
+  }, [query, step])
 
   const addMutation = useMutation({
     mutationFn: () => {

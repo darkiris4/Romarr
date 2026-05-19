@@ -91,6 +91,7 @@ export interface IgdbSearchResult {
   summary?: string
   platforms: string[]
   platform_ids: number[]
+  regions?: number[]
   rating?: number
 }
 
