@@ -31,6 +31,7 @@ export interface Profile {
 export interface GeneralSettings {
   curated_library_path: string
   rename_roms: boolean
+  auto_upgrade_revisions: boolean
 }
 
 export const settingsApi = {

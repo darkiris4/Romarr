@@ -109,6 +109,7 @@ class IGDBListPlugin(ListPlugin):
                 release_year = None
                 if game.get("first_release_date"):
                     from datetime import datetime, timezone
+
                     release_year = datetime.fromtimestamp(
                         game["first_release_date"], tz=timezone.utc
                     ).year

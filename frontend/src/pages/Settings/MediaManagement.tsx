@@ -15,6 +15,7 @@ import { settingsApi } from '../../api/settings'
 
 export default function MediaManagement() {
   const [renameEnabled, setRenameEnabled] = useState(true)
+  const [autoUpgradeRevisions, setAutoUpgradeRevisions] = useState(true)
   const [verifyChecksums, setVerifyChecksums] = useState(true)
   const [deleteAfterImport, setDeleteAfterImport] = useState(false)
   const [unmonitorDeleted, setUnmonitorDeleted] = useState(false)
@@ -42,12 +43,16 @@ export default function MediaManagement() {
     if (generalSettings) {
       setCuratedPath(generalSettings.curated_library_path)
       setRenameEnabled(generalSettings.rename_roms)
+      setAutoUpgradeRevisions(generalSettings.auto_upgrade_revisions)
     }
   }, [generalSettings])
 
   const saveGeneralMutation = useMutation({
-    mutationFn: (payload: { curated_library_path: string; rename_roms: boolean }) =>
-      settingsApi.saveGeneral(payload),
+    mutationFn: (payload: {
+      curated_library_path: string
+      rename_roms: boolean
+      auto_upgrade_revisions: boolean
+    }) => settingsApi.saveGeneral(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['general-settings'] })
       setCuratedSaved(true)
@@ -113,7 +118,11 @@ export default function MediaManagement() {
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
     saveGeneralMutation.mutate(
-      { curated_library_path: curatedPath, rename_roms: renameEnabled },
+      {
+        curated_library_path: curatedPath,
+        rename_roms: renameEnabled,
+        auto_upgrade_revisions: autoUpgradeRevisions,
+      },
       {
         onSuccess: () => {
           setSaved(true)
@@ -163,6 +172,24 @@ export default function MediaManagement() {
                 type="checkbox"
                 checked={renameEnabled}
                 onChange={(e) => setRenameEnabled(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Auto-Upgrade Revisions</div>
+              <div className="toggle-hint">
+                When a higher revision of an already-imported ROM is found (e.g. Rev 1 replaces Rev
+                0), automatically update the file reference and discard the older revision.
+              </div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={autoUpgradeRevisions}
+                onChange={(e) => setAutoUpgradeRevisions(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>
@@ -351,6 +378,7 @@ export default function MediaManagement() {
                   saveGeneralMutation.mutate({
                     curated_library_path: curatedPath.trim(),
                     rename_roms: renameEnabled,
+                    auto_upgrade_revisions: autoUpgradeRevisions,
                   })
                 }
                 placeholder="/media/curated-roms"
@@ -363,6 +391,7 @@ export default function MediaManagement() {
                   saveGeneralMutation.mutate({
                     curated_library_path: curatedPath.trim(),
                     rename_roms: renameEnabled,
+                    auto_upgrade_revisions: autoUpgradeRevisions,
                   })
                 }
                 disabled={saveGeneralMutation.isPending}
