@@ -677,46 +677,35 @@ export default function GamesPage() {
           </>
         ) : (
           <>
-            {activeFilterCount > 0 ? (
-              <button
-                className="toolbar-icon-btn"
-                onClick={() => searchFilteredMutation.mutate()}
-                disabled={searchFilteredMutation.isPending || searchFilteredDone}
-                title={`Search indexers for ${games.length} filtered game${games.length !== 1 ? 's' : ''}`}
-              >
-                <Search size={18} />
-                <span>
-                  {searchFilteredDone
-                    ? 'Started!'
-                    : searchFilteredMutation.isPending
-                      ? 'Starting…'
-                      : 'Search Filtered'}
-                </span>
-              </button>
-            ) : (
-              <button
-                className="toolbar-icon-btn"
-                onClick={() => updateAllMutation.mutate()}
-                disabled={updateAllMutation.isPending || updateAllDone}
-                title="Refresh metadata for all games"
-              >
-                <RefreshCw
-                  size={18}
-                  style={
-                    updateAllMutation.isPending
-                      ? { animation: 'spin 1s linear infinite' }
-                      : undefined
-                  }
-                />
-                <span>
-                  {updateAllDone
-                    ? 'Started!'
-                    : updateAllMutation.isPending
-                      ? 'Starting…'
+            <button
+              className="toolbar-icon-btn"
+              style={{ minWidth: 130 }}
+              onClick={() => updateAllMutation.mutate()}
+              disabled={updateAllMutation.isPending || updateAllDone}
+              title={
+                activeFilterCount > 0
+                  ? `Refresh metadata for ${games.length} filtered game${games.length !== 1 ? 's' : ''}`
+                  : 'Refresh metadata for all games'
+              }
+            >
+              <RefreshCw
+                size={18}
+                style={
+                  updateAllMutation.isPending
+                    ? { animation: 'spin 1s linear infinite' }
+                    : undefined
+                }
+              />
+              <span>
+                {updateAllDone
+                  ? 'Started!'
+                  : updateAllMutation.isPending
+                    ? 'Starting…'
+                    : activeFilterCount > 0
+                      ? 'Update Filtered'
                       : 'Update All'}
-                </span>
-              </button>
-            )}
+              </span>
+            </button>
 
             <button
               className="toolbar-icon-btn"
@@ -805,25 +794,6 @@ export default function GamesPage() {
               </button>
               {showFilter && (
                 <div className="toolbar-dropdown-panel">
-                  {platforms.length > 0 && (
-                    <>
-                      <div className="toolbar-dropdown-section-label">Platform</div>
-                      <div className="toolbar-dropdown-scroll">
-                        {platforms.map((p) => (
-                          <label key={p.id} className="toolbar-dropdown-item">
-                            <input
-                              type="checkbox"
-                              checked={filterPlatforms.has(p.id)}
-                              onChange={() => toggleFilter('platforms', p.id)}
-                            />
-                            {p.name}
-                          </label>
-                        ))}
-                      </div>
-                      <div className="toolbar-dropdown-divider" />
-                    </>
-                  )}
-
                   <div className="toolbar-dropdown-section-label">Status</div>
                   {(['wanted', 'grabbed', 'downloading', 'imported', 'failed'] as const).map(
                     (s) => (
