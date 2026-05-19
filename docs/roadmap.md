@@ -165,16 +165,19 @@ No in-app update awareness; users must check GitHub manually.
 - Global topbar banner: if `has_update`, show a dismissible accent-coloured strip ("Romarr vX.Y.Z is available")
 - Add `System → Updates` nav item under System section
 
-### 4. Rename to No-Intro canonical filename
+### 4. No-Intro canonical rename
 
-ROMs downloaded from indexers often have scene-style names (`Legend.of.Zelda.GBA-GROUP.zip`). When the library scanner CRC-matches a ROM against a No-Intro DAT, the DAT entry's `full_title` field contains the exact canonical name (`Legend of Zelda, The - A Link to the Past (USA).gba`). This feature surfaces that as an explicit rename action.
+Romarr can rename ROM files to their exact No-Intro DAT filename when a CRC match exists (`Legend.of.Zelda.GBA-GROUP.zip` → `Legend of Zelda, The - A Link to the Past (USA).gba`). All rename behaviour is controlled by a single toggle — **Settings → Media Management → "Rename ROMs"** — which is enabled by default but can be turned off at any time. When off, Romarr never touches filenames.
 
-**Implement:**
-- `POST /library/rename-preview` — accepts `game_ids: list[int]`; for each game, looks up `DatROM` by `game.checksum_crc32`; returns `{ game_id, title, current_path, proposed_path }` where `proposed_path` replaces the filename stem with `dat_rom.full_title`; skips games with no CRC match or no `rom_path`
-- `POST /library/rename` — accepts the same payload; executes the moves and updates `game.rom_path` in the DB
-- `RenamePreviewModal` — table of current filename → canonical DAT filename with a Confirm button; unmatched games are shown as ineligible with a note explaining why
-- Accessible from game detail page (only shown if the game has a DAT match) and as a bulk action in the games list
-- No naming template — the DAT filename is the only correct answer when a CRC match exists
+**Automatic rename at import time (when toggle is on):**
+- **Library bulk import** — CRC is already computed during the scan; if a DAT match exists, the file is renamed to `{dat_rom.full_title}.{ext}` before `rom_path` is recorded. Files with no DAT match keep their original name.
+- **Download client import** — `import_service.py` currently computes CRC in a background thread after the move; change to compute it synchronously during the import step, do the DAT lookup, rename if matched, then record `rom_path`. Files with no DAT match keep their original name.
+
+**Retroactive rename for existing library (always preview-first):**
+- `POST /library/rename-preview` — accepts `game_ids: list[int]`; looks up `DatROM` by `game.checksum_crc32`; returns `{ game_id, title, current_path, proposed_path }` for matched games; ineligible games (no CRC match, no `rom_path`) listed separately with reason
+- `POST /library/rename` — executes the moves and updates `game.rom_path`
+- `RenamePreviewModal` — table of current → proposed filenames with Confirm button; accessible from game detail page and as a bulk action in the games list
+- Preview is always shown regardless of the toggle — this is an explicit user-initiated action, not automatic
 
 ### 5. Torrent pipeline validation
 
