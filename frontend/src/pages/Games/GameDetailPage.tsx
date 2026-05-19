@@ -6,7 +6,6 @@ import {
   Search,
   Trash2,
   ImageOff,
-  Eye,
   EyeOff,
   CheckCircle2,
   Download,
@@ -17,6 +16,7 @@ import {
   RefreshCw,
   Clock,
   HardDrive,
+  Bookmark,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -72,6 +72,7 @@ export default function GameDetailPage() {
   const [showRename, setShowRename] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showManageFiles, setShowManageFiles] = useState(false)
+  const [searchGameDone, setSearchGameDone] = useState(false)
 
   useEffect(() => {
     if (location.state?.openSearch) setShowSearch(true)
@@ -103,6 +104,14 @@ export default function GameDetailPage() {
         qc.invalidateQueries({ queryKey: ['game', Number(id)] })
         qc.invalidateQueries({ queryKey: ['games'] })
       }, 3000)
+    },
+  })
+
+  const searchGameMutation = useMutation({
+    mutationFn: () => gamesApi.bulkSearch([Number(id)]),
+    onSuccess: () => {
+      setSearchGameDone(true)
+      setTimeout(() => setSearchGameDone(false), 3000)
     },
   })
 
@@ -154,43 +163,51 @@ export default function GameDetailPage() {
           />
           <span>{refreshMutation.isPending ? 'Refreshing…' : refreshMutation.isSuccess ? 'Refreshed!' : 'Refresh & Scan'}</span>
         </button>
-        <button className="toolbar-icon-btn" onClick={() => setShowSearch(true)}>
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => searchGameMutation.mutate()}
+          disabled={searchGameMutation.isPending || searchGameDone}
+          title="Automatically search indexers for this game"
+        >
+          <Search size={18} />
+          <span>{searchGameDone ? 'Started!' : searchGameMutation.isPending ? 'Starting…' : 'Search Game'}</span>
+        </button>
+        <button className="toolbar-icon-btn" onClick={() => setShowSearch(true)} title="Browse and pick a release manually">
           <Search size={18} />
           <span>Interactive Search</span>
+        </button>
+
+        <span className="toolbar-sep" />
+
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => setShowRename(true)}
+          disabled={!game.checksum_crc32}
+          title={game.checksum_crc32 ? 'Preview what this ROM would be renamed to' : 'No file imported yet'}
+        >
+          <FileEdit size={18} />
+          <span>Preview Rename</span>
+        </button>
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => setShowManageFiles(true)}
+          disabled={!hasFile}
+          title={hasFile ? 'Manage the imported ROM file' : 'No file imported yet'}
+        >
+          <HardDrive size={18} />
+          <span>Manage Files</span>
         </button>
         <button className="toolbar-icon-btn" onClick={() => setShowHistory(true)}>
           <Clock size={18} />
           <span>History</span>
         </button>
-        {hasFile && (
-          <>
-            <span className="toolbar-sep" />
-            <button className="toolbar-icon-btn" onClick={() => setShowManageFiles(true)}>
-              <HardDrive size={18} />
-              <span>Manage Files</span>
-            </button>
-            {game.checksum_crc32 && (
-              <button className="toolbar-icon-btn" onClick={() => setShowRename(true)}>
-                <FileEdit size={18} />
-                <span>Preview Rename</span>
-              </button>
-            )}
-          </>
-        )}
+
         <span className="toolbar-sep" />
+
         <button className="toolbar-icon-btn" onClick={() => setShowEdit(true)}>
           <Pencil size={18} />
           <span>Edit</span>
         </button>
-        <button
-          className="toolbar-icon-btn"
-          onClick={() => toggleMonitored.mutate()}
-          disabled={toggleMonitored.isPending}
-        >
-          {game.monitored ? <EyeOff size={18} /> : <Eye size={18} />}
-          <span>{game.monitored ? 'Unmonitor' : 'Monitor'}</span>
-        </button>
-        <span className="toolbar-sep" />
         <button className="toolbar-icon-btn toolbar-icon-btn--danger" onClick={() => setShowDelete(true)}>
           <Trash2 size={18} />
           <span>Delete</span>
@@ -223,6 +240,17 @@ export default function GameDetailPage() {
                 <span>No cover</span>
               </div>
             )}
+            <button
+              className={`detail-poster-bookmark${game.monitored ? ' detail-poster-bookmark--monitored' : ''}`}
+              onClick={() => toggleMonitored.mutate()}
+              disabled={toggleMonitored.isPending}
+              title={game.monitored ? 'Monitored — click to unmonitor' : 'Unmonitored — click to monitor'}
+            >
+              <Bookmark
+                size={20}
+                fill={game.monitored ? 'currentColor' : 'none'}
+              />
+            </button>
           </div>
 
           {/* Info column */}

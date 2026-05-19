@@ -2605,6 +2605,36 @@ tr.selecting.selected td {
   display: block;
 }
 
+.detail-poster-bookmark {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 4px;
+  padding: 5px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.45);
+  transition: background 0.15s, color 0.15s;
+  z-index: 1;
+}
+.detail-poster-bookmark:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.85);
+  color: rgba(255, 255, 255, 0.75);
+}
+.detail-poster-bookmark--monitored {
+  color: var(--accent);
+}
+.detail-poster-bookmark--monitored:hover:not(:disabled) {
+  color: var(--accent);
+}
+.detail-poster-bookmark:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .detail-poster-placeholder {
   position: absolute;
   inset: 0;
