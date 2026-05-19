@@ -29,6 +29,35 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
+def _try_rename_to_canonical(file_path: str, crc32: str | None) -> str:
+    """Rename a ROM file to its No-Intro canonical filename if a DAT match exists.
+    Returns the (possibly new) path."""
+    if not crc32:
+        return file_path
+    from .config_service import get_config
+
+    if get_config("rename_roms", "true") != "true":
+        return file_path
+    dat_rom = lookup_crc32(crc32)
+    if not dat_rom or not dat_rom.full_title:
+        return file_path
+    src = Path(file_path)
+    canonical = f"{dat_rom.full_title}{src.suffix}"
+    dest = src.parent / canonical
+    if dest == src:
+        return file_path
+    if dest.exists():
+        return file_path
+    try:
+        src.rename(dest)
+        logger.info("Renamed '%s' → '%s'", src.name, canonical)
+        return str(dest)
+    except OSError as exc:
+        logger.warning("Rename failed for '%s': %s", src.name, exc)
+        return file_path
+
+
 # ── In-process scan state ────────────────────────────────────────────────────
 
 _scan_state: dict[str, Any] = {
@@ -626,12 +655,13 @@ def import_roms(
                 skipped_existing += 1
                 continue
 
+        final_path = _try_rename_to_canonical(rom.path, rom.crc32)
         game = Game(
             title=rom.title,
             platform_id=rom.platform_id,
             region=rom.region,
             status=GameStatus.IMPORTED,
-            rom_path=rom.path,
+            rom_path=final_path,
             checksum_crc32=rom.crc32,
             monitored=True,
         )

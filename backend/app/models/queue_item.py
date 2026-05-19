@@ -35,6 +35,7 @@ class QueueItem(Base):
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     estimated_completion: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
+    torrent_hash: Mapped[str | None] = mapped_column(String, nullable=True)
 
     game: Mapped["Game"] = relationship("Game", back_populates="queue_items")
     download_client: Mapped["DownloadClient | None"] = relationship("DownloadClient")

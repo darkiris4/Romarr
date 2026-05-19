@@ -288,6 +288,39 @@ textarea {
 }
 
 /* ── Topbar ─────────────────────────────────────────────────────── */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  background: rgba(123, 104, 238, 0.18);
+  border-bottom: 1px solid rgba(123, 104, 238, 0.35);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.update-banner strong {
+  color: var(--accent);
+}
+.update-banner a {
+  color: var(--accent);
+  text-decoration: underline;
+  margin-left: 4px;
+}
+.update-banner-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+.update-banner-dismiss:hover {
+  color: var(--text-primary);
+}
+
 .topbar {
   height: var(--header-height);
   background: var(--bg-topbar);
@@ -2807,6 +2840,12 @@ tr.selecting.selected td {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  text-decoration: none;
+  color: inherit;
+}
+a.detail-similar-card:hover .detail-similar-cover {
+  opacity: 0.85;
+  transition: opacity 0.15s;
 }
 
 .detail-similar-cover {

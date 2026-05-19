@@ -16,7 +16,6 @@ from ..models.remote_path_mapping import RemotePathMapping
 from ..models.root_folder import RootFolder
 from .download_service import get_client
 from .event_service import log_event
-from .library_scanner import _rom_entries
 from .notification_service import notify_event
 
 logger = logging.getLogger(__name__)
@@ -191,8 +190,28 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
     shutil.move(str(rom_file), str(dest))
     logger.info("Moved '%s' → '%s'", rom_file, dest)
 
-    # Update game record immediately so the UI reflects the import without waiting for CRC32
-    game.rom_path = str(dest)
+    # Compute CRC32 synchronously so we can attempt a No-Intro rename immediately.
+    # For very large ROMs on slow network shares this may take a few seconds, but the
+    # rename only fires when rename_roms is enabled and a DAT match exists.
+    from .library_scanner import _rom_entries as _entries
+    from .library_scanner import _try_rename_to_canonical
+
+    crc32: str | None = None
+    try:
+        entries = _entries(dest)
+        if entries:
+            crc32 = entries[0][0]
+    except Exception as exc:
+        logger.warning("Sync CRC32 failed for '%s': %s", dest, exc)
+
+    final_dest = dest
+    if crc32:
+        renamed = _try_rename_to_canonical(str(dest), crc32)
+        if renamed != str(dest):
+            final_dest = Path(renamed)
+
+    game.rom_path = str(final_dest)
+    game.checksum_crc32 = crc32
     game.status = GameStatus.IMPORTED
 
     client_name = item.download_client.name if item.download_client else ""
@@ -229,35 +248,10 @@ async def import_downloaded_file(db: Session, item: QueueItem) -> dict:
         db=db,
     )
 
-    # CRC32 is computed in the background — large ROMs (10GB+) can take 30-60s on a network share
-    def _compute_crc32():
-        from ..database import SessionLocal
-
-        try:
-            entries = _rom_entries(dest)
-            if not entries:
-                return
-            crc32 = entries[0][0]
-            bg_db = SessionLocal()
-            try:
-                g = bg_db.query(Game).filter_by(id=game_id).first()
-                if g:
-                    g.checksum_crc32 = crc32
-                    bg_db.commit()
-                    logger.info("CRC32 computed for '%s': %s", dest.name, crc32)
-            finally:
-                bg_db.close()
-        except Exception as exc:
-            logger.warning("Background CRC32 failed for %s: %s", dest, exc)
-
-    import threading
-
-    threading.Thread(target=_compute_crc32, daemon=True).start()
-
     return {
         "success": True,
-        "destination": str(dest),
-        "filename": rom_file.name,
-        "crc32": None,
+        "destination": str(final_dest),
+        "filename": final_dest.name,
+        "crc32": crc32,
         "game_id": game_id,
     }

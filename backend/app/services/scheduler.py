@@ -167,6 +167,35 @@ def _housekeeping():
     logger.info("Housekeeping complete")
 
 
+async def _sync_lists():
+    from datetime import datetime
+
+    from ..database import SessionLocal
+    from ..models.list_source import ListSource
+    from .event_service import log_event
+    from .list_service import sync_list_source
+
+    db = SessionLocal()
+    try:
+        sources = db.query(ListSource).filter_by(enabled=True).all()
+        if not sources:
+            return
+        total_added = 0
+        for source in sources:
+            try:
+                added = await sync_list_source(db, source)
+                source.last_sync = datetime.utcnow()
+                db.commit()
+                total_added += added
+                logger.info("List sync '%s': %d game(s) added", source.name, added)
+            except Exception as exc:
+                logger.warning("List sync failed for '%s': %s", source.name, exc)
+        if total_added:
+            log_event("Lists", f"Sync complete — {total_added} new game(s) added to Wanted")
+    finally:
+        db.close()
+
+
 def _register_jobs():
     from .download_poll import poll_downloads
     from .metadata_scraper import scrape_pending
@@ -218,6 +247,13 @@ def _register_jobs():
         _housekeeping,
         trigger=IntervalTrigger(hours=24),
         id="housekeeping",
+        replace_existing=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        _sync_lists,
+        trigger=IntervalTrigger(hours=6),
+        id="sync_lists",
         replace_existing=True,
         max_instances=1,
     )

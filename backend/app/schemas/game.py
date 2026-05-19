@@ -47,6 +47,8 @@ class GameOut(GameBase):
     game_modes: str | None = None
     themes: str | None = None
     similar_games: str | None = None
+    collection_id: int | None = None
+    collection_name: str | None = None
     tags: str | None = None
     last_searched_at: datetime | None = None
     release_profile_id: int | None = None

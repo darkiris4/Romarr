@@ -335,6 +335,7 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         status=QueueStatus.QUEUED,
         size=payload.size,
         download_id=download_id,
+        torrent_hash=download_id if payload.protocol == "torrent" else None,
         download_client_id=client_model.id,
         indexer_id=payload.indexer_id,
         protocol=payload.protocol,
