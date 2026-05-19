@@ -6,13 +6,12 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/romarr.db
       - DATA_DIR=/app/data
-      - ROM_LIBRARY_PATH=/library
       # - LOG_LEVEL=INFO
       # - IGDB_CLIENT_ID=
       # - IGDB_CLIENT_SECRET=
     volumes:
       - romarr-data:/app/data
-      - ${ROM_LIBRARY_PATH:-./library}:/library
+      - ${ROM_LIBRARY_PATH:-./library}:/app/library
     ports:
       - "${ROMARR_PORT:-7878}:8000"
     # healthcheck:
