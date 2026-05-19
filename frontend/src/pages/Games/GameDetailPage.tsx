@@ -140,6 +140,63 @@ export default function GameDetailPage() {
 
   return (
     <div>
+      {/* ── Toolbar ── */}
+      <div className="page-toolbar">
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => refreshMutation.mutate()}
+          disabled={refreshMutation.isPending}
+          title="Re-scrape IGDB metadata and verify ROM file on disk"
+        >
+          <RefreshCw
+            size={18}
+            style={refreshMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined}
+          />
+          <span>{refreshMutation.isPending ? 'Refreshing…' : refreshMutation.isSuccess ? 'Refreshed!' : 'Refresh & Scan'}</span>
+        </button>
+        <button className="toolbar-icon-btn" onClick={() => setShowSearch(true)}>
+          <Search size={18} />
+          <span>Interactive Search</span>
+        </button>
+        <button className="toolbar-icon-btn" onClick={() => setShowHistory(true)}>
+          <Clock size={18} />
+          <span>History</span>
+        </button>
+        {hasFile && (
+          <>
+            <span className="toolbar-sep" />
+            <button className="toolbar-icon-btn" onClick={() => setShowManageFiles(true)}>
+              <HardDrive size={18} />
+              <span>Manage Files</span>
+            </button>
+            {game.checksum_crc32 && (
+              <button className="toolbar-icon-btn" onClick={() => setShowRename(true)}>
+                <FileEdit size={18} />
+                <span>Preview Rename</span>
+              </button>
+            )}
+          </>
+        )}
+        <span className="toolbar-sep" />
+        <button className="toolbar-icon-btn" onClick={() => setShowEdit(true)}>
+          <Pencil size={18} />
+          <span>Edit</span>
+        </button>
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => toggleMonitored.mutate()}
+          disabled={toggleMonitored.isPending}
+        >
+          {game.monitored ? <EyeOff size={18} /> : <Eye size={18} />}
+          <span>{game.monitored ? 'Unmonitor' : 'Monitor'}</span>
+        </button>
+        <span className="toolbar-sep" />
+        <button className="toolbar-icon-btn toolbar-icon-btn--danger" onClick={() => setShowDelete(true)}>
+          <Trash2 size={18} />
+          <span>Delete</span>
+        </button>
+      </div>
+
       {/* ── Hero ── */}
       <div className="detail-hero">
         {game.cover_url && (
@@ -232,52 +289,6 @@ export default function GameDetailPage() {
                   <EyeOff size={12} /> Unmonitored
                 </span>
               )}
-            </div>
-
-            {/* Actions */}
-            <div className="detail-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={() => refreshMutation.mutate()}
-                disabled={refreshMutation.isPending}
-                title="Re-scrape IGDB metadata and verify ROM file on disk"
-              >
-                <RefreshCw
-                  size={13}
-                  style={refreshMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined}
-                />
-                {refreshMutation.isPending ? 'Refreshing…' : refreshMutation.isSuccess ? 'Refreshed!' : 'Refresh & Scan'}
-              </button>
-              <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
-                <Search size={13} /> Interactive Search
-              </button>
-              <button className="btn btn-secondary" onClick={() => setShowHistory(true)}>
-                <Clock size={13} /> History
-              </button>
-              {hasFile && (
-                <button className="btn btn-secondary" onClick={() => setShowManageFiles(true)}>
-                  <HardDrive size={13} /> Manage Files
-                </button>
-              )}
-              {game.checksum_crc32 && (
-                <button className="btn btn-secondary" onClick={() => setShowRename(true)}>
-                  <FileEdit size={13} /> Preview Rename
-                </button>
-              )}
-              <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>
-                <Pencil size={13} /> Edit
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => toggleMonitored.mutate()}
-                disabled={toggleMonitored.isPending}
-              >
-                {game.monitored ? <EyeOff size={13} /> : <Eye size={13} />}
-                {game.monitored ? 'Unmonitor' : 'Monitor'}
-              </button>
-              <button className="btn btn-danger" onClick={() => setShowDelete(true)}>
-                <Trash2 size={13} /> Delete
-              </button>
             </div>
 
             {/* Summary */}

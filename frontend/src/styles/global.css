@@ -2129,6 +2129,14 @@ tr.selecting.selected td {
   opacity: 0.45;
   cursor: default;
 }
+.toolbar-icon-btn--danger {
+  color: var(--danger);
+}
+.toolbar-icon-btn--danger:hover:not(:disabled) {
+  background: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: var(--danger);
+}
 
 /* ── Toolbar dropdown ────────────────────────────────────────────── */
 .toolbar-dropdown-wrap {
