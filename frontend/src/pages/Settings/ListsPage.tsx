@@ -27,7 +27,12 @@ export default function ListsPage() {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      listSourcesApi.create({ name: newName.trim(), plugin: newPlugin, enabled: true, config: newConfig }),
+      listSourcesApi.create({
+        name: newName.trim(),
+        plugin: newPlugin,
+        enabled: true,
+        config: newConfig,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['list-sources'] })
       setShowNew(false)
@@ -37,8 +42,21 @@ export default function ListsPage() {
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled, source }: { id: number; enabled: boolean; source: (typeof sources)[0] }) =>
-      listSourcesApi.update(id, { name: source.name, plugin: source.plugin, config: source.config, enabled }),
+    mutationFn: ({
+      id,
+      enabled,
+      source,
+    }: {
+      id: number
+      enabled: boolean
+      source: (typeof sources)[0]
+    }) =>
+      listSourcesApi.update(id, {
+        name: source.name,
+        plugin: source.plugin,
+        config: source.config,
+        enabled,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['list-sources'] }),
   })
 
@@ -92,7 +110,12 @@ export default function ListsPage() {
         <div
           key={s.id}
           className="card"
-          style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          style={{
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
         >
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text-white)', marginBottom: 2 }}>
@@ -129,7 +152,9 @@ export default function ListsPage() {
               <input
                 type="checkbox"
                 checked={s.enabled}
-                onChange={(e) => toggleMutation.mutate({ id: s.id, enabled: e.target.checked, source: s })}
+                onChange={(e) =>
+                  toggleMutation.mutate({ id: s.id, enabled: e.target.checked, source: s })
+                }
               />
               <span className="toggle-slider" />
             </label>
