@@ -161,7 +161,9 @@ function ClientModal({
                 className="form-control"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
+                placeholder="localhost"
               />
+              <div className="form-hint">Hostname or IP address of the download client.</div>
             </div>
             <div className="form-group">
               <label className="form-label">Port</label>
@@ -171,6 +173,7 @@ function ClientModal({
                 value={port}
                 onChange={(e) => setPort(+e.target.value)}
               />
+              <div className="form-hint">Auto-filled to the client's default port.</div>
             </div>
           </div>
           <div className="form-row">
@@ -182,6 +185,7 @@ function ClientModal({
                 onChange={(e) => setUrlBase(e.target.value)}
                 placeholder="/sabnzbd"
               />
+              <div className="form-hint">Path prefix if the client is behind a reverse proxy.</div>
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
@@ -189,7 +193,11 @@ function ClientModal({
                 className="form-control"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
+                placeholder="romarr"
               />
+              <div className="form-hint">
+                Torrent label or NZB category used to identify Romarr's downloads.
+              </div>
             </div>
           </div>
           {needs_api_key && (
@@ -201,6 +209,7 @@ function ClientModal({
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
+              <div className="form-hint">Found in the download client's settings or web UI.</div>
             </div>
           )}
           {needs_password && (
@@ -237,7 +246,10 @@ function ClientModal({
             </div>
           </div>
           <div className="toggle-row" style={{ paddingTop: 8 }}>
-            <div className="toggle-label">Use SSL</div>
+            <div>
+              <div className="toggle-label">Use SSL</div>
+              <div className="toggle-hint">Connect over HTTPS instead of HTTP.</div>
+            </div>
             <label className="toggle">
               <input
                 type="checkbox"

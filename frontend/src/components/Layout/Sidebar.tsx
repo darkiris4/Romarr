@@ -183,9 +183,9 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
+      <NavLink to="/games" className="sidebar-logo" style={{ display: 'block' }}>
         <img src="/logo.png" alt="Romarr" style={{ height: 60, width: 'auto' }} />
-      </div>
+      </NavLink>
 
       <nav className="sidebar-nav" style={{ flex: 1 }}>
         {SECTIONS.map((s) => {

@@ -209,8 +209,9 @@ export default function PlatformsPage() {
     <div>
       <div className="settings-section-title">Platforms</div>
       <div className="settings-section-desc">
-        Configure which platforms Romarr manages. Platform folder names must match No-Intro
-        conventions.
+        Configure which platforms Romarr manages. The scanner matches ROMs by file extension and
+        CRC32 — your existing folder structure does not need to match. The folder name is used as
+        the destination when Romarr imports a ROM into your library.
       </div>
 
       {deleteError && (

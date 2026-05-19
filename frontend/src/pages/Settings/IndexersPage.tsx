@@ -112,6 +112,7 @@ function IndexerModal({
                 min={1}
                 max={50}
               />
+              <div className="form-hint">Lower number = searched first (1–50).</div>
             </div>
           </div>
           <div className="form-group">
