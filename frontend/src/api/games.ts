@@ -41,6 +41,7 @@ export const gamesApi = {
       indexer: string
       indexer_id?: number
       seeders?: number
+      info_hash?: string
     }
   ) =>
     client

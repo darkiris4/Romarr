@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ...database import get_db
 from ...models.blocklist import BlocklistItem
-from ...models.download_client import DownloadClient
+from ...models.download_client import DownloadClient, DownloadClientType
 from ...models.game import Game, GameStatus
 from ...models.history import HistoryEventType, HistoryItem
 from ...models.indexer import Indexer
@@ -37,6 +37,7 @@ class GrabPayload(BaseModel):
     indexer: str = ""
     indexer_id: int | None = None
     seeders: int | None = None
+    info_hash: str | None = None
 
 
 router = APIRouter()
@@ -260,6 +261,7 @@ async def manual_search(
                         "leechers": r.leechers,
                         "protocol": r.protocol,
                         "link": r.link,
+                        "info_hash": r.info_hash,
                         "publish_date": r.publish_date.isoformat() if r.publish_date else None,
                         "grabbed_at": grabbed.get(r.title),
                         "rejections": [blocklisted[r.title]] if r.title in blocklisted else [],
@@ -307,6 +309,17 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     if not clients:
         raise HTTPException(status_code=400, detail="No download clients configured")
 
+    # Filter to clients that support the release protocol
+    _NZB_TYPES = {DownloadClientType.SABNZBD}
+    _TORRENT_TYPES = {DownloadClientType.QBITTORRENT, DownloadClientType.TRANSMISSION}
+    _is_torrent = payload.protocol in ("torrent", "torznab")
+    if _is_torrent:
+        protocol_clients = [c for c in clients if c.implementation in _TORRENT_TYPES]
+    else:
+        protocol_clients = [c for c in clients if c.implementation in _NZB_TYPES]
+    if protocol_clients:
+        clients = protocol_clients
+
     # Prefer clients whose tags overlap the game's tags; fall back to untagged ones
     game_tag_set = {t.strip().lower() for t in (game.tags or "").split(",") if t.strip()}
     if game_tag_set:
@@ -326,7 +339,7 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     client = get_client(client_model)
 
     try:
-        download_id = await client.add(payload.link, payload.title)
+        download_id = await client.add(payload.link, payload.title, info_hash=payload.info_hash)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Download client error: {exc}")
 
@@ -336,7 +349,7 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         status=QueueStatus.QUEUED,
         size=payload.size,
         download_id=download_id,
-        torrent_hash=download_id if payload.protocol == "torrent" else None,
+        torrent_hash=download_id if _is_torrent else None,
         download_client_id=client_model.id,
         indexer_id=payload.indexer_id,
         protocol=payload.protocol,

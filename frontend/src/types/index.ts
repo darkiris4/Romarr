@@ -104,6 +104,7 @@ export interface ReleaseResult {
   leechers?: number
   protocol: string
   link: string
+  info_hash?: string
   publish_date?: string
   grabbed_at?: string
   rejections: string[]

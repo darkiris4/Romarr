@@ -7,10 +7,13 @@ The scheduler calls poll_all_clients() periodically.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from ..models.download_client import DownloadClient, DownloadClientType
 from ..models.queue_item import QueueStatus
@@ -35,7 +38,7 @@ class BaseDownloadClient(ABC):
         self.base_url = f"{scheme}://{client.host}:{client.port}" + (f"/{base}" if base else "")
 
     @abstractmethod
-    async def add(self, url: str, name: str) -> str:
+    async def add(self, url: str, name: str, info_hash: str | None = None) -> str:
         """Add download, return download_id."""
 
     @abstractmethod
@@ -62,26 +65,97 @@ class QBittorrentClient(BaseDownloadClient):
             data={"username": self.client.username, "password": self.client.password},
         )
 
-    async def add(self, url: str, name: str) -> str:
+    async def add(self, url: str, name: str, info_hash: str | None = None) -> str:
+        import asyncio
+        import json
+        import re
+
+        logger.info("qBittorrent add: url=%s info_hash=%s", url, info_hash)
+
+        torrent_bytes: bytes | None = None
+        send_url: str = url
+
+        if url.startswith("http"):
+            # Probe without following redirects — Jackett often redirects to a magnet URI.
+            async with httpx.AsyncClient(timeout=30, follow_redirects=False) as dl:
+                probe = await dl.get(url)
+
+            if probe.status_code in (301, 302, 303, 307, 308):
+                location = probe.headers.get("location", "")
+                if location.startswith("magnet:"):
+                    send_url = location
+                    logger.info("Jackett redirected to magnet link")
+                    # Extract hash from btih parameter so we can track the download.
+                    m = re.search(r"xt=urn:btih:([0-9a-fA-F]+)", location, re.IGNORECASE)
+                    if m and not info_hash:
+                        info_hash = m.group(1).lower()
+                        logger.info("Extracted hash from magnet: %s", info_hash)
+                else:
+                    # Real torrent file — download it so qBittorrent doesn't need
+                    # a direct route to the indexer.
+                    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as dl:
+                        torrent_resp = await dl.get(url)
+                        torrent_resp.raise_for_status()
+                        torrent_bytes = torrent_resp.content
+                        logger.info("Downloaded torrent file: %d bytes", len(torrent_bytes))
+            elif probe.status_code == 200:
+                torrent_bytes = probe.content
+                logger.info("Downloaded torrent file: %d bytes", len(torrent_bytes))
+            else:
+                probe.raise_for_status()
+
         async with httpx.AsyncClient(timeout=15) as http:
             await self._login(http)
-            resp = await http.post(
-                f"{self.base_url}/api/v2/torrents/add",
-                data={"urls": url, "category": self.client.category, "savepath": ""},
-            )
+            extra: dict = {}
+            if self.client.category:
+                extra["category"] = self.client.category
+
+            if torrent_bytes:
+                resp = await http.post(
+                    f"{self.base_url}/api/v2/torrents/add",
+                    files={"torrents": (f"{name}.torrent", torrent_bytes, "application/x-bittorrent")},
+                    data=extra,
+                )
+            else:
+                resp = await http.post(
+                    f"{self.base_url}/api/v2/torrents/add",
+                    data={"urls": send_url, **extra},
+                )
+
             resp.raise_for_status()
-            # qBittorrent returns the info hash via torrent list after add
-            torrents = await http.get(
-                f"{self.base_url}/api/v2/torrents/info",
-                params={
-                    "category": self.client.category,
-                    "sort": "added_on",
-                    "reverse": "true",
-                    "limit": 1,
-                },
-            )
-            data = torrents.json()
-            return data[0]["hash"] if data else "unknown"
+            body = resp.text.strip()
+            logger.info("qBittorrent add response: %r", body)
+
+            if body == "Fails.":
+                raise ValueError(f"qBittorrent rejected the torrent: {url}")
+
+            # qBittorrent v5 returns JSON with the assigned hash.
+            try:
+                parsed = json.loads(body)
+                if parsed.get("failure_count", 0) > 0:
+                    raise ValueError(f"qBittorrent reported failure adding torrent: {url}")
+                ids = parsed.get("added_torrent_ids") or []
+                if ids:
+                    logger.info("qBittorrent hash from response: %s", ids[0])
+                    return ids[0].lower()
+            except json.JSONDecodeError:
+                pass  # v4 plain-text "Ok." — fall through
+
+            if info_hash:
+                return info_hash
+
+            # Poll until the newly added torrent appears.
+            for attempt in range(12):
+                await asyncio.sleep(1.0 * (attempt + 1))
+                torrents = await http.get(
+                    f"{self.base_url}/api/v2/torrents/info",
+                    params={"sort": "added_on", "reverse": "true", "limit": 1},
+                )
+                data = torrents.json()
+                if data:
+                    logger.info("qBittorrent hash from poll: %s", data[0]["hash"])
+                    return data[0]["hash"]
+            raise ValueError("qBittorrent torrent added but hash could not be determined")
 
     async def status(self, download_id: str) -> ClientStatus:
         async with httpx.AsyncClient(timeout=15) as http:
@@ -173,7 +247,7 @@ class SABnzbdClient(BaseDownloadClient):
     def _api_url(self) -> str:
         return f"{self.base_url}/sabnzbd/api"
 
-    async def add(self, url: str, name: str) -> str:
+    async def add(self, url: str, name: str, info_hash: str | None = None) -> str:
         async with httpx.AsyncClient(timeout=30) as http:
             resp = await http.get(
                 self._api_url,
@@ -347,7 +421,7 @@ class TransmissionClient(BaseDownloadClient):
             )
         return resp.json()
 
-    async def add(self, url: str, name: str) -> str:
+    async def add(self, url: str, name: str, info_hash: str | None = None) -> str:
         async with httpx.AsyncClient(timeout=30) as http:
             result = await self._rpc(http, "torrent-add", {"filename": url, "download-dir": ""})
         torrent = result.get("arguments", {}).get("torrent-added") or result.get(

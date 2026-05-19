@@ -42,6 +42,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
   const [sort, setSort] = useState<SortKey>('seeders')
   const [dir, setDir] = useState<SortDir>('desc')
   const [grabbedId, setGrabbedId] = useState<string | null>(null)
+  const [grabbingLink, setGrabbingLink] = useState<string | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['search', gameId],
@@ -50,8 +51,9 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
   })
 
   const grab = useMutation({
-    mutationFn: (r: ReleaseResult) =>
-      gamesApi.grab(gameId, {
+    mutationFn: (r: ReleaseResult) => {
+      setGrabbingLink(r.link)
+      return gamesApi.grab(gameId, {
         link: r.link,
         title: r.title,
         size: r.size,
@@ -59,13 +61,17 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
         indexer: r.indexer,
         indexer_id: r.indexer_id,
         seeders: r.seeders,
-      }),
+        info_hash: r.info_hash,
+      })
+    },
     onSuccess: (_, r) => {
+      setGrabbingLink(null)
       setGrabbedId(r.link)
       qc.invalidateQueries({ queryKey: ['game', gameId] })
       qc.invalidateQueries({ queryKey: ['queue'] })
       qc.invalidateQueries({ queryKey: ['search', gameId] })
     },
+    onError: () => setGrabbingLink(null),
   })
 
   function toggleSort(key: SortKey) {
@@ -269,7 +275,7 @@ export default function ManualSearchModal({ gameId, gameTitle, onClose }: Props)
                           <button
                             className="btn btn-primary btn--sm"
                             onClick={() => grab.mutate(r)}
-                            disabled={grab.isPending || rejected}
+                            disabled={grabbingLink === r.link || rejected}
                           >
                             <Download size={12} /> Grab
                           </button>
