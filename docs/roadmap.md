@@ -122,7 +122,6 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 | **Witty loading screen** | LoadingScreen on History, Queue, Wanted, GameDetail pages | ✅ Done |
 | **Custom filter presets** | Save current filter state with a name; selectable from filter menu | ✅ Done |
 | **Jump bar** | Alphabetical quick-nav rail when sorted by title | ✅ Done |
-| **Keyboard shortcuts** | J/K navigate rows, E edit, S search, M toggle monitored, ? help | ✅ Done |
 | **Column chooser** | Show/hide and drag-reorder columns in table view; persisted per user | ✅ Done |
 | **Virtual scroll** | @tanstack/react-virtual — eliminates DOM bottleneck on large libraries | ✅ Done |
 

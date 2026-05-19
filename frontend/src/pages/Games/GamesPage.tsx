@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Gamepad2,
@@ -19,7 +19,6 @@ import {
   Settings2,
   BookmarkPlus,
   X,
-  Keyboard,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
@@ -29,7 +28,7 @@ import ConfirmModal from '../../components/ConfirmModal'
 import LoadingScreen from '../../components/LoadingScreen'
 import ColumnChooser, { loadColumns, saveColumns } from '../../components/ColumnChooser'
 import type { ColumnConfig } from '../../components/ColumnChooser'
-import GamesTable from './GamesTable'
+import GamesTable, { type GamesTableHandle } from './GamesTable'
 import GamesPosters from './GamesPosters'
 import GamesOverview from './GamesOverview'
 import JumpBar from './JumpBar'
@@ -235,7 +234,6 @@ function ProfileModal({
 }
 
 export default function GamesPage() {
-  const navigate = useNavigate()
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
   const [selecting, setSelecting] = useState(false)
@@ -245,8 +243,6 @@ export default function GamesPage() {
   const [showPlatformModal, setShowPlatformModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
-  const [focusedIndex, setFocusedIndex] = useState(-1)
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false)
   const [showColumnChooser, setShowColumnChooser] = useState(false)
   const [columns, setColumns] = useState<ColumnConfig[]>(loadColumns)
   const [presets, setPresets] = useState<FilterPreset[]>(loadPresets)
@@ -266,6 +262,7 @@ export default function GamesPage() {
   const [showSort, setShowSort] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
   const sortRef = useRef<HTMLDivElement>(null)
+  const tableRef = useRef<GamesTableHandle>(null)
 
   const qc = useQueryClient()
 
@@ -277,14 +274,6 @@ export default function GamesPage() {
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [])
-
-  // Stable refs so the keyboard handler doesn't need to re-register on every render
-  const gamesRef = useRef<Game[]>([])
-  const focusedIndexRef = useRef(-1)
-  const qcRef = useRef(qc)
-  gamesRef.current = [] // populated after games is computed below — see after useMemo
-  focusedIndexRef.current = focusedIndex
-  qcRef.current = qc
 
   const { data: allGames = [], isLoading } = useQuery({
     queryKey: ['games'],
@@ -407,61 +396,6 @@ export default function GamesPage() {
     })
   }, [filteredGames, sortBy, platformMap])
 
-  // Keep ref current after games is computed
-  gamesRef.current = games
-
-  // Reset keyboard focus when the list changes (filter/sort)
-  useEffect(() => {
-    setFocusedIndex(-1)
-  }, [games])
-
-  // Keyboard shortcuts — registered once, reads current state via refs
-  useEffect(() => {
-    function handle(e: KeyboardEvent) {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      )
-        return
-      const fi = focusedIndexRef.current
-      const game = gamesRef.current[fi]
-      switch (e.key) {
-        case 'j':
-        case 'ArrowDown':
-          e.preventDefault()
-          setFocusedIndex((i) => Math.min(i + 1, gamesRef.current.length - 1))
-          break
-        case 'k':
-        case 'ArrowUp':
-          e.preventDefault()
-          setFocusedIndex((i) => Math.max(i - 1, 0))
-          break
-        case 'Enter':
-          if (game && fi >= 0) navigate(`/games/${game.id}`)
-          break
-        case 'e':
-          if (game && fi >= 0) navigate(`/games/${game.id}`, { state: { openEdit: true } })
-          break
-        case 's':
-          if (game && fi >= 0) gamesApi.search(game.id)
-          break
-        case 'm':
-          if (game && fi >= 0) {
-            gamesApi
-              .update(game.id, { monitored: !game.monitored })
-              .then(() => qcRef.current.invalidateQueries({ queryKey: ['games'] }))
-          }
-          break
-        case '?':
-          setShowShortcutsHelp((v) => !v)
-          break
-      }
-    }
-    document.addEventListener('keydown', handle)
-    return () => document.removeEventListener('keydown', handle)
-  }, [navigate])
-
   // Custom filter presets
   function savePreset() {
     const name = presetName.trim()
@@ -520,7 +454,7 @@ export default function GamesPage() {
     })
     if (index < 0) return
     if (view === 'table') {
-      setFocusedIndex(index)
+      tableRef.current?.scrollToIndex(index)
     } else {
       document
         .getElementById(`game-row-${games[index].id}`)
@@ -832,14 +766,6 @@ export default function GamesPage() {
               </button>
             )}
 
-            <button
-              className="toolbar-icon-btn"
-              onClick={() => setShowShortcutsHelp(true)}
-              title="Keyboard shortcuts"
-            >
-              <Keyboard size={18} />
-            </button>
-
             <div className="view-switcher">
               <button
                 className={`view-btn${view === 'table' ? ' active' : ''}`}
@@ -977,10 +903,10 @@ export default function GamesPage() {
         </div>
       ) : view === 'table' ? (
         <GamesTable
+          ref={tableRef}
           {...viewProps}
           sortBy={sortBy}
           onSort={handleSort}
-          focusedIndex={focusedIndex}
           columns={columns}
         />
       ) : view === 'posters' ? (
@@ -1043,56 +969,6 @@ export default function GamesPage() {
           onChange={handleColumnsChange}
           onClose={() => setShowColumnChooser(false)}
         />
-      )}
-
-      {showShortcutsHelp && (
-        <div className="modal-overlay" onClick={() => setShowShortcutsHelp(false)}>
-          <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">Keyboard Shortcuts</span>
-              <button className="btn-icon" onClick={() => setShowShortcutsHelp(false)}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="modal-body" style={{ padding: 0 }}>
-              <table style={{ width: '100%' }}>
-                <tbody>
-                  {(
-                    [
-                      ['J / ↓', 'Move focus to next game'],
-                      ['K / ↑', 'Move focus to previous game'],
-                      ['Enter', 'Open focused game'],
-                      ['E', 'Edit focused game'],
-                      ['S', 'Search for focused game'],
-                      ['M', 'Toggle monitored on focused game'],
-                      ['?', 'Show / hide this help'],
-                    ] as [string, string][]
-                  ).map(([key, desc]) => (
-                    <tr key={key}>
-                      <td style={{ padding: '9px 16px', whiteSpace: 'nowrap' }}>
-                        <kbd className="kbd">{key}</kbd>
-                      </td>
-                      <td style={{ padding: '9px 16px', color: 'var(--text-secondary)' }}>
-                        {desc}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  padding: '8px 16px 14px',
-                  margin: 0,
-                }}
-              >
-                Shortcuts are disabled when an input field is focused. J/K are most useful in table
-                view.
-              </p>
-            </div>
-          </div>
-        </div>
       )}
 
       {(sortBy === 'name_asc' || sortBy === 'name_desc') && (
