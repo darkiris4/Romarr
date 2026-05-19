@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Gamepad2,
@@ -19,6 +19,8 @@ import {
   Settings2,
   BookmarkPlus,
   FileEdit,
+  FolderInput,
+  Rss,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -236,6 +238,7 @@ function ProfileModal({
 }
 
 export default function GamesPage() {
+  const navigate = useNavigate()
   const [view, setView] = useState<View>(getSavedView)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
   const [selecting, setSelecting] = useState(false)
@@ -245,6 +248,8 @@ export default function GamesPage() {
   const [showPlatformModal, setShowPlatformModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
+  const [searchWantedDone, setSearchWantedDone] = useState(false)
+  const [searchFilteredDone, setSearchFilteredDone] = useState(false)
   const [showColumnChooser, setShowColumnChooser] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [columns, setColumns] = useState<ColumnConfig[]>(loadColumns)
@@ -351,6 +356,22 @@ export default function GamesPage() {
     onSuccess: () => {
       setUpdateAllDone(true)
       setTimeout(() => setUpdateAllDone(false), 2500)
+    },
+  })
+
+  const searchWantedMutation = useMutation({
+    mutationFn: () => systemApi.triggerTask('search_wanted'),
+    onSuccess: () => {
+      setSearchWantedDone(true)
+      setTimeout(() => setSearchWantedDone(false), 2500)
+    },
+  })
+
+  const searchFilteredMutation = useMutation({
+    mutationFn: () => gamesApi.bulkSearch(games.map((g) => g.id)),
+    onSuccess: () => {
+      setSearchFilteredDone(true)
+      setTimeout(() => setSearchFilteredDone(false), 2500)
     },
   })
 
@@ -569,8 +590,7 @@ export default function GamesPage() {
   return (
     <div>
       <div className="page-toolbar">
-        {!selecting ? (
-          <>
+        <>
             <button
               className="toolbar-icon-btn"
               onClick={() => updateAllMutation.mutate()}
@@ -594,11 +614,45 @@ export default function GamesPage() {
 
             <button
               className="toolbar-icon-btn"
-              onClick={() => setSelecting(true)}
-              title="Select games for bulk actions"
+              onClick={() => searchWantedMutation.mutate()}
+              disabled={searchWantedMutation.isPending || searchWantedDone}
+              title="Trigger an immediate search for all wanted games"
             >
-              <CheckSquare size={18} />
-              <span>Edit Games</span>
+              <Rss size={18} />
+              <span>
+                {searchWantedDone
+                  ? 'Started!'
+                  : searchWantedMutation.isPending
+                    ? 'Starting…'
+                    : 'Search Wanted'}
+              </span>
+            </button>
+
+            {activeFilterCount > 0 && (
+              <button
+                className="toolbar-icon-btn"
+                onClick={() => searchFilteredMutation.mutate()}
+                disabled={searchFilteredMutation.isPending || searchFilteredDone}
+                title={`Search indexers for the ${games.length} filtered game${games.length !== 1 ? 's' : ''}`}
+              >
+                <Search size={18} />
+                <span>
+                  {searchFilteredDone
+                    ? 'Started!'
+                    : searchFilteredMutation.isPending
+                      ? 'Starting…'
+                      : `Search Filtered`}
+                </span>
+              </button>
+            )}
+
+            <button
+              className="toolbar-icon-btn"
+              onClick={() => navigate('/games/import')}
+              title="Open Library Import"
+            >
+              <FolderInput size={18} />
+              <span>Import</span>
             </button>
 
             <div className="spacer" />
@@ -809,83 +863,6 @@ export default function GamesPage() {
               </button>
             </div>
           </>
-        ) : (
-          <>
-            <button className="btn btn-secondary btn-sm" onClick={stopSelecting}>
-              Stop Selecting
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={toggleSelectAll}>
-              {selected.size === games.length ? 'Deselect All' : 'Select All'}
-            </button>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>
-              {selected.size} selected
-            </span>
-            <div style={{ display: 'flex', gap: 6, marginLeft: 8, flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => bulkMonitorMutation.mutate(true)}
-                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
-              >
-                <Eye size={13} /> Monitor
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => bulkMonitorMutation.mutate(false)}
-                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
-              >
-                <EyeOff size={13} /> Unmonitor
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => bulkSearchMutation.mutate()}
-                disabled={selected.size === 0 || bulkSearchMutation.isPending}
-              >
-                <Search size={13} /> {bulkSearchMutation.isPending ? 'Searching…' : 'Search'}
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowPlatformModal(true)}
-                disabled={selected.size === 0}
-              >
-                <Layers size={13} /> Platform
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowProfileModal(true)}
-                disabled={selected.size === 0}
-              >
-                <CheckSquare size={13} /> Profile
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowTagsModal(true)}
-                disabled={selected.size === 0}
-              >
-                <Tag size={13} /> Tags
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowRenameModal(true)}
-                disabled={selected.size === 0}
-                title="Rename to No-Intro canonical filenames"
-              >
-                <FileEdit size={13} /> Rename
-              </button>
-              <button
-                className="btn btn-sm"
-                style={{
-                  background: 'rgba(240,80,80,.15)',
-                  borderColor: 'var(--danger)',
-                  color: 'var(--danger)',
-                }}
-                onClick={() => setShowBulkDeleteConfirm(true)}
-                disabled={selected.size === 0}
-              >
-                <Trash2 size={13} /> Delete
-              </button>
-            </div>
-          </>
-        )}
       </div>
 
       {presets.length > 0 && (
