@@ -180,7 +180,7 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
 
             out.relative_rom_path = str(Path(game.rom_path).relative_to(settings.rom_library_path))
         except ValueError:
-            out.relative_rom_path = game.rom_path
+            out.relative_rom_path = Path(game.rom_path).name
     return out
 
 
