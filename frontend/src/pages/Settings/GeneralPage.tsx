@@ -9,11 +9,8 @@ export default function GeneralPage() {
   const qc = useQueryClient()
 
   // Host
-  const [bindAddress, setBindAddress] = useState('*')
   const [port, setPort] = useState('8000')
   const [urlBase, setUrlBase] = useState('')
-  const [instanceName, setInstanceName] = useState('Romarr')
-  const [applicationUrl, setApplicationUrl] = useState('')
 
   // Security
   const [authMethod, setAuthMethod] = useState('None')
@@ -72,19 +69,6 @@ export default function GeneralPage() {
         </div>
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-group">
-            <label className="form-label">Bind Address</label>
-            <input
-              className="form-control"
-              value={bindAddress}
-              onChange={(e) => setBindAddress(e.target.value)}
-              style={{ maxWidth: 240 }}
-            />
-            <div className="form-hint">
-              Valid IP4 address or <code>*</code> for all interfaces. Leave as <code>*</code> unless
-              you have a specific reason.
-            </div>
-          </div>
-          <div className="form-group">
             <label className="form-label">Port Number</label>
             <input
               className="form-control"
@@ -106,29 +90,6 @@ export default function GeneralPage() {
             />
             <div className="form-hint">
               For reverse proxy support. Example: <code>/romarr</code>
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Instance Name</label>
-            <input
-              className="form-control"
-              value={instanceName}
-              onChange={(e) => setInstanceName(e.target.value)}
-              style={{ maxWidth: 320 }}
-            />
-            <div className="form-hint">Name shown in the browser tab and notifications.</div>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Application URL</label>
-            <input
-              className="form-control"
-              value={applicationUrl}
-              onChange={(e) => setApplicationUrl(e.target.value)}
-              placeholder="http://localhost:8000"
-              style={{ maxWidth: 400 }}
-            />
-            <div className="form-hint">
-              Used in notification links. Leave blank to use the local address.
             </div>
           </div>
         </div>
