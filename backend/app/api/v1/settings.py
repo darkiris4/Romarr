@@ -204,7 +204,9 @@ def save_general(payload: dict) -> dict:
     if "rename_roms" in payload:
         set_config("rename_roms", "true" if payload["rename_roms"] else "false")
     if "auto_upgrade_revisions" in payload:
-        set_config("auto_upgrade_revisions", "true" if payload["auto_upgrade_revisions"] else "false")
+        set_config(
+            "auto_upgrade_revisions", "true" if payload["auto_upgrade_revisions"] else "false"
+        )
     return {
         "curated_library_path": path,
         "rename_roms": get_config("rename_roms", "true") == "true",

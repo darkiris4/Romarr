@@ -31,6 +31,7 @@ def db_engine(tmp_path):
     # Patch settings so the app uses our test DB
     with patch.dict(os.environ, {"DATABASE_URL": db_url}):
         from app.database import Base
+
         Base.metadata.create_all(engine)
     yield engine
     engine.dispose()
@@ -93,26 +94,31 @@ def _game(db, title: str, platform_id: int, rom_path: str, crc32: str = None):
 
 def test_parse_revision_no_tag():
     from app.services.library_scanner import _parse_revision
+
     assert _parse_revision("Super Mario Bros. (World).nes") == 0
 
 
 def test_parse_revision_rev1():
     from app.services.library_scanner import _parse_revision
+
     assert _parse_revision("Super Mario Bros. (World) (Rev 1).nes") == 1
 
 
 def test_parse_revision_rev2():
     from app.services.library_scanner import _parse_revision
+
     assert _parse_revision("Mega Man (USA) (Rev 2).nes") == 2
 
 
 def test_parse_revision_case_insensitive():
     from app.services.library_scanner import _parse_revision
+
     assert _parse_revision("Game (Rev 1).nes") == _parse_revision("Game (rev 1).nes")
 
 
 def test_parse_revision_zip_no_tag():
     from app.services.library_scanner import _parse_revision
+
     assert _parse_revision("Super Mario Bros. (World).zip") == 0
 
 
@@ -131,10 +137,11 @@ def test_upgrade_enabled_replaces_older_revision(db, platform, tmp_path):
     # Create Rev 1 file
     rev1_zip = _make_zip(tmp_path, "Super Mario Bros. (World) (Rev 1).nes", b"REV1DATA")
 
-    with patch("app.services.config_service.get_config") as mock_cfg, \
-         patch("app.services.library_scanner.scan_folder") as mock_scan, \
-         patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p):
-
+    with (
+        patch("app.services.config_service.get_config") as mock_cfg,
+        patch("app.services.library_scanner.scan_folder") as mock_scan,
+        patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p),
+    ):
         mock_cfg.side_effect = lambda key, default="": (
             "true" if key == "auto_upgrade_revisions" else default
         )
@@ -175,10 +182,11 @@ def test_upgrade_enabled_skips_older_revision(db, platform, tmp_path):
 
     rev0_zip = _make_zip(tmp_path, "Super Mario Bros. (World).nes", b"REV0DATA")
 
-    with patch("app.services.config_service.get_config") as mock_cfg, \
-         patch("app.services.library_scanner.scan_folder") as mock_scan, \
-         patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p):
-
+    with (
+        patch("app.services.config_service.get_config") as mock_cfg,
+        patch("app.services.library_scanner.scan_folder") as mock_scan,
+        patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p),
+    ):
         mock_cfg.side_effect = lambda key, default="": (
             "true" if key == "auto_upgrade_revisions" else default
         )
@@ -216,10 +224,11 @@ def test_upgrade_disabled_skips_all_duplicates(db, platform, tmp_path):
 
     rev1_zip = _make_zip(tmp_path, "Super Mario Bros. (World) (Rev 1).nes", b"REV1DATA")
 
-    with patch("app.services.config_service.get_config") as mock_cfg, \
-         patch("app.services.library_scanner.scan_folder") as mock_scan, \
-         patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p):
-
+    with (
+        patch("app.services.config_service.get_config") as mock_cfg,
+        patch("app.services.library_scanner.scan_folder") as mock_scan,
+        patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p),
+    ):
         mock_cfg.side_effect = lambda key, default="": (
             "false" if key == "auto_upgrade_revisions" else default
         )
@@ -262,10 +271,11 @@ def test_multi_zip_selects_higher_revision(db, platform, tmp_path):
         zf.writestr("Super Mario Bros. (World).nes", b"REV0DATA")
         zf.writestr("Super Mario Bros. (World) (Rev 1).nes", b"REV1DATA")
 
-    with patch("app.services.config_service.get_config") as mock_cfg, \
-         patch("app.services.library_scanner.scan_folder") as mock_scan, \
-         patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p):
-
+    with (
+        patch("app.services.config_service.get_config") as mock_cfg,
+        patch("app.services.library_scanner.scan_folder") as mock_scan,
+        patch("app.services.library_scanner._try_rename_to_canonical", side_effect=lambda p, _: p),
+    ):
         mock_cfg.side_effect = lambda key, default="": (
             "true" if key == "auto_upgrade_revisions" else default
         )

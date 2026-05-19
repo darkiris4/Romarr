@@ -645,7 +645,9 @@ def import_roms(
                 game = db.query(Game).filter_by(id=rom.existing_game_id).first()
                 if game:
                     incoming_rev = _parse_revision(rom.filename)
-                    existing_rev = _parse_revision(Path(game.rom_path).name if game.rom_path else "")
+                    existing_rev = _parse_revision(
+                        Path(game.rom_path).name if game.rom_path else ""
+                    )
                     if incoming_rev > existing_rev:
                         final_path = _try_rename_to_canonical(rom.path, rom.crc32)
                         game.rom_path = final_path
@@ -663,7 +665,9 @@ def import_roms(
                 skipped_existing += 1
                 continue
         if rom.title and rom.platform_id:
-            existing = db.query(Game).filter_by(title=rom.title, platform_id=rom.platform_id).first()
+            existing = (
+                db.query(Game).filter_by(title=rom.title, platform_id=rom.platform_id).first()
+            )
             if existing:
                 if auto_upgrade:
                     incoming_rev = _parse_revision(rom.filename)
@@ -820,7 +824,9 @@ def import_start(
                 curated_path=curated_path,
             )
             copied_msg = f", {result.get('copied', 0)} copied to curated" if curated_path else ""
-            upgraded_msg = f", {result.get('upgraded', 0)} upgraded" if result.get("upgraded") else ""
+            upgraded_msg = (
+                f", {result.get('upgraded', 0)} upgraded" if result.get("upgraded") else ""
+            )
             log_event(
                 "LibraryImport",
                 f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated{upgraded_msg}, {result.get('skipped_existing', 0)} skipped{copied_msg}",
