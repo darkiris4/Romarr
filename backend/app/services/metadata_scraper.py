@@ -17,12 +17,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
 
+import os
+
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from ..config import settings
 from ..database import SessionLocal
-from ..models.game import Game
-from .igdb_service import fetch_enrichment_batch, fetch_game_metadata_debug
+from ..models.game import Game, GameStatus
+from .igdb_service import fetch_enrichment_batch, fetch_enrichment_by_id, fetch_game_metadata, fetch_game_metadata_debug
 
 logger = logging.getLogger(__name__)
 
@@ -276,3 +279,75 @@ def scrape_pending() -> dict:
         db.close()
         _state["running"] = False
         _state["done"] = True
+
+
+def refresh_single_game(game_id: int) -> dict:
+    """Re-run IGDB metadata and verify ROM file for a single game (Refresh & Scan)."""
+    db = SessionLocal()
+    try:
+        game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
+        if not game:
+            return {"ok": False, "error": "not found"}
+
+        # Scan: verify ROM file still exists on disk
+        if game.rom_path and not os.path.exists(game.rom_path):
+            game.rom_path = None
+            game.checksum_crc32 = None
+            game.checksum_md5 = None
+            game.checksum_sha1 = None
+            if game.status == GameStatus.IMPORTED:
+                game.status = GameStatus.WANTED
+
+        igdb_platform_id = getattr(game.platform, "igdb_platform_id", None)
+
+        if game.igdb_id:
+            # Already matched — refresh enrichment fields only
+            meta = fetch_enrichment_by_id(game.igdb_id)
+            if meta:
+                if meta.get("cover_url"):
+                    game.cover_url = meta["cover_url"]
+                if meta.get("summary"):
+                    game.summary = meta["summary"]
+                if meta.get("rating") is not None:
+                    game.rating = meta["rating"]
+                if meta.get("game_modes"):
+                    game.game_modes = meta["game_modes"]
+                if meta.get("themes"):
+                    game.themes = meta["themes"]
+                if meta.get("similar_games"):
+                    game.similar_games = meta["similar_games"]
+                if meta.get("collection_id") is not None:
+                    game.collection_id = meta["collection_id"]
+                if meta.get("collection_name"):
+                    game.collection_name = meta["collection_name"]
+        else:
+            # No IGDB match yet — attempt full title search
+            meta = fetch_game_metadata(game.title, igdb_platform_id)
+            game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
+            if meta:
+                game.igdb_id = meta["igdb_id"]
+                game.cover_url = meta["cover_url"]
+                if meta.get("release_year"):
+                    game.release_year = meta["release_year"]
+                if meta.get("summary"):
+                    game.summary = meta["summary"]
+                if meta.get("rating") is not None:
+                    game.rating = meta["rating"]
+                if meta.get("game_modes"):
+                    game.game_modes = meta["game_modes"]
+                if meta.get("themes"):
+                    game.themes = meta["themes"]
+                if meta.get("similar_games"):
+                    game.similar_games = meta["similar_games"]
+                if meta.get("collection_id") is not None:
+                    game.collection_id = meta["collection_id"]
+                if meta.get("collection_name"):
+                    game.collection_name = meta["collection_name"]
+
+        db.commit()
+        return {"ok": True}
+    except Exception as exc:
+        logger.warning("refresh_single_game failed for game %d: %s", game_id, exc)
+        return {"ok": False, "error": str(exc)}
+    finally:
+        db.close()

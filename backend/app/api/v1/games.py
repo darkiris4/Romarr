@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -375,3 +376,31 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
         db=db,
     )
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}
+
+
+@router.post("/{game_id}/refresh")
+def refresh_game(game_id: int, db: Session = Depends(get_db)):
+    """Force IGDB re-scrape and file verification for a single game."""
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    from ...services.metadata_scraper import refresh_single_game
+    threading.Thread(target=refresh_single_game, args=(game_id,), daemon=True).start()
+    return {"ok": True}
+
+
+@router.delete("/{game_id}/file")
+def delete_game_file(game_id: int, db: Session = Depends(get_db)):
+    """Delete the ROM file from disk and reset the game to wanted state."""
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    if game.rom_path and os.path.exists(game.rom_path):
+        os.remove(game.rom_path)
+    game.rom_path = None
+    game.checksum_crc32 = None
+    game.checksum_md5 = None
+    game.checksum_sha1 = None
+    game.status = GameStatus.WANTED
+    db.commit()
+    return {"ok": True}

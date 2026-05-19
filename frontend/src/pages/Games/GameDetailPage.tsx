@@ -14,9 +14,13 @@ import {
   Gamepad2,
   Pencil,
   FileEdit,
+  RefreshCw,
+  Clock,
+  HardDrive,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
+import { historyApi } from '../../api/history'
 import { platformsApi } from '../../api/platforms'
 import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -66,6 +70,8 @@ export default function GameDetailPage() {
   const [showSearch, setShowSearch] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showRename, setShowRename] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showManageFiles, setShowManageFiles] = useState(false)
 
   useEffect(() => {
     if (location.state?.openSearch) setShowSearch(true)
@@ -88,6 +94,16 @@ export default function GameDetailPage() {
   const { data: releaseProfiles = [] } = useQuery({
     queryKey: ['release-profiles'],
     queryFn: releaseProfilesApi.list,
+  })
+
+  const refreshMutation = useMutation({
+    mutationFn: () => gamesApi.refresh(Number(id)),
+    onSuccess: () => {
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+        qc.invalidateQueries({ queryKey: ['games'] })
+      }, 3000)
+    },
   })
 
   const toggleMonitored = useMutation({
@@ -220,17 +236,37 @@ export default function GameDetailPage() {
 
             {/* Actions */}
             <div className="detail-actions">
-              <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
-                <Search size={13} /> Search
+              <button
+                className="btn btn-secondary"
+                onClick={() => refreshMutation.mutate()}
+                disabled={refreshMutation.isPending}
+                title="Re-scrape IGDB metadata and verify ROM file on disk"
+              >
+                <RefreshCw
+                  size={13}
+                  style={refreshMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined}
+                />
+                {refreshMutation.isPending ? 'Refreshing…' : refreshMutation.isSuccess ? 'Refreshed!' : 'Refresh & Scan'}
               </button>
+              <button className="btn btn-primary" onClick={() => setShowSearch(true)}>
+                <Search size={13} /> Interactive Search
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowHistory(true)}>
+                <Clock size={13} /> History
+              </button>
+              {hasFile && (
+                <button className="btn btn-secondary" onClick={() => setShowManageFiles(true)}>
+                  <HardDrive size={13} /> Manage Files
+                </button>
+              )}
+              {game.checksum_crc32 && (
+                <button className="btn btn-secondary" onClick={() => setShowRename(true)}>
+                  <FileEdit size={13} /> Preview Rename
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>
                 <Pencil size={13} /> Edit
               </button>
-              {game.checksum_crc32 && (
-                <button className="btn btn-secondary" onClick={() => setShowRename(true)}>
-                  <FileEdit size={13} /> Rename
-                </button>
-              )}
               <button
                 className="btn btn-secondary"
                 onClick={() => toggleMonitored.mutate()}
@@ -426,6 +462,22 @@ export default function GameDetailPage() {
           danger
           onConfirm={() => deleteMutation.mutate()}
           onCancel={() => setShowDelete(false)}
+        />
+      )}
+
+      {showHistory && (
+        <GameHistoryModal gameId={Number(id)} gameTitle={game.title} onClose={() => setShowHistory(false)} />
+      )}
+
+      {showManageFiles && (
+        <ManageFilesModal
+          game={game}
+          onClose={() => setShowManageFiles(false)}
+          onFileDeleted={() => {
+            qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['games'] })
+            setShowManageFiles(false)
+          }}
         />
       )}
     </div>
@@ -630,6 +682,193 @@ function EditGameModal({
               </button>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GameHistoryModal({
+  gameId,
+  gameTitle,
+  onClose,
+}: {
+  gameId: number
+  gameTitle: string
+  onClose: () => void
+}) {
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['history', gameId],
+    queryFn: () => historyApi.list({ game_id: gameId, limit: 100 }),
+  })
+
+  const eventLabel: Record<string, string> = {
+    grabbed: 'Grabbed',
+    downloadComplete: 'Download Complete',
+    downloadFailed: 'Download Failed',
+    importFailed: 'Import Failed',
+    imported: 'Imported',
+    deleted: 'Deleted',
+    ignored: 'Ignored',
+  }
+  const eventColor: Record<string, string> = {
+    grabbed: 'var(--info)',
+    downloadComplete: 'var(--success)',
+    downloadFailed: 'var(--danger)',
+    importFailed: 'var(--danger)',
+    imported: 'var(--success)',
+    deleted: 'var(--warning)',
+    ignored: 'var(--text-muted)',
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">History — {gameTitle}</span>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body" style={{ padding: 0 }}>
+          {isLoading ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+              Loading…
+            </div>
+          ) : items.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+              No history for this game yet.
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Date</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Event</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Source</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Indexer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <td style={{ padding: '9px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {new Date(item.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td style={{ padding: '9px 16px' }}>
+                      <span style={{ color: eventColor[item.event_type] ?? 'var(--text-secondary)', fontWeight: 500 }}>
+                        {eventLabel[item.event_type] ?? item.event_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 16px', color: 'var(--text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.source_title || '—'}
+                    </td>
+                    <td style={{ padding: '9px 16px', color: 'var(--text-muted)' }}>
+                      {item.indexer || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="modal-footer">
+          <div className="spacer" />
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ManageFilesModal({
+  game,
+  onClose,
+  onFileDeleted,
+}: {
+  game: Game
+  onClose: () => void
+  onFileDeleted: () => void
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const deleteFileMutation = useMutation({
+    mutationFn: () => gamesApi.deleteFile(game.id),
+    onSuccess: onFileDeleted,
+  })
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Manage Files — {game.title}</span>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 20 }}>
+            <tbody>
+              {(game.relative_rom_path || game.rom_path) && (
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <td style={{ padding: '8px 0', color: 'var(--text-muted)', width: 90 }}>Path</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
+                    {game.relative_rom_path ?? game.rom_path}
+                  </td>
+                </tr>
+              )}
+              {game.file_size != null && (
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>Size</td>
+                  <td style={{ padding: '8px 0' }}>{formatBytes(game.file_size)}</td>
+                </tr>
+              )}
+              {game.checksum_crc32 && (
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>CRC32</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_crc32}</td>
+                </tr>
+              )}
+              {game.checksum_md5 && (
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                  <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>MD5</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_md5}</td>
+                </tr>
+              )}
+              {game.checksum_sha1 && (
+                <tr>
+                  <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>SHA1</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_sha1}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {confirmDelete ? (
+            <div style={{ background: 'rgba(220,53,69,.08)', border: '1px solid rgba(220,53,69,.3)', borderRadius: 6, padding: '12px 14px' }}>
+              <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 10 }}>
+                Delete the ROM file from disk? The game record will be kept in Wanted state.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => deleteFileMutation.mutate()}
+                  disabled={deleteFileMutation.isPending}
+                >
+                  {deleteFileMutation.isPending ? 'Deleting…' : 'Confirm Delete'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={13} /> Delete File
+            </button>
+          )}
+        </div>
+        <div className="modal-footer">
+          <div className="spacer" />
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>

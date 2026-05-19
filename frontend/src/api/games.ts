@@ -65,4 +65,8 @@ export const gamesApi = {
 
   bulkProfile: (ids: number[], release_profile_id: number | null) =>
     client.patch('/games/bulk-profile', { ids, release_profile_id }),
+
+  refresh: (id: number) => client.post(`/games/${id}/refresh`).then((r) => r.data),
+
+  deleteFile: (id: number) => client.delete(`/games/${id}/file`).then((r) => r.data),
 }
