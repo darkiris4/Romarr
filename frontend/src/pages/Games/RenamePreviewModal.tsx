@@ -24,7 +24,11 @@ export default function RenamePreviewModal({ gameIds, onClose, onDone }: Props) 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 740 }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        style={{ maxWidth: 860, width: '92vw' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <span className="modal-title">Preview Rename</span>
           <button className="btn-icon" onClick={onClose}>
@@ -32,7 +36,7 @@ export default function RenamePreviewModal({ gameIds, onClose, onDone }: Props) 
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: 420, overflowY: 'auto', padding: 0 }}>
+        <div className="modal-body" style={{ maxHeight: 520, overflowY: 'auto', padding: 0 }}>
           {isLoading ? (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
               Building preview…
@@ -42,67 +46,100 @@ export default function RenamePreviewModal({ gameIds, onClose, onDone }: Props) 
               None of the selected games have a file path recorded.
             </div>
           ) : (
-            <table className="activity-table" style={{ fontSize: 12 }}>
-              <thead>
-                <tr>
-                  <th>Game</th>
-                  <th>Current Filename</th>
-                  <th>Proposed Filename</th>
-                  <th style={{ width: 90 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.game_id} style={{ opacity: r.eligible ? 1 : 0.45 }}>
-                    <td style={{ color: 'var(--text-white)' }}>{r.title}</td>
-                    <td
+            <div>
+              {rows.map((r) => (
+                <div
+                  key={r.game_id}
+                  style={{
+                    padding: '12px 18px',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    opacity: r.eligible ? 1 : 0.45,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 13 }}>
+                      {r.title}
+                    </span>
+                    {r.eligible ? (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 11,
+                          color: 'var(--success)',
+                        }}
+                      >
+                        <CheckCircle size={11} /> Ready
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {r.reason ?? 'Skip'}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--text-muted)',
+                        flexShrink: 0,
+                        width: 52,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      Current
+                    </span>
+                    <span
                       style={{
                         fontFamily: 'monospace',
                         fontSize: 11,
                         color: 'var(--text-muted)',
-                        maxWidth: 200,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        wordBreak: 'break-all',
+                        lineHeight: 1.5,
                       }}
                     >
                       {r.current_filename ?? '—'}
-                    </td>
-                    <td
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: 11,
-                        color: r.eligible ? 'var(--success)' : 'var(--text-muted)',
-                        maxWidth: 200,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {r.proposed_filename ?? '—'}
-                    </td>
-                    <td>
-                      {r.eligible ? (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            color: 'var(--success)',
-                          }}
-                        >
-                          <CheckCircle size={12} /> Ready
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                          {r.reason ?? 'Skip'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                  </div>
+                  {r.eligible && r.proposed_filename && (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 3 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: 'var(--success)',
+                          flexShrink: 0,
+                          width: 52,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        New
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: 'var(--success)',
+                          wordBreak: 'break-all',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {r.proposed_filename}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
