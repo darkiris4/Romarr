@@ -134,7 +134,7 @@ textarea {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 2;
 }
 
@@ -155,6 +155,7 @@ textarea {
 .sidebar-nav {
   flex: 1;
   padding: 8px 0;
+  overflow-y: auto;
 }
 
 .nav-section-label {
