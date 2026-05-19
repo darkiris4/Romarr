@@ -147,24 +147,33 @@ export default function GameDetailPage() {
     },
   })
 
-  const libraryByIgdbId = new Map(allGames.filter((g) => g.igdb_id != null).map((g) => [g.igdb_id!, g]))
+  const libraryByIgdbId = new Map(
+    allGames.filter((g) => g.igdb_id != null).map((g) => [g.igdb_id!, g])
+  )
 
   // Map profile region names → IGDB region codes
   const REGION_TO_IGDB: Record<string, number[]> = {
-    'USA': [2], 'Europe': [1, 3, 4], 'Japan': [5], 'World': [8],
-    'USA, Europe': [1, 2, 3, 4], 'USA, Japan': [2, 5],
+    USA: [2],
+    Europe: [1, 3, 4],
+    Japan: [5],
+    World: [8],
+    'USA, Europe': [1, 2, 3, 4],
+    'USA, Japan': [2, 5],
   }
   const defaultProfile = releaseProfiles.find((p) => p.is_default) ?? releaseProfiles[0]
   const allowedIgdbRegions = new Set<number>([8]) // worldwide always included
   for (const r of defaultProfile?.region_priority ?? []) {
     for (const code of REGION_TO_IGDB[r] ?? []) allowedIgdbRegions.add(code)
   }
-  const userPlatformIgdbIds = new Set(platforms.map((p) => p.igdb_platform_id).filter(Boolean) as number[])
+  const userPlatformIgdbIds = new Set(
+    platforms.map((p) => p.igdb_platform_id).filter(Boolean) as number[]
+  )
 
   const seriesGames = collectionGames.filter((cg) => {
     if (cg.igdb_id === game?.igdb_id) return false
     const regionOk = !cg.regions?.length || cg.regions.some((r) => allowedIgdbRegions.has(r))
-    const platformOk = !cg.platform_ids?.length || cg.platform_ids.some((id) => userPlatformIgdbIds.has(id))
+    const platformOk =
+      !cg.platform_ids?.length || cg.platform_ids.some((id) => userPlatformIgdbIds.has(id))
     return regionOk && platformOk
   })
 
@@ -193,7 +202,13 @@ export default function GameDetailPage() {
             size={18}
             style={refreshMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined}
           />
-          <span>{refreshMutation.isPending ? 'Refreshing…' : refreshMutation.isSuccess ? 'Refreshed!' : 'Refresh & Scan'}</span>
+          <span>
+            {refreshMutation.isPending
+              ? 'Refreshing…'
+              : refreshMutation.isSuccess
+                ? 'Refreshed!'
+                : 'Refresh & Scan'}
+          </span>
         </button>
         <button
           className="toolbar-icon-btn"
@@ -202,9 +217,19 @@ export default function GameDetailPage() {
           title="Automatically search indexers for this game"
         >
           <Search size={18} />
-          <span>{searchGameDone ? 'Started!' : searchGameMutation.isPending ? 'Starting…' : 'Search Game'}</span>
+          <span>
+            {searchGameDone
+              ? 'Started!'
+              : searchGameMutation.isPending
+                ? 'Starting…'
+                : 'Search Game'}
+          </span>
         </button>
-        <button className="toolbar-icon-btn" onClick={() => setShowSearch(true)} title="Browse and pick a release manually">
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => setShowSearch(true)}
+          title="Browse and pick a release manually"
+        >
           <Search size={18} />
           <span>Interactive Search</span>
         </button>
@@ -215,7 +240,11 @@ export default function GameDetailPage() {
           className="toolbar-icon-btn"
           onClick={() => setShowRename(true)}
           disabled={!game.checksum_crc32}
-          title={game.checksum_crc32 ? 'Preview what this ROM would be renamed to' : 'No file imported yet'}
+          title={
+            game.checksum_crc32
+              ? 'Preview what this ROM would be renamed to'
+              : 'No file imported yet'
+          }
         >
           <FileEdit size={18} />
           <span>Preview Rename</span>
@@ -240,7 +269,10 @@ export default function GameDetailPage() {
           <Pencil size={18} />
           <span>Edit</span>
         </button>
-        <button className="toolbar-icon-btn toolbar-icon-btn--danger" onClick={() => setShowDelete(true)}>
+        <button
+          className="toolbar-icon-btn toolbar-icon-btn--danger"
+          onClick={() => setShowDelete(true)}
+        >
           <Trash2 size={18} />
           <span>Delete</span>
         </button>
@@ -295,11 +327,17 @@ export default function GameDetailPage() {
                 className={`detail-title-bookmark${game.monitored ? ' detail-title-bookmark--monitored' : ''}`}
                 onClick={() => toggleMonitored.mutate()}
                 disabled={toggleMonitored.isPending}
-                title={game.monitored ? 'Monitored — click to unmonitor' : 'Unmonitored — click to monitor'}
+                title={
+                  game.monitored
+                    ? 'Monitored — click to unmonitor'
+                    : 'Unmonitored — click to monitor'
+                }
               >
                 <Bookmark size={38} fill={game.monitored ? 'currentColor' : 'none'} />
               </button>
-              <h1 className="detail-title" style={{ margin: 0 }}>{game.title}</h1>
+              <h1 className="detail-title" style={{ margin: 0 }}>
+                {game.title}
+              </h1>
             </div>
 
             {/* Inline summary: year · platform · region */}
@@ -367,12 +405,16 @@ export default function GameDetailPage() {
                   fullWidth
                 />
               )}
-              <HeroItem label="Status" value={game.status.charAt(0).toUpperCase() + game.status.slice(1)} />
+              <HeroItem
+                label="Status"
+                value={game.status.charAt(0).toUpperCase() + game.status.slice(1)}
+              />
               <HeroItem label="Platform" value={game.platform?.name ?? '—'} />
-              {game.file_size != null
-                ? <HeroItem label="Size" value={formatBytes(game.file_size)} />
-                : <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
-              }
+              {game.file_size != null ? (
+                <HeroItem label="Size" value={formatBytes(game.file_size)} />
+              ) : (
+                <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
+              )}
               <HeroItem label="Region" value={game.region || '—'} />
               {game.file_size != null && (
                 <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
@@ -408,7 +450,11 @@ export default function GameDetailPage() {
               {seriesGames.map((sg) => {
                 const libraryGame = libraryByIgdbId.get(sg.igdb_id)
                 return libraryGame ? (
-                  <Link key={sg.igdb_id} to={`/games/${libraryGame.id}`} className="detail-similar-card">
+                  <Link
+                    key={sg.igdb_id}
+                    to={`/games/${libraryGame.id}`}
+                    className="detail-similar-card"
+                  >
                     <div className="detail-similar-cover-wrap">
                       {sg.cover_url ? (
                         <img src={sg.cover_url} alt={sg.name} className="detail-similar-cover" />
@@ -417,7 +463,10 @@ export default function GameDetailPage() {
                           <ImageOff size={20} />
                         </div>
                       )}
-                      <span className="detail-series-badge detail-series-badge--owned" title="In your library">
+                      <span
+                        className="detail-series-badge detail-series-badge--owned"
+                        title="In your library"
+                      >
                         <CheckCircle size={14} />
                       </span>
                     </div>
@@ -524,7 +573,11 @@ export default function GameDetailPage() {
       )}
 
       {showHistory && (
-        <GameHistoryModal gameId={Number(id)} gameTitle={game.title} onClose={() => setShowHistory(false)} />
+        <GameHistoryModal
+          gameId={Number(id)}
+          gameTitle={game.title}
+          onClose={() => setShowHistory(false)}
+        />
       )}
 
       {showManageFiles && (
@@ -538,12 +591,7 @@ export default function GameDetailPage() {
           }}
         />
       )}
-      {quickAddGame && (
-        <QuickAddModal
-          game={quickAddGame}
-          onClose={() => setQuickAddGame(null)}
-        />
-      )}
+      {quickAddGame && <QuickAddModal game={quickAddGame} onClose={() => setQuickAddGame(null)} />}
     </div>
   )
 }
@@ -663,7 +711,10 @@ function FilesSection({ game, onFileDeleted }: { game: Game; onFileDeleted: () =
                   <th key={c.key}>{c.label}</th>
                 ))}
                 <th style={{ width: 32 }}>
-                  <div ref={colMenuRef} style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                  <div
+                    ref={colMenuRef}
+                    style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}
+                  >
                     <button
                       className="btn-icon"
                       onClick={() => setShowColMenu((v) => !v)}
@@ -696,13 +747,18 @@ function FilesSection({ game, onFileDeleted }: { game: Game; onFileDeleted: () =
                   <td>{game.file_size != null ? formatBytes(game.file_size) : '—'}</td>
                 )}
                 {visibleCols.has('region') && <td>{game.region || '—'}</td>}
-                {visibleCols.has('revision') && (
-                  <td className="text-muted text-sm">{revision}</td>
-                )}
+                {visibleCols.has('revision') && <td className="text-muted text-sm">{revision}</td>}
                 {visibleCols.has('dat_matched') && (
                   <td>
                     {isDatMatched ? (
-                      <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span
+                        style={{
+                          color: 'var(--success)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
                         <CheckCircle size={13} /> Yes
                       </span>
                     ) : (
@@ -735,9 +791,7 @@ function FilesSection({ game, onFileDeleted }: { game: Game; onFileDeleted: () =
         </div>
       </div>
 
-      {showDetails && (
-        <FileDetailsModal game={game} onClose={() => setShowDetails(false)} />
-      )}
+      {showDetails && <FileDetailsModal game={game} onClose={() => setShowDetails(false)} />}
 
       {deleteConfirm && (
         <ConfirmModal
@@ -777,15 +831,26 @@ function FileDetailsModal({ game, onClose }: { game: Game; onClose: () => void }
               {rows.map((row, i) => (
                 <tr
                   key={row.label}
-                  style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.06)' : 'none' }}
+                  style={{
+                    borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.06)' : 'none',
+                  }}
                 >
-                  <td style={{ padding: '9px 16px 9px 0', color: 'var(--text-muted)', width: 90, verticalAlign: 'top' }}>
+                  <td
+                    style={{
+                      padding: '9px 16px 9px 0',
+                      color: 'var(--text-muted)',
+                      width: 90,
+                      verticalAlign: 'top',
+                    }}
+                  >
                     {row.label}
                   </td>
                   <td
                     style={{
                       padding: '9px 0',
-                      ...(row.mono ? { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } : {}),
+                      ...(row.mono
+                        ? { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }
+                        : {}),
                     }}
                   >
                     {row.value}
@@ -1032,24 +1097,85 @@ function GameHistoryModal({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Date</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Event</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Source</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Indexer</th>
+                  <th
+                    style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Date
+                  </th>
+                  <th
+                    style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Event
+                  </th>
+                  <th
+                    style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Source
+                  </th>
+                  <th
+                    style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Indexer
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <td style={{ padding: '9px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      {new Date(item.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    <td
+                      style={{
+                        padding: '9px 16px',
+                        color: 'var(--text-secondary)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {new Date(item.date).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </td>
                     <td style={{ padding: '9px 16px' }}>
-                      <span style={{ color: eventColor[item.event_type] ?? 'var(--text-secondary)', fontWeight: 500 }}>
+                      <span
+                        style={{
+                          color: eventColor[item.event_type] ?? 'var(--text-secondary)',
+                          fontWeight: 500,
+                        }}
+                      >
                         {eventLabel[item.event_type] ?? item.event_type}
                       </span>
                     </td>
-                    <td style={{ padding: '9px 16px', color: 'var(--text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td
+                      style={{
+                        padding: '9px 16px',
+                        color: 'var(--text-secondary)',
+                        maxWidth: 220,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {item.source_title || '—'}
                     </td>
                     <td style={{ padding: '9px 16px', color: 'var(--text-muted)' }}>
@@ -1063,7 +1189,9 @@ function GameHistoryModal({
         </div>
         <div className="modal-footer">
           <div className="spacer" />
-          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -1096,12 +1224,21 @@ function ManageFilesModal({
           </button>
         </div>
         <div className="modal-body">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 20 }}>
+          <table
+            style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 20 }}
+          >
             <tbody>
               {(game.relative_rom_path || game.rom_path) && (
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                   <td style={{ padding: '8px 0', color: 'var(--text-muted)', width: 90 }}>Path</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
+                  <td
+                    style={{
+                      padding: '8px 0',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      wordBreak: 'break-all',
+                    }}
+                  >
                     {game.relative_rom_path ?? game.rom_path}
                   </td>
                 </tr>
@@ -1115,31 +1252,49 @@ function ManageFilesModal({
               {game.checksum_crc32 && (
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                   <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>CRC32</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_crc32}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>
+                    {game.checksum_crc32}
+                  </td>
                 </tr>
               )}
               {game.checksum_md5 && (
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                   <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>MD5</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_md5}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>
+                    {game.checksum_md5}
+                  </td>
                 </tr>
               )}
               {game.checksum_sha1 && (
                 <tr>
                   <td style={{ padding: '8px 0', color: 'var(--text-muted)' }}>SHA1</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>{game.checksum_sha1}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>
+                    {game.checksum_sha1}
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
 
           {confirmDelete ? (
-            <div style={{ background: 'rgba(220,53,69,.08)', border: '1px solid rgba(220,53,69,.3)', borderRadius: 6, padding: '12px 14px' }}>
+            <div
+              style={{
+                background: 'rgba(220,53,69,.08)',
+                border: '1px solid rgba(220,53,69,.3)',
+                borderRadius: 6,
+                padding: '12px 14px',
+              }}
+            >
               <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 10 }}>
                 Delete the ROM file from disk? The game record will be kept in Wanted state.
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </button>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={() => deleteFileMutation.mutate()}
@@ -1157,7 +1312,9 @@ function ManageFilesModal({
         </div>
         <div className="modal-footer">
           <div className="spacer" />
-          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>

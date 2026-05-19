@@ -24,7 +24,12 @@ from sqlalchemy.orm import joinedload
 from ..config import settings
 from ..database import SessionLocal
 from ..models.game import Game, GameStatus
-from .igdb_service import fetch_enrichment_batch, fetch_enrichment_by_id, fetch_game_metadata, fetch_game_metadata_debug
+from .igdb_service import (
+    fetch_enrichment_batch,
+    fetch_enrichment_by_id,
+    fetch_game_metadata,
+    fetch_game_metadata_debug,
+)
 
 logger = logging.getLogger(__name__)
 

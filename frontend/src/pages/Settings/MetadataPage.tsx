@@ -228,7 +228,6 @@ export default function MetadataPage() {
           </div>
         </div>
       </div>
-
     </div>
   )
 }

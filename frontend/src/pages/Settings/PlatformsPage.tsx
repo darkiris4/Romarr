@@ -217,7 +217,11 @@ export default function PlatformsPage() {
       {deleteError && (
         <div className="alert alert-danger" style={{ marginBottom: 16 }}>
           {deleteError}
-          <button className="btn-icon" style={{ marginLeft: 8 }} onClick={() => setDeleteError(null)}>
+          <button
+            className="btn-icon"
+            style={{ marginLeft: 8 }}
+            onClick={() => setDeleteError(null)}
+          >
             <X size={14} />
           </button>
         </div>

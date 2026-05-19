@@ -44,7 +44,8 @@ export const systemApi = {
         }>
       >('/system/tasks/queue')
       .then((r) => r.data),
-  scrape: (force = false) => client.post('/system/scrape', null, { params: { force } }).then((r) => r.data),
+  scrape: (force = false) =>
+    client.post('/system/scrape', null, { params: { force } }).then((r) => r.data),
   scrapeStatus: () =>
     client
       .get<{

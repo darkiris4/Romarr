@@ -12,7 +12,6 @@ interface Props {
   onClose: () => void
 }
 
-
 export default function QuickAddModal({ game, onClose }: Props) {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -22,7 +21,10 @@ export default function QuickAddModal({ game, onClose }: Props) {
   const [error, setError] = useState('')
 
   const { data: platforms = [] } = useQuery({ queryKey: ['platforms'], queryFn: platformsApi.list })
-  const { data: profiles = [] } = useQuery({ queryKey: ['release-profiles'], queryFn: releaseProfilesApi.list })
+  const { data: profiles = [] } = useQuery({
+    queryKey: ['release-profiles'],
+    queryFn: releaseProfilesApi.list,
+  })
 
   const defaultProfile = profiles.find((p) => p.is_default) ?? profiles[0]
 
@@ -30,7 +32,8 @@ export default function QuickAddModal({ game, onClose }: Props) {
   const matchedPlatforms: Platform[] = platforms.filter(
     (p) => p.igdb_platform_id != null && game.platform_ids.includes(p.igdb_platform_id!)
   )
-  const displayPlatforms = matchedPlatforms.length > 0 ? matchedPlatforms : platforms.filter((p) => p.enabled)
+  const displayPlatforms =
+    matchedPlatforms.length > 0 ? matchedPlatforms : platforms.filter((p) => p.enabled)
 
   // Pre-select platform and region from the default profile once data loads
   useEffect(() => {
@@ -110,7 +113,9 @@ export default function QuickAddModal({ game, onClose }: Props) {
                   ))}
                 </select>
                 {matchedPlatforms.length === 0 && (
-                  <div className="form-hint">No configured platforms match this game's IGDB data</div>
+                  <div className="form-hint">
+                    No configured platforms match this game's IGDB data
+                  </div>
                 )}
               </div>
 

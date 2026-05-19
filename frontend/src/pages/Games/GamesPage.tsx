@@ -692,9 +692,7 @@ export default function GamesPage() {
               <RefreshCw
                 size={18}
                 style={
-                  updateAllMutation.isPending
-                    ? { animation: 'spin 1s linear infinite' }
-                    : undefined
+                  updateAllMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined
                 }
               />
               <span>
@@ -729,9 +727,7 @@ export default function GamesPage() {
             <button
               className="toolbar-icon-btn"
               onClick={() =>
-                activeFilterCount > 0
-                  ? searchFilteredMutation.mutate()
-                  : searchAllMutation.mutate()
+                activeFilterCount > 0 ? searchFilteredMutation.mutate() : searchAllMutation.mutate()
               }
               disabled={
                 activeFilterCount > 0

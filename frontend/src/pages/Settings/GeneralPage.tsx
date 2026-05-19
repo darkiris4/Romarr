@@ -27,7 +27,6 @@ export default function GeneralPage() {
   })
   const logLevel = levelData?.level ?? 'info'
 
-
   // Updates
   const [branch, setBranch] = useState('main')
   const [autoUpdate, setAutoUpdate] = useState(false)
