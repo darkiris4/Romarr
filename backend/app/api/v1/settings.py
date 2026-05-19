@@ -190,11 +190,19 @@ def save_profile(payload: dict) -> dict:
 
 @router.get("/general")
 def get_general() -> dict:
-    return {"curated_library_path": get_config("curated_library_path", "")}
+    return {
+        "curated_library_path": get_config("curated_library_path", ""),
+        "rename_roms": get_config("rename_roms", "true") == "true",
+    }
 
 
 @router.put("/general", status_code=200)
 def save_general(payload: dict) -> dict:
     path = (payload.get("curated_library_path") or "").strip()
     set_config("curated_library_path", path)
-    return {"curated_library_path": path}
+    if "rename_roms" in payload:
+        set_config("rename_roms", "true" if payload["rename_roms"] else "false")
+    return {
+        "curated_library_path": path,
+        "rename_roms": get_config("rename_roms", "true") == "true",
+    }

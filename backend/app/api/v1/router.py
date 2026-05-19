@@ -10,6 +10,7 @@ from . import (
     igdb,
     indexers,
     library,
+    list_sources,
     logs,
     platforms,
     profiles,
@@ -37,3 +38,4 @@ router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 router.include_router(connect.router, prefix="/connect", tags=["Connect"])
 router.include_router(logs.router, prefix="/logs", tags=["Logs"])
 router.include_router(profiles.router, prefix="/profiles", tags=["Profiles"])
+router.include_router(list_sources.router, prefix="/list-sources", tags=["List Sources"])

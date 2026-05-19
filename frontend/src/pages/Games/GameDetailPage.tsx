@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Gamepad2,
   Pencil,
+  FileEdit,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -21,6 +22,7 @@ import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
 import LoadingScreen from '../../components/LoadingScreen'
 import ManualSearchModal from './ManualSearchModal'
+import RenamePreviewModal from './RenamePreviewModal'
 import type { Game, ReleaseProfile } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -63,6 +65,7 @@ export default function GameDetailPage() {
   const [showDelete, setShowDelete] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showRename, setShowRename] = useState(false)
 
   useEffect(() => {
     if (location.state?.openSearch) setShowSearch(true)
@@ -102,6 +105,11 @@ export default function GameDetailPage() {
       navigate('/games')
     },
   })
+
+  const cachedGames = qc.getQueryData<Game[]>(['games']) ?? []
+  const seriesGames = game?.collection_id
+    ? cachedGames.filter((g) => g.collection_id === game.collection_id && g.id !== game.id)
+    : []
 
   if (isLoading) return <LoadingScreen />
   if (!game)
@@ -218,6 +226,11 @@ export default function GameDetailPage() {
               <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>
                 <Pencil size={13} /> Edit
               </button>
+              {game.checksum_crc32 && (
+                <button className="btn btn-secondary" onClick={() => setShowRename(true)}>
+                  <FileEdit size={13} /> Rename
+                </button>
+              )}
               <button
                 className="btn btn-secondary"
                 onClick={() => toggleMonitored.mutate()}
@@ -319,6 +332,33 @@ export default function GameDetailPage() {
         </div>
       )}
 
+      {/* ── More in this series ── */}
+      {seriesGames.length > 0 && (
+        <div className="detail-body">
+          <div className="card" style={{ padding: 0 }}>
+            <div className="card-header" style={{ padding: '12px 16px' }}>
+              <span className="card-title">
+                More in {game.collection_name ? `"${game.collection_name}"` : 'this series'}
+              </span>
+            </div>
+            <div className="detail-similar-row">
+              {seriesGames.map((sg) => (
+                <Link key={sg.id} to={`/games/${sg.id}`} className="detail-similar-card">
+                  {sg.cover_url ? (
+                    <img src={sg.cover_url} alt={sg.title} className="detail-similar-cover" />
+                  ) : (
+                    <div className="detail-similar-cover detail-similar-cover--empty">
+                      <ImageOff size={20} />
+                    </div>
+                  )}
+                  <div className="detail-similar-name">{sg.title}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Similar Games ── */}
       {parseSimilarGames(game.similar_games).length > 0 && (
         <div className="detail-body">
@@ -363,6 +403,18 @@ export default function GameDetailPage() {
           gameId={Number(id)}
           gameTitle={game.title}
           onClose={() => setShowSearch(false)}
+        />
+      )}
+
+      {showRename && (
+        <RenamePreviewModal
+          gameIds={[Number(id)]}
+          onClose={() => setShowRename(false)}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['games'] })
+            setShowRename(false)
+          }}
         />
       )}
 

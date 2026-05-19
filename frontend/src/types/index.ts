@@ -73,6 +73,8 @@ export interface Game {
   game_modes?: string
   themes?: string
   similar_games?: string
+  collection_id?: number | null
+  collection_name?: string | null
   tags?: string | null
   last_searched_at?: string | null
   release_profile_id?: number | null

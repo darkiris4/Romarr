@@ -36,6 +36,8 @@ class Game(Base):
     game_modes: Mapped[str | None] = mapped_column(String, nullable=True)
     themes: Mapped[str | None] = mapped_column(String, nullable=True)
     similar_games: Mapped[str | None] = mapped_column(String, nullable=True)
+    collection_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    collection_name: Mapped[str | None] = mapped_column(String, nullable=True)
     tags: Mapped[str | None] = mapped_column(String, nullable=True)
     igdb_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_searched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

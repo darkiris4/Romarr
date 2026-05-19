@@ -75,6 +75,50 @@ def system_status():
     }
 
 
+_updates_cache: dict = {"checked_at": 0.0, "data": None}
+_UPDATES_TTL = 6 * 3600  # 6 hours
+
+
+@router.get("/updates")
+def get_updates():
+    import time
+
+    import httpx
+
+    now = time.time()
+    if now - _updates_cache["checked_at"] < _UPDATES_TTL and _updates_cache["data"]:
+        return _updates_cache["data"]
+
+    try:
+        resp = httpx.get(
+            "https://api.github.com/repos/darkiris4/Romarr/releases/latest",
+            headers={"Accept": "application/vnd.github+json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        release = resp.json()
+        latest = release.get("tag_name", "").lstrip("v")
+        release_url = release.get("html_url", "")
+        release_notes = release.get("body", "")
+        has_update = latest != "" and latest != APP_VERSION
+    except Exception:
+        latest = ""
+        release_url = ""
+        release_notes = ""
+        has_update = False
+
+    data = {
+        "current": APP_VERSION,
+        "latest": latest or APP_VERSION,
+        "has_update": has_update,
+        "release_url": release_url,
+        "release_notes": release_notes,
+    }
+    _updates_cache["checked_at"] = now
+    _updates_cache["data"] = data
+    return data
+
+
 @router.get("/tasks")
 def list_tasks():
     from ...services.scheduler import get_job_history, scheduler

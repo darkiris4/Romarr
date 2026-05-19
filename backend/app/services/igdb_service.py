@@ -216,7 +216,8 @@ def _run_tiered_search(title: str, igdb_platform_id: int | None) -> tuple[list, 
         "fields id, name, first_release_date, cover.image_id,"
         " summary, rating, aggregated_rating, total_rating,"
         " game_modes.name, themes.name,"
-        " similar_games.name, similar_games.cover.image_id;"
+        " similar_games.name, similar_games.cover.image_id,"
+        " collection.id, collection.name;"
     )
     plat = f"& platforms = ({igdb_platform_id})" if igdb_platform_id else ""
     plat_clause = f"where platforms = ({igdb_platform_id});" if igdb_platform_id else ""
@@ -285,6 +286,10 @@ def _build_metadata(results: list) -> dict | None:
                 )
         similar.append({"name": sg.get("name"), "cover_url": sg_cover_url})
 
+    col = game.get("collection")
+    collection_id = col.get("id") if isinstance(col, dict) else None
+    collection_name = col.get("name") if isinstance(col, dict) else None
+
     return {
         "igdb_id": game["id"],
         "cover_url": cover_url,
@@ -294,6 +299,8 @@ def _build_metadata(results: list) -> dict | None:
         "game_modes": json.dumps(game_modes) if game_modes else None,
         "themes": json.dumps(themes) if themes else None,
         "similar_games": json.dumps(similar) if similar else None,
+        "collection_id": collection_id,
+        "collection_name": collection_name,
     }
 
 
@@ -330,7 +337,8 @@ def fetch_enrichment_batch(igdb_ids: list[int]) -> dict[int, dict]:
         "fields id, name, first_release_date, cover.image_id,"
         " summary, rating, aggregated_rating, total_rating,"
         " game_modes.name, themes.name,"
-        " similar_games.name, similar_games.cover.image_id;"
+        " similar_games.name, similar_games.cover.image_id,"
+        " collection.id, collection.name;"
     )
     id_list = ", ".join(str(i) for i in igdb_ids)
     body = f"{fields} where id = ({id_list}); limit {len(igdb_ids)};"

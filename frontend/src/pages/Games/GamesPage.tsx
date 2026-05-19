@@ -18,6 +18,7 @@ import {
   Layers,
   Settings2,
   BookmarkPlus,
+  FileEdit,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -32,6 +33,7 @@ import GamesTable, { type GamesTableHandle } from './GamesTable'
 import GamesPosters from './GamesPosters'
 import GamesOverview from './GamesOverview'
 import JumpBar from './JumpBar'
+import RenamePreviewModal from './RenamePreviewModal'
 import type { Game, ReleaseProfile } from '../../types'
 
 const PRESETS_KEY = 'games-filter-presets'
@@ -244,6 +246,7 @@ export default function GamesPage() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
   const [showColumnChooser, setShowColumnChooser] = useState(false)
+  const [showRenameModal, setShowRenameModal] = useState(false)
   const [columns, setColumns] = useState<ColumnConfig[]>(loadColumns)
   const [presets, setPresets] = useState<FilterPreset[]>(loadPresets)
   const [presetName, setPresetName] = useState('')
@@ -848,6 +851,14 @@ export default function GamesPage() {
                 <Tag size={13} /> Tags
               </button>
               <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowRenameModal(true)}
+                disabled={selected.size === 0}
+                title="Rename to No-Intro canonical filenames"
+              >
+                <FileEdit size={13} /> Rename
+              </button>
+              <button
                 className="btn btn-sm"
                 style={{
                   background: 'rgba(240,80,80,.15)',
@@ -968,6 +979,17 @@ export default function GamesPage() {
           columns={columns}
           onChange={handleColumnsChange}
           onClose={() => setShowColumnChooser(false)}
+        />
+      )}
+
+      {showRenameModal && (
+        <RenamePreviewModal
+          gameIds={[...selected]}
+          onClose={() => setShowRenameModal(false)}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ['games'] })
+            setShowRenameModal(false)
+          }}
         />
       )}
 

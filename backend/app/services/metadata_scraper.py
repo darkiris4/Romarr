@@ -166,6 +166,10 @@ def scrape_pending() -> dict:
                         game.themes = meta["themes"]
                     if meta.get("similar_games"):
                         game.similar_games = meta["similar_games"]
+                    if meta.get("collection_id") is not None:
+                        game.collection_id = meta["collection_id"]
+                    if meta.get("collection_name"):
+                        game.collection_name = meta["collection_name"]
                     entry["result"] = "matched"
                     entry["igdb_id"] = meta["igdb_id"]
                     entry["cover_url"] = meta["cover_url"]
@@ -194,7 +198,11 @@ def scrape_pending() -> dict:
             db.query(Game)
             .filter(
                 Game.igdb_id.isnot(None),
-                or_(Game.summary.is_(None), Game.rating.is_(None)),
+                or_(
+                    Game.summary.is_(None),
+                    Game.rating.is_(None),
+                    Game.collection_id.is_(None),
+                ),
             )
             .all()
         )
@@ -223,6 +231,10 @@ def scrape_pending() -> dict:
                             game.themes = meta["themes"]
                         if meta.get("similar_games"):
                             game.similar_games = meta["similar_games"]
+                        if meta.get("collection_id") is not None:
+                            game.collection_id = meta["collection_id"]
+                        if meta.get("collection_name"):
+                            game.collection_name = meta["collection_name"]
                         enriched += 1
             except Exception as exc:
                 logger.warning("Enrich batch failed for ids=%s: %s", ids, exc)

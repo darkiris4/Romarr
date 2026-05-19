@@ -2,8 +2,9 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, ImageOff, X, Plus } from 'lucide-react'
+import { Search, ImageOff, X, Plus, AlertCircle } from 'lucide-react'
 import { gamesApi } from '../../api/games'
+import { systemApi } from '../../api/system'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -12,6 +13,24 @@ export default function Header() {
   const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0, width: 380 })
   const searchWrapRef = useRef<HTMLDivElement>(null)
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { data: updateInfo } = useQuery({
+    queryKey: ['system-updates'],
+    queryFn: systemApi.updates,
+    staleTime: 6 * 3600 * 1000,
+    retry: false,
+  })
+
+  const [updateDismissed, setUpdateDismissed] = useState(false)
+  const showUpdateBanner =
+    updateInfo?.has_update &&
+    !updateDismissed &&
+    localStorage.getItem('update-dismissed') !== updateInfo.latest
+
+  function dismissUpdate() {
+    if (updateInfo?.latest) localStorage.setItem('update-dismissed', updateInfo.latest)
+    setUpdateDismissed(true)
+  }
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['games-suggest', inputValue],
@@ -48,6 +67,23 @@ export default function Header() {
 
   return (
     <>
+      {showUpdateBanner && (
+        <div className="update-banner">
+          <AlertCircle size={14} />
+          <span>
+            <strong>v{updateInfo!.latest}</strong> is available — you&apos;re on v
+            {updateInfo!.current}.
+          </span>
+          {updateInfo!.release_url && (
+            <a href={updateInfo!.release_url} target="_blank" rel="noreferrer">
+              View release
+            </a>
+          )}
+          <button className="update-banner-dismiss" onClick={dismissUpdate} title="Dismiss">
+            <X size={13} />
+          </button>
+        </div>
+      )}
       <header className="topbar">
         <div className="search-wrapper" ref={searchWrapRef}>
           <Search size={13} className="search-icon" />

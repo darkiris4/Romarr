@@ -392,3 +392,91 @@ def download_retroarch_export():
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="retroarch-export.zip"'},
     )
+
+
+# ── No-Intro canonical rename ─────────────────────────────────────────────────
+
+
+class RenamePreviewRequest(BaseModel):
+    game_ids: list[int]
+
+
+def _rename_preview_rows(game_ids: list[int], db: Session) -> list[dict]:
+    from ...services.library_scanner import lookup_crc32
+
+    rows = []
+    for gid in game_ids:
+        game = db.query(Game).filter_by(id=gid).first()
+        if not game:
+            continue
+        if not game.rom_path:
+            rows.append(
+                {"game_id": gid, "title": game.title, "eligible": False, "reason": "No ROM file"}
+            )
+            continue
+        if not game.checksum_crc32:
+            rows.append(
+                {
+                    "game_id": gid,
+                    "title": game.title,
+                    "eligible": False,
+                    "reason": "CRC32 not yet computed",
+                }
+            )
+            continue
+        dat_rom = lookup_crc32(game.checksum_crc32)
+        if not dat_rom or not dat_rom.full_title:
+            rows.append(
+                {
+                    "game_id": gid,
+                    "title": game.title,
+                    "eligible": False,
+                    "reason": "No DAT match",
+                }
+            )
+            continue
+        src = Path(game.rom_path)
+        proposed = str(src.parent / f"{dat_rom.full_title}{src.suffix}")
+        rows.append(
+            {
+                "game_id": gid,
+                "title": game.title,
+                "eligible": True,
+                "current_path": game.rom_path,
+                "proposed_path": proposed,
+                "current_filename": src.name,
+                "proposed_filename": f"{dat_rom.full_title}{src.suffix}",
+            }
+        )
+    return rows
+
+
+@router.post("/rename-preview")
+def rename_preview(payload: RenamePreviewRequest, db: Session = Depends(get_db)):
+    return {"rows": _rename_preview_rows(payload.game_ids, db)}
+
+
+@router.post("/rename")
+def rename_files(payload: RenamePreviewRequest, db: Session = Depends(get_db)):
+    rows = _rename_preview_rows(payload.game_ids, db)
+    renamed = errors = 0
+    for row in rows:
+        if not row.get("eligible"):
+            continue
+        src = Path(row["current_path"])
+        dest = Path(row["proposed_path"])
+        if dest == src:
+            continue
+        if dest.exists():
+            errors += 1
+            continue
+        try:
+            src.rename(dest)
+            game = db.query(Game).filter_by(id=row["game_id"]).first()
+            if game:
+                game.rom_path = str(dest)
+            renamed += 1
+        except OSError:
+            errors += 1
+    db.commit()
+    return {"renamed": renamed, "errors": errors}

@@ -39,11 +39,15 @@ export default function MediaManagement() {
   })
 
   useEffect(() => {
-    if (generalSettings) setCuratedPath(generalSettings.curated_library_path)
+    if (generalSettings) {
+      setCuratedPath(generalSettings.curated_library_path)
+      setRenameEnabled(generalSettings.rename_roms)
+    }
   }, [generalSettings])
 
   const saveGeneralMutation = useMutation({
-    mutationFn: (path: string) => settingsApi.saveGeneral({ curated_library_path: path }),
+    mutationFn: (payload: { curated_library_path: string; rename_roms: boolean }) =>
+      settingsApi.saveGeneral(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['general-settings'] })
       setCuratedSaved(true)
@@ -108,8 +112,15 @@ export default function MediaManagement() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    saveGeneralMutation.mutate(
+      { curated_library_path: curatedPath, rename_roms: renameEnabled },
+      {
+        onSuccess: () => {
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2500)
+        },
+      }
+    )
   }
 
   function handleAddFolder() {
@@ -336,7 +347,11 @@ export default function MediaManagement() {
                 value={curatedPath}
                 onChange={(e) => setCuratedPath(e.target.value)}
                 onKeyDown={(e) =>
-                  e.key === 'Enter' && saveGeneralMutation.mutate(curatedPath.trim())
+                  e.key === 'Enter' &&
+                  saveGeneralMutation.mutate({
+                    curated_library_path: curatedPath.trim(),
+                    rename_roms: renameEnabled,
+                  })
                 }
                 placeholder="/media/curated-roms"
                 style={{ maxWidth: 400, fontFamily: 'monospace' }}
@@ -344,7 +359,12 @@ export default function MediaManagement() {
               <button
                 className="btn btn-primary btn-sm"
                 type="button"
-                onClick={() => saveGeneralMutation.mutate(curatedPath.trim())}
+                onClick={() =>
+                  saveGeneralMutation.mutate({
+                    curated_library_path: curatedPath.trim(),
+                    rename_roms: renameEnabled,
+                  })
+                }
                 disabled={saveGeneralMutation.isPending}
               >
                 {saveGeneralMutation.isPending ? 'Saving…' : 'Save'}

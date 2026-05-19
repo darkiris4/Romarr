@@ -30,6 +30,7 @@ export interface Profile {
 
 export interface GeneralSettings {
   curated_library_path: string
+  rename_roms: boolean
 }
 
 export const settingsApi = {

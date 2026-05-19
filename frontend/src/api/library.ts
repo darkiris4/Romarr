@@ -163,4 +163,22 @@ export const libraryApi = {
     a.click()
     URL.revokeObjectURL(url)
   },
+
+  renamePreview: (
+    gameIds: number[]
+  ): Promise<{
+    rows: {
+      game_id: number
+      title: string
+      eligible: boolean
+      reason?: string
+      current_path?: string
+      proposed_path?: string
+      current_filename?: string
+      proposed_filename?: string
+    }[]
+  }> => client.post('/library/rename-preview', { game_ids: gameIds }).then((r) => r.data),
+
+  rename: (gameIds: number[]): Promise<{ renamed: number; errors: number }> =>
+    client.post('/library/rename', { game_ids: gameIds }).then((r) => r.data),
 }

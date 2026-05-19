@@ -79,4 +79,14 @@ export const systemApi = {
       })
       .then((r) => r.data),
   backupDownloadUrl: (name: string) => `/api/v1/system/backup/${name}`,
+  updates: () =>
+    client
+      .get<{
+        current: string
+        latest: string
+        has_update: boolean
+        release_url: string
+        release_notes: string
+      }>('/system/updates')
+      .then((r) => r.data),
 }
