@@ -1916,6 +1916,12 @@ select.form-control {
   padding: 10px 20px;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
 
 .spacer {
   flex: 1;

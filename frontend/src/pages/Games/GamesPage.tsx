@@ -249,6 +249,7 @@ export default function GamesPage() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [updateAllDone, setUpdateAllDone] = useState(false)
   const [searchWantedDone, setSearchWantedDone] = useState(false)
+  const [searchAllDone, setSearchAllDone] = useState(false)
   const [searchFilteredDone, setSearchFilteredDone] = useState(false)
   const [showColumnChooser, setShowColumnChooser] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
@@ -364,6 +365,14 @@ export default function GamesPage() {
     onSuccess: () => {
       setSearchWantedDone(true)
       setTimeout(() => setSearchWantedDone(false), 2500)
+    },
+  })
+
+  const searchAllMutation = useMutation({
+    mutationFn: () => gamesApi.bulkSearch(allGames.map((g) => g.id)),
+    onSuccess: () => {
+      setSearchAllDone(true)
+      setTimeout(() => setSearchAllDone(false), 2500)
     },
   })
 
@@ -590,27 +599,124 @@ export default function GamesPage() {
   return (
     <div>
       <div className="page-toolbar">
-        <>
-            <button
-              className="toolbar-icon-btn"
-              onClick={() => updateAllMutation.mutate()}
-              disabled={updateAllMutation.isPending || updateAllDone}
-              title="Refresh metadata for all games"
-            >
-              <RefreshCw
-                size={18}
-                style={
-                  updateAllMutation.isPending ? { animation: 'spin 1s linear infinite' } : undefined
-                }
-              />
-              <span>
-                {updateAllDone
-                  ? 'Started!'
-                  : updateAllMutation.isPending
-                    ? 'Starting…'
-                    : 'Update All'}
-              </span>
+        {selecting ? (
+          <>
+            <button className="btn btn-secondary btn-sm" onClick={stopSelecting}>
+              Stop Selecting
             </button>
+            <button className="btn btn-secondary btn-sm" onClick={toggleSelectAll}>
+              {selected.size === games.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>
+              {selected.size} selected
+            </span>
+            <div style={{ display: 'flex', gap: 6, marginLeft: 8, flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkMonitorMutation.mutate(true)}
+                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
+              >
+                <Eye size={13} /> Monitor
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkMonitorMutation.mutate(false)}
+                disabled={selected.size === 0 || bulkMonitorMutation.isPending}
+              >
+                <EyeOff size={13} /> Unmonitor
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkSearchMutation.mutate()}
+                disabled={selected.size === 0 || bulkSearchMutation.isPending}
+              >
+                <Search size={13} /> {bulkSearchMutation.isPending ? 'Searching…' : 'Search'}
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowPlatformModal(true)}
+                disabled={selected.size === 0}
+              >
+                <Layers size={13} /> Platform
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowProfileModal(true)}
+                disabled={selected.size === 0}
+              >
+                <CheckSquare size={13} /> Profile
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowTagsModal(true)}
+                disabled={selected.size === 0}
+              >
+                <Tag size={13} /> Tags
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowRenameModal(true)}
+                disabled={selected.size === 0}
+                title="Rename to No-Intro canonical filenames"
+              >
+                <FileEdit size={13} /> Rename
+              </button>
+              <button
+                className="btn btn-sm"
+                style={{
+                  background: 'rgba(240,80,80,.15)',
+                  borderColor: 'var(--danger)',
+                  color: 'var(--danger)',
+                }}
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                disabled={selected.size === 0}
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {activeFilterCount > 0 ? (
+              <button
+                className="toolbar-icon-btn"
+                onClick={() => searchFilteredMutation.mutate()}
+                disabled={searchFilteredMutation.isPending || searchFilteredDone}
+                title={`Search indexers for ${games.length} filtered game${games.length !== 1 ? 's' : ''}`}
+              >
+                <Search size={18} />
+                <span>
+                  {searchFilteredDone
+                    ? 'Started!'
+                    : searchFilteredMutation.isPending
+                      ? 'Starting…'
+                      : 'Search Filtered'}
+                </span>
+              </button>
+            ) : (
+              <button
+                className="toolbar-icon-btn"
+                onClick={() => updateAllMutation.mutate()}
+                disabled={updateAllMutation.isPending || updateAllDone}
+                title="Refresh metadata for all games"
+              >
+                <RefreshCw
+                  size={18}
+                  style={
+                    updateAllMutation.isPending
+                      ? { animation: 'spin 1s linear infinite' }
+                      : undefined
+                  }
+                />
+                <span>
+                  {updateAllDone
+                    ? 'Started!'
+                    : updateAllMutation.isPending
+                      ? 'Starting…'
+                      : 'Update All'}
+                </span>
+              </button>
+            )}
 
             <button
               className="toolbar-icon-btn"
@@ -624,27 +730,45 @@ export default function GamesPage() {
                   ? 'Started!'
                   : searchWantedMutation.isPending
                     ? 'Starting…'
-                    : 'Search Wanted'}
+                    : 'RSS Sync'}
               </span>
             </button>
 
-            {activeFilterCount > 0 && (
-              <button
-                className="toolbar-icon-btn"
-                onClick={() => searchFilteredMutation.mutate()}
-                disabled={searchFilteredMutation.isPending || searchFilteredDone}
-                title={`Search indexers for the ${games.length} filtered game${games.length !== 1 ? 's' : ''}`}
-              >
-                <Search size={18} />
-                <span>
-                  {searchFilteredDone
+            <span className="toolbar-sep" />
+
+            <button
+              className="toolbar-icon-btn"
+              onClick={() =>
+                activeFilterCount > 0
+                  ? searchFilteredMutation.mutate()
+                  : searchAllMutation.mutate()
+              }
+              disabled={
+                activeFilterCount > 0
+                  ? searchFilteredMutation.isPending || searchFilteredDone
+                  : searchAllMutation.isPending || searchAllDone
+              }
+              title={
+                activeFilterCount > 0
+                  ? `Search indexers for ${games.length} filtered games`
+                  : 'Search indexers for all wanted games'
+              }
+            >
+              <Search size={18} />
+              <span>
+                {activeFilterCount > 0
+                  ? searchFilteredDone
                     ? 'Started!'
                     : searchFilteredMutation.isPending
                       ? 'Starting…'
-                      : `Search Filtered`}
-                </span>
-              </button>
-            )}
+                      : 'Search Filtered'
+                  : searchAllDone
+                    ? 'Started!'
+                    : searchAllMutation.isPending
+                      ? 'Starting…'
+                      : 'Search All'}
+              </span>
+            </button>
 
             <button
               className="toolbar-icon-btn"
@@ -652,7 +776,18 @@ export default function GamesPage() {
               title="Open Library Import"
             >
               <FolderInput size={18} />
-              <span>Import</span>
+              <span>Manual Import</span>
+            </button>
+
+            <span className="toolbar-sep" />
+
+            <button
+              className="toolbar-icon-btn"
+              onClick={() => setSelecting(true)}
+              title="Select games for bulk actions"
+            >
+              <CheckSquare size={18} />
+              <span>Edit Games</span>
             </button>
 
             <div className="spacer" />
@@ -863,6 +998,7 @@ export default function GamesPage() {
               </button>
             </div>
           </>
+        )}
       </div>
 
       {presets.length > 0 && (
