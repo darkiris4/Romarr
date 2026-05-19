@@ -13,7 +13,7 @@
 ---
 
 > [!WARNING]
-> **Romarr is alpha software.** The core workflows are functional but the project has not been hardened for production use. No authentication, no Alembic migrations, and the torrent download path is untested. Usenet (SABnzbd) end-to-end has been validated. Contributions and bug reports are very welcome.
+> **Romarr is alpha software.** The core workflows are functional but the project has not been hardened for production use. No authentication, no Alembic migrations. Contributions and bug reports are very welcome.
 
 ---
 
@@ -38,7 +38,7 @@ Romarr automates the management, organisation, and metadata enrichment of ROM fi
 | **RetroArch export** | One-click export from Settings → Media Management; background job fetches IGDB cover art and builds a drop-in ZIP (`playlists/` + `thumbnails/`) ready to extract at the RetroArch root; determinate progress bar |
 | **DAT management** | Drag-and-drop upload via Settings → Platforms; auto-creates platform on upload; version/date display; per-row delete; manual placement in `data/dats/` also supported |
 | **Metadata scraper** | IGDB cover art, summary, rating, game modes, themes, similar games; tiered exact/fuzzy search; Japanese→English title alias map; batched enrichment (50/request); 30-day retry skip for unmatched titles |
-| **Download pipeline** | Indexer search, grab, queue tracking, download client integration (qBittorrent, SABnzbd, Transmission), post-processor; NZB/SABnzbd route validated end-to-end |
+| **Download pipeline** | Indexer search, grab, queue tracking, download client integration (qBittorrent, SABnzbd, Transmission), post-processor; NZB/SABnzbd and torrent/qBittorrent routes validated end-to-end |
 | **Game views** | Table, poster grid, and overview list; multi-dimension filter (platform, status, region, missing metadata); 8 sort options; active filter count |
 | **Game detail page** | Radarr-style hero with blurred backdrop, inline metadata grid, file info, similar games row |
 | **Platforms** | 15+ pre-seeded platforms with No-Intro names and IGDB platform IDs |
@@ -151,7 +151,7 @@ Romarr uses [No-Intro](https://no-intro.org/) DAT files for accurate ROM identif
 - [x] Curated library with per-import copy
 - [x] RetroArch export package (playlists + thumbnails, drop-in ZIP)
 - [x] NZB/SABnzbd download pipeline (validated end-to-end)
-- [ ] Torrent download pipeline validation (qBittorrent / Transmission)
+- [x] Torrent/qBittorrent download pipeline (validated end-to-end)
 - [ ] User authentication
 - [ ] Pagination on the games list (client-side is fine up to ~10k games)
 - [ ] Alembic database migrations (currently uses in-place `ALTER TABLE`)
