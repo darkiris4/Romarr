@@ -30,8 +30,6 @@ export default function GeneralPage() {
   })
   const logLevel = levelData?.level ?? 'info'
 
-  // Analytics
-  const [analytics, setAnalytics] = useState(false)
 
   // Updates
   const [branch, setBranch] = useState('main')
@@ -250,28 +248,6 @@ export default function GeneralPage() {
                 ? 'Verbose output — only enable for troubleshooting. Causes significant log growth.'
                 : 'Standard logging level. View log files under System → Logs.'}
             </div>
-          </div>
-        </div>
-
-        {/* ── Analytics ── */}
-        <div className="settings-section-title">Analytics</div>
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="toggle-row" style={{ borderBottom: 'none' }}>
-            <div>
-              <div className="toggle-label">Send Anonymous Usage Data</div>
-              <div className="toggle-hint">
-                Sends anonymous feature usage and error data to help improve Romarr. No personal
-                data or library content is ever sent.
-              </div>
-            </div>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={analytics}
-                onChange={(e) => setAnalytics(e.target.checked)}
-              />
-              <span className="toggle-slider" />
-            </label>
           </div>
         </div>
 
