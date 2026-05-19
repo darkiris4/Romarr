@@ -1,22 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, AlertCircle, RefreshCw, Play } from 'lucide-react'
+import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import client from '../../api/client'
 
 interface IgdbConfig {
   igdb_client_id: string
   igdb_client_secret: string
   configured: boolean
-}
-
-interface ScrapeStatus {
-  running: boolean
-  total: number
-  processed: number
-  updated: number
-  failed: number
-  done: boolean
-  error: string | null
 }
 
 export default function MetadataPage() {
@@ -33,18 +23,6 @@ export default function MetadataPage() {
     queryKey: ['igdb-config'],
     queryFn: () => client.get('/system/config/igdb').then((r) => r.data),
   })
-
-  const { data: scrapeStatus } = useQuery<ScrapeStatus>({
-    queryKey: ['scrape-status'],
-    queryFn: () => client.get('/system/scrape/status').then((r) => r.data),
-    refetchInterval: (query) => (query.state.data?.running ? 1500 : false),
-    refetchIntervalInBackground: true,
-  })
-
-  const wasDone = scrapeStatus?.done && !scrapeStatus?.running
-  if (wasDone && scrapeStatus?.updated && scrapeStatus.updated > 0) {
-    qc.invalidateQueries({ queryKey: ['games'] })
-  }
 
   const saveMeta = useMutation({
     mutationFn: () =>
@@ -63,15 +41,6 @@ export default function MetadataPage() {
       client.post<{ ok: boolean; message: string }>('/system/config/igdb/test').then((r) => r.data),
     onSuccess: (data) => setTestResult(data),
   })
-
-  const startScrape = useMutation({
-    mutationFn: () => client.post('/system/scrape').then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['scrape-status'] }),
-  })
-
-  const pct = scrapeStatus?.total
-    ? Math.round((scrapeStatus.processed / scrapeStatus.total) * 100)
-    : 0
 
   return (
     <div>
@@ -261,83 +230,6 @@ export default function MetadataPage() {
         </div>
       </div>
 
-      {/* ── Run Scraper ── */}
-      <div className="settings-section-title">Run Scraper</div>
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div className="card-header">
-          <span className="card-title">Scrape Now</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Also runs automatically every 6 hours
-          </span>
-        </div>
-
-        {scrapeStatus?.running && (
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                marginBottom: 6,
-              }}
-            >
-              <span>Scraping metadata…</span>
-              <span>
-                {scrapeStatus.processed} / {scrapeStatus.total || '…'}
-              </span>
-            </div>
-            <div
-              style={{
-                height: 6,
-                background: 'rgba(255,255,255,.08)',
-                borderRadius: 3,
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  width: `${pct}%`,
-                  background: 'var(--accent)',
-                  borderRadius: 3,
-                  transition: 'width .4s ease',
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
-              {scrapeStatus.updated} updated · {scrapeStatus.failed} not found
-            </div>
-          </div>
-        )}
-
-        {scrapeStatus?.done && !scrapeStatus.running && (
-          <div
-            className={`alert ${scrapeStatus.error ? 'alert-danger' : 'alert-success'}`}
-            style={{ marginBottom: 16 }}
-          >
-            {scrapeStatus.error
-              ? `Error: ${scrapeStatus.error}`
-              : `Done — ${scrapeStatus.updated} games updated, ${scrapeStatus.failed} not found on IGDB.`}
-          </div>
-        )}
-
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => startScrape.mutate()}
-          disabled={scrapeStatus?.running || startScrape.isPending || !igdbConfig?.configured}
-        >
-          <Play size={13} />
-          {scrapeStatus?.running ? 'Scraping…' : 'Scrape Metadata Now'}
-        </button>
-
-        {!igdbConfig?.configured && (
-          <div className="form-hint" style={{ marginTop: 8 }}>
-            Configure IGDB credentials above before running the scraper.
-          </div>
-        )}
-      </div>
     </div>
   )
 }
