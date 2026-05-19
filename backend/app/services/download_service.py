@@ -113,7 +113,9 @@ class QBittorrentClient(BaseDownloadClient):
             if torrent_bytes:
                 resp = await http.post(
                     f"{self.base_url}/api/v2/torrents/add",
-                    files={"torrents": (f"{name}.torrent", torrent_bytes, "application/x-bittorrent")},
+                    files={
+                        "torrents": (f"{name}.torrent", torrent_bytes, "application/x-bittorrent")
+                    },
                     data=extra,
                 )
             else:

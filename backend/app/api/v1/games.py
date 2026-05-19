@@ -398,6 +398,7 @@ def refresh_game(game_id: int, db: Session = Depends(get_db)):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     from ...services.metadata_scraper import refresh_single_game
+
     threading.Thread(target=refresh_single_game, args=(game_id,), daemon=True).start()
     return {"ok": True}
 

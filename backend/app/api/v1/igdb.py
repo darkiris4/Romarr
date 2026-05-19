@@ -107,14 +107,18 @@ def get_collection_games(collection_id: int):
             p["id"] for p in (game.get("platforms") or []) if isinstance(p, dict) and p.get("id")
         ]
         platform_names = [
-            p["name"] for p in (game.get("platforms") or []) if isinstance(p, dict) and p.get("name")
+            p["name"]
+            for p in (game.get("platforms") or [])
+            if isinstance(p, dict) and p.get("name")
         ]
         # Deduplicated list of IGDB region codes across all release dates
-        regions = list({
-            rd["region"]
-            for rd in (game.get("release_dates") or [])
-            if isinstance(rd, dict) and rd.get("region") is not None
-        })
+        regions = list(
+            {
+                rd["region"]
+                for rd in (game.get("release_dates") or [])
+                if isinstance(rd, dict) and rd.get("region") is not None
+            }
+        )
         rating = game.get("total_rating") or game.get("aggregated_rating") or game.get("rating")
 
         out.append(
