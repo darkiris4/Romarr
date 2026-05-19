@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -16,6 +16,9 @@ import {
   Clock,
   HardDrive,
   Bookmark,
+  Settings,
+  Info,
+  CheckCircle,
   X,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
@@ -351,43 +354,15 @@ export default function GameDetailPage() {
         </div>
       </div>
 
-      {/* ── File Information (checksums) ── */}
-      {(game.checksum_crc32 || game.checksum_md5 || game.checksum_sha1) && (
-        <div className="detail-body">
-          <div className="card" style={{ padding: 0 }}>
-            <div className="card-header" style={{ padding: '12px 16px' }}>
-              <span className="card-title">File Information</span>
-            </div>
-            <table className="detail-files-table">
-              <thead>
-                <tr>
-                  <th className="col-prop">Property</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {game.checksum_crc32 && (
-                  <tr>
-                    <td className="col-prop">CRC32</td>
-                    <td className="col-val-mono">{game.checksum_crc32}</td>
-                  </tr>
-                )}
-                {game.checksum_md5 && (
-                  <tr>
-                    <td className="col-prop">MD5</td>
-                    <td className="col-val-mono">{game.checksum_md5}</td>
-                  </tr>
-                )}
-                {game.checksum_sha1 && (
-                  <tr>
-                    <td className="col-prop">SHA1</td>
-                    <td className="col-val-mono">{game.checksum_sha1}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* ── Files ── */}
+      {hasFile && (
+        <FilesSection
+          game={game}
+          onFileDeleted={() => {
+            qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['games'] })
+          }}
+        />
       )}
 
       {/* ── More in this series ── */}
@@ -506,6 +481,15 @@ export default function GameDetailPage() {
   )
 }
 
+function parseRevision(path: string): string {
+  const filename = path.split('/').pop() ?? ''
+  const rev = filename.match(/\(Rev ([^)]+)\)/)
+  if (rev) return `Rev ${rev[1]}`
+  const v = filename.match(/\(v(\d[^)]*)\)/)
+  if (v) return `v${v[1]}`
+  return '—'
+}
+
 function ratingClass(score: number): string {
   if (score >= 75) return 'detail-rating-badge--good'
   if (score >= 50) return 'detail-rating-badge--ok'
@@ -546,6 +530,209 @@ function HeroItem({
       <div className="detail-hero-grid-key">{label}</div>
       <div className={`detail-hero-grid-val${mono ? ' detail-hero-grid-val--mono' : ''}`}>
         {value}
+      </div>
+    </div>
+  )
+}
+
+const ALL_FILE_COLS = [
+  { key: 'size', label: 'Size' },
+  { key: 'region', label: 'Region' },
+  { key: 'revision', label: 'Revision' },
+  { key: 'dat_matched', label: 'DAT Matched' },
+] as const
+
+function FilesSection({ game, onFileDeleted }: { game: Game; onFileDeleted: () => void }) {
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(
+    new Set(['size', 'region', 'revision', 'dat_matched'])
+  )
+  const [showColMenu, setShowColMenu] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const colMenuRef = useRef<HTMLDivElement>(null)
+
+  const deleteMutation = useMutation({
+    mutationFn: () => gamesApi.deleteFile(game.id),
+    onSuccess: () => {
+      setDeleteConfirm(false)
+      onFileDeleted()
+    },
+  })
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node))
+        setShowColMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filePath = game.relative_rom_path ?? game.rom_path ?? ''
+  const revision = parseRevision(filePath)
+  const isDatMatched = !!game.checksum_crc32
+
+  function toggleCol(key: string) {
+    setVisibleCols((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  return (
+    <div className="detail-body">
+      <div className="card" style={{ padding: 0 }}>
+        <div className="card-header" style={{ padding: '12px 16px' }}>
+          <span className="card-title">Files</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Relative Path</th>
+                {ALL_FILE_COLS.filter((c) => visibleCols.has(c.key)).map((c) => (
+                  <th key={c.key}>{c.label}</th>
+                ))}
+                <th style={{ width: 32 }}>
+                  <div ref={colMenuRef} style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                    <button
+                      className="btn-icon"
+                      onClick={() => setShowColMenu((v) => !v)}
+                      title="Configure columns"
+                    >
+                      <Settings size={14} />
+                    </button>
+                    {showColMenu && (
+                      <div className="toolbar-dropdown-panel" style={{ minWidth: 160 }}>
+                        {ALL_FILE_COLS.map((c) => (
+                          <label key={c.key} className="toolbar-dropdown-item">
+                            <input
+                              type="checkbox"
+                              checked={visibleCols.has(c.key)}
+                              onChange={() => toggleCol(c.key)}
+                            />
+                            {c.label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{filePath || '—'}</td>
+                {visibleCols.has('size') && (
+                  <td>{game.file_size != null ? formatBytes(game.file_size) : '—'}</td>
+                )}
+                {visibleCols.has('region') && <td>{game.region || '—'}</td>}
+                {visibleCols.has('revision') && (
+                  <td className="text-muted text-sm">{revision}</td>
+                )}
+                {visibleCols.has('dat_matched') && (
+                  <td>
+                    {isDatMatched ? (
+                      <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle size={13} /> Yes
+                      </span>
+                    ) : (
+                      <span className="text-muted">No</span>
+                    )}
+                  </td>
+                )}
+                <td>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                    <button
+                      className="btn-icon"
+                      onClick={() => setShowDetails(true)}
+                      title="File details"
+                    >
+                      <Info size={14} />
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => setDeleteConfirm(true)}
+                      title="Delete file from disk"
+                      style={{ color: 'var(--danger)' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showDetails && (
+        <FileDetailsModal game={game} onClose={() => setShowDetails(false)} />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Delete File"
+          message={`Delete "${filePath.split('/').pop()}" from disk? The game record will remain in Wanted state.`}
+          confirmLabel="Delete File"
+          danger
+          onConfirm={() => deleteMutation.mutate()}
+          onCancel={() => setDeleteConfirm(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function FileDetailsModal({ game, onClose }: { game: Game; onClose: () => void }) {
+  const rows: { label: string; value: string; mono?: boolean }[] = [
+    ...(game.rom_path ? [{ label: 'Full Path', value: game.rom_path, mono: true }] : []),
+    ...(game.file_size != null ? [{ label: 'Size', value: formatBytes(game.file_size) }] : []),
+    ...(game.checksum_crc32 ? [{ label: 'CRC32', value: game.checksum_crc32, mono: true }] : []),
+    ...(game.checksum_md5 ? [{ label: 'MD5', value: game.checksum_md5, mono: true }] : []),
+    ...(game.checksum_sha1 ? [{ label: 'SHA1', value: game.checksum_sha1, mono: true }] : []),
+  ]
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">File Details</span>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr
+                  key={row.label}
+                  style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.06)' : 'none' }}
+                >
+                  <td style={{ padding: '9px 16px 9px 0', color: 'var(--text-muted)', width: 90, verticalAlign: 'top' }}>
+                    {row.label}
+                  </td>
+                  <td
+                    style={{
+                      padding: '9px 0',
+                      ...(row.mono ? { fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' } : {}),
+                    }}
+                  >
+                    {row.value}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="modal-footer">
+          <div className="spacer" />
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   )
