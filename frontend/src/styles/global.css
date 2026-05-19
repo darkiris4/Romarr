@@ -2605,33 +2605,30 @@ tr.selecting.selected td {
   display: block;
 }
 
-.detail-poster-bookmark {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.6);
+.detail-title-bookmark {
+  background: none;
   border: none;
-  border-radius: 4px;
-  padding: 5px 6px;
+  padding: 0;
   cursor: pointer;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.45);
-  transition: background 0.15s, color 0.15s;
-  z-index: 1;
+  color: rgba(255, 255, 255, 0.25);
+  transition: color 0.15s, opacity 0.15s;
+  line-height: 1;
+  margin-top: 2px;
 }
-.detail-poster-bookmark:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.85);
-  color: rgba(255, 255, 255, 0.75);
+.detail-title-bookmark:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.55);
 }
-.detail-poster-bookmark--monitored {
+.detail-title-bookmark--monitored {
   color: var(--accent);
 }
-.detail-poster-bookmark--monitored:hover:not(:disabled) {
-  color: var(--accent);
+.detail-title-bookmark--monitored:hover:not(:disabled) {
+  opacity: 0.8;
 }
-.detail-poster-bookmark:disabled {
-  opacity: 0.5;
+.detail-title-bookmark:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 

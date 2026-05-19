@@ -240,17 +240,6 @@ export default function GameDetailPage() {
                 <span>No cover</span>
               </div>
             )}
-            <button
-              className={`detail-poster-bookmark${game.monitored ? ' detail-poster-bookmark--monitored' : ''}`}
-              onClick={() => toggleMonitored.mutate()}
-              disabled={toggleMonitored.isPending}
-              title={game.monitored ? 'Monitored — click to unmonitor' : 'Unmonitored — click to monitor'}
-            >
-              <Bookmark
-                size={20}
-                fill={game.monitored ? 'currentColor' : 'none'}
-              />
-            </button>
           </div>
 
           {/* Info column */}
@@ -269,7 +258,17 @@ export default function GameDetailPage() {
               </Link>
             </div>
 
-            <h1 className="detail-title">{game.title}</h1>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+              <button
+                className={`detail-title-bookmark${game.monitored ? ' detail-title-bookmark--monitored' : ''}`}
+                onClick={() => toggleMonitored.mutate()}
+                disabled={toggleMonitored.isPending}
+                title={game.monitored ? 'Monitored — click to unmonitor' : 'Unmonitored — click to monitor'}
+              >
+                <Bookmark size={38} fill={game.monitored ? 'currentColor' : 'none'} />
+              </button>
+              <h1 className="detail-title" style={{ margin: 0 }}>{game.title}</h1>
+            </div>
 
             {/* Inline summary: year · platform · region */}
             <div className="detail-meta-row">
