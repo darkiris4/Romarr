@@ -12,15 +12,6 @@ interface Props {
   onClose: () => void
 }
 
-// IGDB region codes → our region name strings
-const IGDB_REGION_MAP: Record<number, string[]> = {
-  1: ['Europe'],
-  2: ['USA', 'USA, Europe', 'USA, Japan'],
-  3: ['Europe', 'USA, Europe'],
-  4: ['Europe', 'USA, Europe'],
-  5: ['Japan', 'USA, Japan'],
-  8: ['World'],
-}
 
 export default function QuickAddModal({ game, onClose }: Props) {
   const navigate = useNavigate()
@@ -51,7 +42,7 @@ export default function QuickAddModal({ game, onClose }: Props) {
 
     // Pick platform: first match
     if (!platformId) setPlatformId(displayPlatforms[0].id.toString())
-  }, [defaultProfile?.id, displayPlatforms.length])
+  }, [defaultProfile?.id, displayPlatforms.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addMutation = useMutation({
     mutationFn: () =>

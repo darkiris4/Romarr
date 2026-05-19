@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import client from '../../api/client'
 
@@ -10,7 +10,6 @@ interface IgdbConfig {
 }
 
 export default function MetadataPage() {
-  const qc = useQueryClient()
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)

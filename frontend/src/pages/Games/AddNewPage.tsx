@@ -32,7 +32,8 @@ export default function AddNewPage() {
   const [selected, setSelected] = useState<IgdbSearchResult | null>(null)
 
   useEffect(() => {
-    const preselected: IgdbSearchResult | null = (location.state as any)?.igdbGame ?? null
+    const preselected: IgdbSearchResult | null =
+      (location.state as { igdbGame?: IgdbSearchResult } | null)?.igdbGame ?? null
     if (preselected) {
       setSelected(preselected)
       setStep('confirm')
