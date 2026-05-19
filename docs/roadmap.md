@@ -129,15 +129,61 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 
 ## Stage 4 — Automation & discovery
 
-> Completing the arr automation loop.
+> Branch: `feat/arr-parity-stage-4` — not started
+>
+> Completing the arr automation loop: list sources that actually populate Wanted, franchise browsing, and closing the torrent pipeline gap.
 
-| Item | Detail |
-|---|---|
-| **Import lists** | Implement actual list-fetching backend (currently UI stub); IGDB watchlist as first source |
-| **Series/franchise grouping** | Group games by franchise; browse by series on game detail |
-| **Updates page** | Poll GitHub releases API; show "vX.Y.Z available" banner with changelog |
-| **Rename dry-run preview** | Preview what files would be renamed before committing |
-| **Torrent pipeline validation** | End-to-end test with qBittorrent and Transmission |
+### 1. Import lists (backend implementation)
+
+The `ListSourcesPage` settings UI and plugin scaffold exist but the scheduled fetch does nothing — `search_wanted` only searches for games already in the DB, it doesn't pull from list sources.
+
+**Implement:**
+- `scheduler.py` — add `sync_lists` job (every 6h); calls `ListPlugin.fetch()` for each enabled source; upserts results into `games` table with `status = wanted` and `monitored = True`
+- Dedup against existing library by IGDB ID before inserting
+- IGDB watchlist plugin: user provides a list slug or game IDs; fetch via IGDB API
+- Settings → List Sources: show `last_synced_at` per source and a manual "Sync Now" trigger button
+- `GET /list-sources` and `POST /list-sources/{id}/sync` endpoints
+
+### 2. Series / franchise grouping
+
+IGDB returns `franchises` (array of IDs) and `collection` (series ID) in enrichment data; neither is currently stored.
+
+**Implement:**
+- Add `franchise_ids` (JSON array) and `collection_id` (int, nullable) columns to `Game` model via `_add_column_if_missing()`
+- Fetch and store these fields in `fetch_enrichment_batch()` in `igdb_service.py`
+- Game detail page — add "More in this series" section below similar games; same horizontal scroll card row style; queries locally for games sharing `collection_id`
+- Franchise browsing: clicking a franchise name navigates to `/?collection=X` which pre-filters the games list (client-side, no new route needed)
+
+### 3. System → Updates page
+
+No in-app update awareness; users must check GitHub manually.
+
+**Implement:**
+- `GET /system/updates` — polls GitHub releases API (`https://api.github.com/repos/darkiris4/Romarr/releases/latest`); compares tag to embedded `APP_VERSION`; caches result for 6h; returns `{ current, latest, has_update, release_url, release_notes }`
+- `frontend/src/pages/System/UpdatesPage.tsx` — current version, latest version, release notes (markdown rendered), "View on GitHub" link
+- Global topbar banner: if `has_update`, show a dismissible accent-coloured strip ("Romarr vX.Y.Z is available")
+- Add `System → Updates` nav item under System section
+
+### 4. Rename dry-run preview
+
+Files are moved silently on import with no preview.
+
+**Implement:**
+- `POST /library/rename-preview` — accepts `game_ids: list[int]`; returns list of `{ game_id, title, current_path, proposed_path }` without moving anything
+- Naming template configurable in Settings → Media Management (e.g. `{title} ({year})` — same token set Radarr uses)
+- `RenamePreviewModal` — table of current → proposed paths with a Confirm Rename button that calls `POST /library/rename`
+- Accessible from game detail page actions menu and as a bulk action
+
+### 5. Torrent pipeline validation
+
+qBittorrent and Transmission paths are coded (`download_service.py`, `download_poll.py`) but have never been tested end-to-end.
+
+**Validate:**
+- Stand up a local qBittorrent container; run the full grab → queue → `poll_downloads` → import flow; document any bugs found
+- Repeat with Transmission
+- Fix whatever breaks — likely: remote path mapping edge cases, status enum mismatches, stalled-torrent detection
+- Add `torrent_hash` to `QueueItem` model so polling doesn't rely solely on name matching
+- Mark torrent support as validated in CLAUDE.md once both clients pass
 
 ---
 
