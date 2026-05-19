@@ -12,6 +12,7 @@ from .database import init_db
 from .services.dat_manager import scan_dat_dir
 from .services.scheduler import start as start_scheduler
 from .services.scheduler import stop as stop_scheduler
+from .version import APP_VERSION
 
 
 def _load_dats():
@@ -73,7 +74,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="1.0.0-alpha",
+    version=APP_VERSION,
     description="Automated ROM manager for retro games",
     lifespan=lifespan,
     redirect_slashes=False,

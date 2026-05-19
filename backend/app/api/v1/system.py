@@ -6,6 +6,7 @@ from fastapi import APIRouter, UploadFile
 from pydantic import BaseModel
 
 from ...config import settings
+from ...version import APP_VERSION
 
 router = APIRouter()
 
@@ -60,7 +61,7 @@ def system_status():
             disk_info(library_path),
         ],
         "about": {
-            "version": "1.0.0-alpha",
+            "version": APP_VERSION,
             "python": sys.version.split(" ")[0],
             "docker": Path("/.dockerenv").exists(),
             "sqliteVersion": _sqlite_version(),
