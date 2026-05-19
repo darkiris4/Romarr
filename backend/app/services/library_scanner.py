@@ -30,6 +30,12 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+def _parse_revision(name: str) -> int:
+    """Extract revision number from a No-Intro filename. No tag = Rev 0."""
+    m = re.search(r"\(Rev (\d+)\)", name, re.IGNORECASE)
+    return int(m.group(1)) if m else 0
+
+
 def _try_rename_to_canonical(file_path: str, crc32: str | None) -> str:
     """Rename a ROM file to its No-Intro canonical filename if a DAT match exists.
     Returns the (possibly new) path."""
@@ -608,7 +614,11 @@ def import_roms(
     platform_by_id = {p.id: p for p in db.query(Platform).all()}
     curated_root = Path(curated_path).expanduser().resolve() if curated_path else None
 
-    created = updated = skipped_existing = skipped_ambiguous = copied = 0
+    from .config_service import get_config as _get_config
+
+    auto_upgrade = _get_config("auto_upgrade_revisions", "true") == "true"
+
+    created = updated = skipped_existing = skipped_ambiguous = copied = upgraded = 0
     curated_roms: list[ScannedROM] = []
 
     for rom in summary.roms:
@@ -631,16 +641,18 @@ def import_roms(
             curated_roms.append(rom)
 
         if rom.already_exists:
-            if skip_existing:
-                skipped_existing += 1
-            else:
+            if auto_upgrade and rom.existing_game_id:
                 game = db.query(Game).filter_by(id=rom.existing_game_id).first()
-                if game and not game.rom_path:
-                    game.rom_path = rom.path
-                    game.checksum_crc32 = rom.crc32
-                    if rom.match_source == "dat":
-                        game.status = GameStatus.IMPORTED
-                    updated += 1
+                if game:
+                    incoming_rev = _parse_revision(rom.filename)
+                    existing_rev = _parse_revision(Path(game.rom_path).name if game.rom_path else "")
+                    if incoming_rev > existing_rev:
+                        final_path = _try_rename_to_canonical(rom.path, rom.crc32)
+                        game.rom_path = final_path
+                        game.checksum_crc32 = rom.crc32
+                        upgraded += 1
+                        continue
+            skipped_existing += 1
             continue
 
         # Hard dedup guards — catch any case the scan-time check missed
@@ -651,7 +663,19 @@ def import_roms(
                 skipped_existing += 1
                 continue
         if rom.title and rom.platform_id:
-            if db.query(Game).filter_by(title=rom.title, platform_id=rom.platform_id).first():
+            existing = db.query(Game).filter_by(title=rom.title, platform_id=rom.platform_id).first()
+            if existing:
+                if auto_upgrade:
+                    incoming_rev = _parse_revision(rom.filename)
+                    existing_rev = _parse_revision(
+                        Path(existing.rom_path).name if existing.rom_path else ""
+                    )
+                    if incoming_rev > existing_rev:
+                        final_path = _try_rename_to_canonical(rom.path, rom.crc32)
+                        existing.rom_path = final_path
+                        existing.checksum_crc32 = rom.crc32
+                        upgraded += 1
+                        continue
                 skipped_existing += 1
                 continue
 
@@ -677,6 +701,7 @@ def import_roms(
         "scanned": summary.total_files_seen,
         "created": created,
         "updated": updated,
+        "upgraded": upgraded,
         "skipped_existing": skipped_existing,
         "skipped_ambiguous": skipped_ambiguous,
         "dat_matches": summary.matched_dat,
@@ -684,11 +709,12 @@ def import_roms(
         "copied": copied,
     }
     logger.info(
-        "Import complete — folder=%s created=%d updated=%d "
+        "Import complete — folder=%s created=%d updated=%d upgraded=%d "
         "skipped_existing=%d skipped_ambiguous=%d dat=%d filename=%d copied=%d",
         folder_path,
         created,
         updated,
+        upgraded,
         skipped_existing,
         skipped_ambiguous,
         summary.matched_dat,
@@ -794,9 +820,10 @@ def import_start(
                 curated_path=curated_path,
             )
             copied_msg = f", {result.get('copied', 0)} copied to curated" if curated_path else ""
+            upgraded_msg = f", {result.get('upgraded', 0)} upgraded" if result.get("upgraded") else ""
             log_event(
                 "LibraryImport",
-                f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated, {result.get('skipped_existing', 0)} skipped{copied_msg}",
+                f"Import complete: {result.get('created', 0)} created, {result.get('updated', 0)} updated{upgraded_msg}, {result.get('skipped_existing', 0)} skipped{copied_msg}",
             )
             if result.get("created", 0) > 0:
                 from .metadata_scraper import scrape_start
