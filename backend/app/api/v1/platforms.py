@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ...database import get_db
+from ...models.game import Game
 from ...models.platform import Platform
 from ...schemas.platform import PlatformCreate, PlatformOut, PlatformUpdate
 
@@ -10,6 +11,7 @@ router = APIRouter()
 BUILTIN_PLATFORMS = [
     {
         "name": "Super Nintendo Entertainment System",
+        "short_name": "SNES",
         "no_intro_name": "Nintendo - Super Nintendo Entertainment System",
         "folder_name": "Nintendo - Super Nintendo Entertainment System",
         "extensions": "sfc,smc",
@@ -17,6 +19,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo Entertainment System",
+        "short_name": "NES",
         "no_intro_name": "Nintendo - Nintendo Entertainment System",
         "folder_name": "Nintendo - Nintendo Entertainment System",
         "extensions": "nes",
@@ -24,6 +27,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Game Boy Advance",
+        "short_name": "GBA",
         "no_intro_name": "Nintendo - Game Boy Advance",
         "folder_name": "Nintendo - Game Boy Advance",
         "extensions": "gba",
@@ -31,6 +35,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Game Boy Color",
+        "short_name": "GBC",
         "no_intro_name": "Nintendo - Game Boy Color",
         "folder_name": "Nintendo - Game Boy Color",
         "extensions": "gbc",
@@ -38,6 +43,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Game Boy",
+        "short_name": "GB",
         "no_intro_name": "Nintendo - Game Boy",
         "folder_name": "Nintendo - Game Boy",
         "extensions": "gb",
@@ -45,6 +51,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo 64",
+        "short_name": "N64",
         "no_intro_name": "Nintendo - Nintendo 64",
         "folder_name": "Nintendo - Nintendo 64",
         "extensions": "z64,n64,v64",
@@ -52,6 +59,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo DS",
+        "short_name": "NDS",
         "no_intro_name": "Nintendo - Nintendo DS",
         "folder_name": "Nintendo - Nintendo DS",
         "extensions": "nds",
@@ -59,6 +67,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega Mega Drive / Genesis",
+        "short_name": "Genesis",
         "no_intro_name": "Sega - Mega Drive - Genesis",
         "folder_name": "Sega - Mega Drive - Genesis",
         "extensions": "md,bin,gen",
@@ -66,6 +75,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega Master System",
+        "short_name": "SMS",
         "no_intro_name": "Sega - Master System - Mark III",
         "folder_name": "Sega - Master System - Mark III",
         "extensions": "sms",
@@ -73,6 +83,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega Game Gear",
+        "short_name": "GG",
         "no_intro_name": "Sega - Game Gear",
         "folder_name": "Sega - Game Gear",
         "extensions": "gg",
@@ -80,6 +91,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation",
+        "short_name": "PS1",
         "no_intro_name": "Sony - PlayStation",
         "folder_name": "Sony - PlayStation",
         "extensions": "cue,bin,iso,chd",
@@ -87,6 +99,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation 2",
+        "short_name": "PS2",
         "no_intro_name": "Sony - PlayStation 2",
         "folder_name": "Sony - PlayStation 2",
         "extensions": "iso,chd",
@@ -94,6 +107,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation Portable",
+        "short_name": "PSP",
         "no_intro_name": "Sony - PlayStation Portable",
         "folder_name": "Sony - PlayStation Portable",
         "extensions": "iso,cso,pbp",
@@ -101,6 +115,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Atari 2600",
+        "short_name": "2600",
         "no_intro_name": "Atari - 2600",
         "folder_name": "Atari - 2600",
         "extensions": "a26,bin",
@@ -108,6 +123,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Neo Geo Pocket Color",
+        "short_name": "NGPC",
         "no_intro_name": "SNK - Neo Geo Pocket Color",
         "folder_name": "SNK - Neo Geo Pocket Color",
         "extensions": "ngc",
@@ -115,6 +131,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega 32X",
+        "short_name": "32X",
         "no_intro_name": "Sega - 32X",
         "folder_name": "Sega - 32X",
         "extensions": "32x",
@@ -122,6 +139,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo GameCube",
+        "short_name": "GCN",
         "no_intro_name": "Nintendo - GameCube",
         "folder_name": "Nintendo - GameCube",
         "extensions": "rvz,iso,gcm,gcz",
@@ -129,6 +147,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo Wii",
+        "short_name": "Wii",
         "no_intro_name": "Nintendo - Wii",
         "folder_name": "Nintendo - Wii",
         "extensions": "wbfs,rvz,wia,iso",
@@ -136,6 +155,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo GameCube (NPDP)",
+        "short_name": "GCN",
         "no_intro_name": "Nintendo - Nintendo GameCube (NPDP Carts)",
         "folder_name": "Nintendo - Nintendo GameCube",
         "extensions": "rvz,iso,gcm",
@@ -143,6 +163,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo 3DS",
+        "short_name": "3DS",
         "no_intro_name": "Nintendo - Nintendo 3DS",
         "folder_name": "Nintendo - Nintendo 3DS",
         "extensions": "3ds,cia",
@@ -150,6 +171,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo Wii U",
+        "short_name": "Wii U",
         "no_intro_name": "Nintendo - Wii U",
         "folder_name": "Nintendo - Wii U",
         "extensions": "wux,wud",
@@ -157,6 +179,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Nintendo Switch",
+        "short_name": "Switch",
         "no_intro_name": "Nintendo - Nintendo Switch",
         "folder_name": "Nintendo - Nintendo Switch",
         "extensions": "nsp,xci,nsz,xcz",
@@ -164,6 +187,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation 3",
+        "short_name": "PS3",
         "no_intro_name": "Sony - PlayStation 3",
         "folder_name": "Sony - PlayStation 3",
         "extensions": "iso,pkg",
@@ -171,6 +195,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation 4",
+        "short_name": "PS4",
         "no_intro_name": "Sony - PlayStation 4",
         "folder_name": "Sony - PlayStation 4",
         "extensions": "pkg",
@@ -178,6 +203,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "PlayStation Vita",
+        "short_name": "Vita",
         "no_intro_name": "Sony - PlayStation Vita",
         "folder_name": "Sony - PlayStation Vita",
         "extensions": "vpk,pkg",
@@ -185,6 +211,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Xbox 360",
+        "short_name": "X360",
         "no_intro_name": "Microsoft - Xbox 360",
         "folder_name": "Microsoft - Xbox 360",
         "extensions": "iso",
@@ -192,6 +219,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega Saturn",
+        "short_name": "Saturn",
         "no_intro_name": "Sega - Saturn",
         "folder_name": "Sega - Saturn",
         "extensions": "iso,cue,bin,chd",
@@ -199,6 +227,7 @@ BUILTIN_PLATFORMS = [
     },
     {
         "name": "Sega Dreamcast",
+        "short_name": "DC",
         "no_intro_name": "Sega - Dreamcast",
         "folder_name": "Sega - Dreamcast",
         "extensions": "cdi,gdi,chd",
@@ -243,5 +272,11 @@ def delete_platform(platform_id: int, db: Session = Depends(get_db)):
     platform = db.query(Platform).filter_by(id=platform_id).first()
     if not platform:
         raise HTTPException(status_code=404, detail="Platform not found")
+    game_count = db.query(Game).filter_by(platform_id=platform_id).count()
+    if game_count:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete — {game_count} game{'s' if game_count != 1 else ''} are linked to this platform.",
+        )
     db.delete(platform)
     db.commit()

@@ -84,6 +84,7 @@ const SECTIONS: Section[] = [
     prefix: '/settings',
     children: [
       { to: '/settings/mediamanagement', icon: <HardDrive size={14} />, label: 'Media Management' },
+      { to: '/settings/platforms', icon: <Gamepad2 size={14} />, label: 'Platforms' },
       { to: '/settings/profiles', icon: <Star size={14} />, label: 'Profiles' },
       { to: '/settings/indexers', icon: <Wifi size={14} />, label: 'Indexers' },
       { to: '/settings/downloadclients', icon: <Server size={14} />, label: 'Download Clients' },

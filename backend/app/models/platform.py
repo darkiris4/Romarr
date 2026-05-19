@@ -14,6 +14,7 @@ class Platform(Base):
     no_intro_name: Mapped[str] = mapped_column(String, nullable=False)
     folder_name: Mapped[str] = mapped_column(String, nullable=False)
     extensions: Mapped[str] = mapped_column(String, default="")
+    short_name: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     igdb_platform_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     release_profile_id: Mapped[int | None] = mapped_column(

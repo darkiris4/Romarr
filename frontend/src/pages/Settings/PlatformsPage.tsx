@@ -23,6 +23,7 @@ function PlatformForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [noIntroName, setNoIntroName] = useState(initial?.no_intro_name ?? '')
   const [folderName, setFolderName] = useState(initial?.folder_name ?? '')
+  const [shortName, setShortName] = useState(initial?.short_name ?? '')
   const [extensions, setExtensions] = useState(initial?.extensions ?? '')
   const [releaseProfileId, setReleaseProfileId] = useState<number | null>(
     initial?.release_profile_id ?? null
@@ -35,6 +36,7 @@ function PlatformForm({
       name,
       no_intro_name: noIntroName,
       folder_name: folderName,
+      short_name: shortName || null,
       extensions,
       enabled,
       release_profile_id: releaseProfileId,
@@ -82,6 +84,17 @@ function PlatformForm({
                 required
                 placeholder="Nintendo - Super Nintendo Entertainment System"
               />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Short Name</label>
+              <input
+                className="form-control"
+                value={shortName}
+                onChange={(e) => setShortName(e.target.value)}
+                placeholder="SNES"
+                style={{ maxWidth: 160 }}
+              />
+              <div className="form-hint">Abbreviation shown on platform filter chips.</div>
             </div>
             <div className="form-group">
               <label className="form-label">File Extensions</label>
@@ -135,6 +148,7 @@ export default function PlatformsPage() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState<Platform | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: platforms = [], isLoading } = useQuery({
     queryKey: ['platforms'],
@@ -168,7 +182,16 @@ export default function PlatformsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: platformsApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['platforms'] }),
+    onSuccess: () => {
+      setDeleteError(null)
+      qc.invalidateQueries({ queryKey: ['platforms'] })
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Failed to delete platform.'
+      setDeleteError(msg)
+    },
   })
 
   function addBuiltin(b: (typeof builtins)[0]) {
@@ -190,6 +213,15 @@ export default function PlatformsPage() {
         conventions.
       </div>
 
+      {deleteError && (
+        <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+          {deleteError}
+          <button className="btn-icon" style={{ marginLeft: 8 }} onClick={() => setDeleteError(null)}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="page-toolbar" style={{ marginBottom: 16 }}>
         <div className="spacer" />
         <button className="btn btn-secondary" onClick={() => setShowForm(true)}>
@@ -210,6 +242,7 @@ export default function PlatformsPage() {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Short Name</th>
                   <th>No-Intro Name</th>
                   <th>Extensions</th>
                   <th>Enabled</th>
@@ -218,8 +251,9 @@ export default function PlatformsPage() {
               </thead>
               <tbody>
                 {platforms.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={!p.enabled ? { opacity: 0.45 } : undefined}>
                     <td style={{ fontWeight: 500, color: 'var(--text-white)' }}>{p.name}</td>
+                    <td className="text-muted text-sm">{p.short_name || '—'}</td>
                     <td className="text-muted text-sm">{p.no_intro_name}</td>
                     <td className="text-muted text-sm">{p.extensions || '—'}</td>
                     <td>

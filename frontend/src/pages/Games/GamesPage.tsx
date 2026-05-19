@@ -362,6 +362,19 @@ export default function GamesPage() {
     return [...set].sort()
   }, [allGames])
 
+  const platformsInLibrary = useMemo(() => {
+    const ids = new Set(allGames.map((g) => g.platform_id).filter(Boolean))
+    return platforms
+      .filter((p) => ids.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        label:
+          p.short_name ||
+          (p.name.includes(' - ') ? p.name.split(' - ').slice(1).join(' - ') : p.name),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [allGames, platforms])
+
   const filteredGames = useMemo(() => {
     return allGames.filter((g) => {
       if (filterPlatforms.size > 0 && !filterPlatforms.has(g.platform_id)) return false
@@ -890,6 +903,26 @@ export default function GamesPage() {
                 <X size={10} />
               </button>
             </span>
+          ))}
+        </div>
+      )}
+
+      {platformsInLibrary.length > 1 && (
+        <div className="platform-chips">
+          <button
+            className={`platform-chip${filterPlatforms.size === 0 ? ' active' : ''}`}
+            onClick={() => updateParams({ platforms: null })}
+          >
+            All
+          </button>
+          {platformsInLibrary.map((p) => (
+            <button
+              key={p.id}
+              className={`platform-chip${filterPlatforms.has(p.id) ? ' active' : ''}`}
+              onClick={() => toggleFilter('platforms', p.id)}
+            >
+              {p.label}
+            </button>
           ))}
         </div>
       )}

@@ -44,6 +44,7 @@ export interface Platform {
   no_intro_name: string
   folder_name: string
   extensions: string
+  short_name?: string | null
   enabled: boolean
   igdb_platform_id?: number | null
   release_profile_id?: number | null

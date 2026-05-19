@@ -8,6 +8,7 @@ class PlatformBase(BaseModel):
     no_intro_name: str
     folder_name: str
     extensions: str = ""
+    short_name: str | None = None
     enabled: bool = True
     igdb_platform_id: int | None = None
 
@@ -21,6 +22,7 @@ class PlatformUpdate(BaseModel):
     no_intro_name: str | None = None
     folder_name: str | None = None
     extensions: str | None = None
+    short_name: str | None = None
     enabled: bool | None = None
     igdb_platform_id: int | None = None
     release_profile_id: int | None = None

@@ -576,19 +576,15 @@ function EditGameModal({
               </div>
             </div>
           )}
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={monitored}
-                  onChange={(e) => setMonitored(e.target.checked)}
-                />
-                <span className="toggle-slider" />
-              </label>
-              <span className="form-label" style={{ margin: 0 }}>
-                Monitored
-              </span>
+          <div className="toggle-row" style={{ borderBottom: 'none' }}>
+            <div className="toggle-label">Monitored</div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={monitored}
+                onChange={(e) => setMonitored(e.target.checked)}
+              />
+              <span className="toggle-slider" />
             </label>
           </div>
         </div>

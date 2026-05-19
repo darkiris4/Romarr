@@ -245,7 +245,7 @@ export default function IndexersPage() {
               </thead>
               <tbody>
                 {indexers.map((idx) => (
-                  <tr key={idx.id}>
+                  <tr key={idx.id} style={!idx.enabled ? { opacity: 0.45 } : undefined}>
                     <td
                       style={{ fontWeight: 500, color: 'var(--accent)', cursor: 'pointer' }}
                       onClick={() => setModal(idx)}

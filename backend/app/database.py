@@ -101,8 +101,10 @@ def _migrate():
     _add_column_if_missing("games", "collection_id", "INTEGER")
     _add_column_if_missing("games", "collection_name", "TEXT")
     _add_column_if_missing("queue_items", "torrent_hash", "TEXT")
+    _add_column_if_missing("platforms", "short_name", "VARCHAR")
     _seed_platforms()
     _seed_igdb_platform_ids()
+    _backfill_short_names()
     _seed_default_profiles()
 
 
@@ -135,6 +137,25 @@ def _seed_igdb_platform_ids():
                 ),
                 {"igdb_id": igdb_id, "name": no_intro_name},
             )
+        conn.commit()
+
+
+def _backfill_short_names():
+    """Back-fill short_name for existing platform rows that are still NULL."""
+    from sqlalchemy import text
+
+    from .api.v1.platforms import BUILTIN_PLATFORMS
+
+    with engine.connect() as conn:
+        for p in BUILTIN_PLATFORMS:
+            if p.get("short_name"):
+                conn.execute(
+                    text(
+                        "UPDATE platforms SET short_name = :short_name"
+                        " WHERE no_intro_name = :name AND short_name IS NULL"
+                    ),
+                    {"short_name": p["short_name"], "name": p["no_intro_name"]},
+                )
         conn.commit()
 
 

@@ -526,7 +526,7 @@ export default function DownloadClientsPage() {
               </thead>
               <tbody>
                 {clients.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} style={!c.enabled ? { opacity: 0.45 } : undefined}>
                     <td
                       style={{ fontWeight: 500, color: 'var(--accent)', cursor: 'pointer' }}
                       onClick={() => setModal(c)}

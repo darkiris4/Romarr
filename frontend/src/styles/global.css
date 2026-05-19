@@ -3179,6 +3179,40 @@ a.detail-similar-card:hover .detail-similar-cover {
   color: var(--danger);
 }
 
+/* ── Platform filter chips ── */
+.platform-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.platform-chip {
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.platform-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-white);
+}
+
+.platform-chip.active {
+  background: rgba(123, 104, 238, 0.2);
+  border-color: rgba(123, 104, 238, 0.6);
+  color: var(--accent);
+}
+
 /* ── Jump bar ── */
 .jump-bar {
   position: fixed;
