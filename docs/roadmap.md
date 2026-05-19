@@ -127,9 +127,9 @@ Second tab in the Wanted section — ROM-specific equivalent of Radarr's Cutoff 
 
 ---
 
-## Stage 4 — Automation & discovery
+## Stage 4 — Automation & discovery ✅ Complete
 
-> Branch: `feat/arr-parity-stage-4` — not started
+> Branch: `feat/arr-parity-stage-4` — merged via PR #6
 >
 > Completing the arr automation loop: list sources that actually populate Wanted, franchise browsing, and closing the torrent pipeline gap.
 
