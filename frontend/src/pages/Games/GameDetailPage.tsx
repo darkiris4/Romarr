@@ -6,7 +6,6 @@ import {
   Search,
   Trash2,
   ImageOff,
-  EyeOff,
   CheckCircle2,
   Download,
   AlertTriangle,
@@ -304,18 +303,6 @@ export default function GameDetailPage() {
                 {STATUS_ICONS[game.status]}
                 {game.status.charAt(0).toUpperCase() + game.status.slice(1)}
               </span>
-              {!game.monitored && (
-                <span
-                  className="detail-badge"
-                  style={{
-                    color: 'rgba(255,255,255,.4)',
-                    background: 'rgba(255,255,255,.06)',
-                    border: '1px solid rgba(255,255,255,.12)',
-                  }}
-                >
-                  <EyeOff size={12} /> Unmonitored
-                </span>
-              )}
             </div>
 
             {/* Summary */}
