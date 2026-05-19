@@ -2715,6 +2715,9 @@ tr.selecting.selected td {
   padding: 12px 16px 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
+.detail-hero-grid-item--full {
+  grid-column: 1 / -1;
+}
 
 .detail-hero-grid-key {
   font-size: 11px;
@@ -2728,6 +2731,11 @@ tr.selecting.selected td {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.88);
   font-weight: 400;
+}
+.detail-hero-grid-val--mono {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 /* Files section below hero */

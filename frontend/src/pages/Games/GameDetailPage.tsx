@@ -326,24 +326,33 @@ export default function GameDetailPage() {
 
             {/* Details grid — embedded in hero */}
             <div className="detail-hero-grid">
+              {(game.relative_rom_path || game.rom_path) && (
+                <HeroItem
+                  label="Path"
+                  value={game.relative_rom_path ?? game.rom_path!}
+                  mono
+                  fullWidth
+                />
+              )}
+              <HeroItem label="Status" value={game.status.charAt(0).toUpperCase() + game.status.slice(1)} />
               <HeroItem label="Platform" value={game.platform?.name ?? '—'} />
-              <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
+              {game.file_size != null
+                ? <HeroItem label="Size" value={formatBytes(game.file_size)} />
+                : <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
+              }
               <HeroItem label="Region" value={game.region || '—'} />
-              <HeroItem
-                label="Status"
-                value={game.status.charAt(0).toUpperCase() + game.status.slice(1)}
-              />
-              <HeroItem label="Monitored" value={game.monitored ? 'Yes' : 'No'} />
+              {game.file_size != null && (
+                <HeroItem label="Release Year" value={game.release_year?.toString() ?? '—'} />
+              )}
               <HeroItem label="IGDB ID" value={game.igdb_id?.toString() ?? '—'} />
               <HeroItem label="Added" value={formatDate(game.added_at)} />
-              <HeroItem label="Updated" value={formatDate(game.updated_at)} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── File Information ── */}
-      {hasFile && (
+      {/* ── File Information (checksums) ── */}
+      {(game.checksum_crc32 || game.checksum_md5 || game.checksum_sha1) && (
         <div className="detail-body">
           <div className="card" style={{ padding: 0 }}>
             <div className="card-header" style={{ padding: '12px 16px' }}>
@@ -357,18 +366,6 @@ export default function GameDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {(game.relative_rom_path || game.rom_path) && (
-                  <tr>
-                    <td className="col-prop">Path</td>
-                    <td className="col-val-mono">{game.relative_rom_path ?? game.rom_path}</td>
-                  </tr>
-                )}
-                {game.file_size != null && (
-                  <tr>
-                    <td className="col-prop">Size</td>
-                    <td>{formatBytes(game.file_size)}</td>
-                  </tr>
-                )}
                 {game.checksum_crc32 && (
                   <tr>
                     <td className="col-prop">CRC32</td>
@@ -533,11 +530,23 @@ function parseSimilarGames(json: string | undefined): { name?: string; cover_url
   }
 }
 
-function HeroItem({ label, value }: { label: string; value: string }) {
+function HeroItem({
+  label,
+  value,
+  mono,
+  fullWidth,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  fullWidth?: boolean
+}) {
   return (
-    <div className="detail-hero-grid-item">
+    <div className={`detail-hero-grid-item${fullWidth ? ' detail-hero-grid-item--full' : ''}`}>
       <div className="detail-hero-grid-key">{label}</div>
-      <div className="detail-hero-grid-val">{value}</div>
+      <div className={`detail-hero-grid-val${mono ? ' detail-hero-grid-val--mono' : ''}`}>
+        {value}
+      </div>
     </div>
   )
 }
