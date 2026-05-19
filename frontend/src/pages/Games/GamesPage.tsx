@@ -357,6 +357,7 @@ export default function GamesPage() {
     onSuccess: () => {
       setUpdateAllDone(true)
       setTimeout(() => setUpdateAllDone(false), 2500)
+      qc.invalidateQueries({ queryKey: ['scrape-status-sidebar'] })
     },
   })
 

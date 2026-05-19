@@ -117,7 +117,7 @@ function ScrapeIndicator() {
   const { data } = useQuery({
     queryKey: ['scrape-status-sidebar'],
     queryFn: systemApi.scrapeStatus,
-    refetchInterval: (query) => (query.state.data?.running ? 2000 : 15000),
+    refetchInterval: (query) => (query.state.data?.running ? 2000 : 5000),
   })
 
   if (!data?.running) return null
