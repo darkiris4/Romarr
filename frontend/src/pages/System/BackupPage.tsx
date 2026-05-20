@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, RotateCcw, Trash2, X } from 'lucide-react'
 import { format, isToday } from 'date-fns'
@@ -43,8 +43,7 @@ function ConfirmRestoreModal({
             <strong style={{ color: 'var(--text-white)' }}>{name}</strong>?
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-            The current database will be overwritten. Restart the application after restoring to
-            apply changes.
+            The current database will be overwritten and the application will restart automatically.
           </p>
         </div>
         <div className="modal-footer">
@@ -64,7 +63,27 @@ export default function BackupPage() {
   const qc = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
-  const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const [restarting, setRestarting] = useState(false)
+
+  // Poll until the backend is back up after a restore-triggered restart, then reload.
+  useEffect(() => {
+    if (!restarting) return
+    let cancelled = false
+    const poll = async () => {
+      await new Promise((r) => setTimeout(r, 2000))
+      while (!cancelled) {
+        try {
+          await systemApi.status()
+          if (!cancelled) window.location.href = '/'
+          return
+        } catch {
+          await new Promise((r) => setTimeout(r, 1000))
+        }
+      }
+    }
+    poll()
+    return () => { cancelled = true }
+  }, [restarting])
 
   const { data: backups = [], isLoading } = useQuery({
     queryKey: ['backups'],
@@ -83,15 +102,15 @@ export default function BackupPage() {
 
   const restoreMutation = useMutation({
     mutationFn: systemApi.restoreBackup,
-    onSuccess: (data) => {
+    onSuccess: () => {
       setConfirmRestore(null)
-      setRestoreMsg(data.message)
+      setRestarting(true)
     },
   })
 
   const uploadRestoreMutation = useMutation({
     mutationFn: systemApi.restoreFromUpload,
-    onSuccess: (data) => setRestoreMsg(data.message),
+    onSuccess: () => setRestarting(true),
   })
 
   function handleFileRestore(e: React.ChangeEvent<HTMLInputElement>) {
@@ -102,6 +121,16 @@ export default function BackupPage() {
     uploadRestoreMutation.mutate(formData)
     e.target.value = ''
   }
+
+  if (restarting)
+    return (
+      <div className="loading-page">
+        <div className="spinner" />
+        <span style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 14 }}>
+          Restore complete — waiting for app to restart…
+        </span>
+      </div>
+    )
 
   if (isLoading)
     return (
@@ -137,27 +166,6 @@ export default function BackupPage() {
           onChange={handleFileRestore}
         />
       </div>
-
-      {restoreMsg && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 16,
-            padding: '12px 16px',
-            background: 'var(--accent-subtle)',
-            border: '1px solid rgba(123,104,238,.3)',
-            color: 'var(--accent)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{restoreMsg}</span>
-          <button className="btn-icon" onClick={() => setRestoreMsg(null)}>
-            <X size={14} />
-          </button>
-        </div>
-      )}
 
       {backups.length === 0 ? (
         <div className="empty-state">
