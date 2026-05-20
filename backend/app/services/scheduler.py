@@ -131,6 +131,8 @@ def _check_health():
 
 
 def _backup():
+    import sqlite3
+    import tempfile
     import zipfile
     from pathlib import Path
 
@@ -146,8 +148,23 @@ def _backup():
 
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dest = backup_dir / f"romarr_backup_v0.1.0_{stamp}.zip"
-    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.write(db_path, "romarr.db")
+
+    # Use SQLite's online backup API so the snapshot is consistent even
+    # when WAL mode is active (raw file copy misses uncommitted WAL pages).
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        src = sqlite3.connect(str(db_path))
+        dst = sqlite3.connect(str(tmp_path))
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(tmp_path, "romarr.db")
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
     # Keep last 5 backups
     backups = sorted(backup_dir.glob("romarr_backup_*.zip"))

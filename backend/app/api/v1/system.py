@@ -320,6 +320,12 @@ async def restore_from_upload(file: UploadFile):
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid backup file")
 
+    # Remove stale WAL/SHM sidecars so SQLite doesn't replay old transactions
+    # against the restored DB on next open.
+    for ext in ("-wal", "-shm"):
+        sidecar = db_path.parent / (db_path.name + ext)
+        sidecar.unlink(missing_ok=True)
+
     log_event("Backup", f"Database restored from uploaded file ({file.filename})")
     return {"message": "Restored. Restart the application to apply changes."}
 
@@ -386,6 +392,12 @@ def restore_backup(filename: str):
     db_path = Path(settings.data_dir) / "romarr.db"
     with zipfile.ZipFile(backup_path) as zf:
         db_path.write_bytes(zf.read("romarr.db"))
+
+    # Remove stale WAL/SHM sidecars so SQLite doesn't replay old transactions
+    # against the restored DB on next open.
+    for ext in ("-wal", "-shm"):
+        sidecar = db_path.parent / (db_path.name + ext)
+        sidecar.unlink(missing_ok=True)
 
     log_event("Backup", f"Database restored from {filename}")
     return {"message": "Restored. Restart the application to apply changes."}
