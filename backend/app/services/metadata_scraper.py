@@ -130,16 +130,13 @@ def scrape_pending(force: bool = False) -> dict:
     try:
         cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=_RETRY_AFTER_DAYS)
         # Skip games already matched (igdb_id set) — they've been found.
-        # Skip games searched recently that still weren't found — retry after 30 days.
-        games = (
-            db.query(Game)
-            .filter(
-                Game.cover_url.is_(None),
-                Game.igdb_id.is_(None),
-                or_(Game.igdb_searched_at.is_(None), Game.igdb_searched_at < cutoff),
+        # force=True bypasses the 30-day cooldown so Update All retries all unmatched games.
+        unmatched_filter = [Game.cover_url.is_(None), Game.igdb_id.is_(None)]
+        if not force:
+            unmatched_filter.append(
+                or_(Game.igdb_searched_at.is_(None), Game.igdb_searched_at < cutoff)
             )
-            .all()
-        )
+        games = db.query(Game).filter(*unmatched_filter).all()
 
         _state["total"] = len(games)
         _state["processed"] = 0

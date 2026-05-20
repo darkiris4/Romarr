@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api.v1.router import router as api_router
@@ -93,4 +94,11 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 # Serve built frontend in production
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> FileResponse:
+        candidate = _frontend_dist / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_frontend_dist / "index.html")
