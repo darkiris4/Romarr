@@ -1,5 +1,6 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Download, RotateCcw, Trash2, X } from 'lucide-react'
 import { format, isToday } from 'date-fns'
 import { systemApi } from '../../api/system'
@@ -61,29 +62,9 @@ function ConfirmRestoreModal({
 
 export default function BackupPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
-  const [restarting, setRestarting] = useState(false)
-
-  // Poll until the backend is back up after a restore-triggered restart, then reload.
-  useEffect(() => {
-    if (!restarting) return
-    let cancelled = false
-    const poll = async () => {
-      await new Promise((r) => setTimeout(r, 2000))
-      while (!cancelled) {
-        try {
-          await systemApi.status()
-          if (!cancelled) window.location.href = '/'
-          return
-        } catch {
-          await new Promise((r) => setTimeout(r, 1000))
-        }
-      }
-    }
-    poll()
-    return () => { cancelled = true }
-  }, [restarting])
 
   const { data: backups = [], isLoading } = useQuery({
     queryKey: ['backups'],
@@ -100,17 +81,22 @@ export default function BackupPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['backups'] }),
   })
 
+  function onRestoreSuccess() {
+    qc.clear()
+    navigate('/')
+  }
+
   const restoreMutation = useMutation({
     mutationFn: systemApi.restoreBackup,
     onSuccess: () => {
       setConfirmRestore(null)
-      setRestarting(true)
+      onRestoreSuccess()
     },
   })
 
   const uploadRestoreMutation = useMutation({
     mutationFn: systemApi.restoreFromUpload,
-    onSuccess: () => setRestarting(true),
+    onSuccess: onRestoreSuccess,
   })
 
   function handleFileRestore(e: React.ChangeEvent<HTMLInputElement>) {
@@ -121,16 +107,6 @@ export default function BackupPage() {
     uploadRestoreMutation.mutate(formData)
     e.target.value = ''
   }
-
-  if (restarting)
-    return (
-      <div className="loading-page">
-        <div className="spinner" />
-        <span style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 14 }}>
-          Restore complete — waiting for app to restart…
-        </span>
-      </div>
-    )
 
   if (isLoading)
     return (

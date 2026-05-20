@@ -1,26 +1,16 @@
-import os
 import platform
 import sys
-import threading
 from datetime import datetime
 
 from fastapi import APIRouter, UploadFile
 from pydantic import BaseModel
 
 
-def _schedule_restart(delay: float = 1.0) -> None:
-    """Replace the current process with a fresh one after `delay` seconds.
-
-    The delay gives the HTTP response time to flush before the process exits.
-    In Docker the container restarts automatically; in dev uvicorn's reloader
-    picks it up.
-    """
-    def _do():
-        import time
-        time.sleep(delay)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-
-    threading.Thread(target=_do, daemon=True).start()
+def _reload_db() -> None:
+    """Drop the SQLAlchemy connection pool so the next request opens a fresh
+    connection to the restored database file. No process restart needed."""
+    from ...database import engine
+    engine.dispose()
 
 from ...config import settings
 from ...version import APP_VERSION
@@ -344,8 +334,8 @@ async def restore_from_upload(file: UploadFile):
         sidecar.unlink(missing_ok=True)
 
     log_event("Backup", f"Database restored from uploaded file ({file.filename})")
-    _schedule_restart()
-    return {"message": "Restored successfully. Restarting…"}
+    _reload_db()
+    return {"message": "Restored successfully."}
 
 
 @router.get("/backup/{filename}")
@@ -418,8 +408,8 @@ def restore_backup(filename: str):
         sidecar.unlink(missing_ok=True)
 
     log_event("Backup", f"Database restored from {filename}")
-    _schedule_restart()
-    return {"message": "Restored successfully. Restarting…"}
+    _reload_db()
+    return {"message": "Restored successfully."}
 
 
 def _sqlite_version() -> str:
