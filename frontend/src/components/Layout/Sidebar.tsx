@@ -28,6 +28,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { systemApi } from '../../api/system'
+import { queueApi } from '../../api/queue'
 
 interface Child {
   to: string
@@ -112,6 +113,18 @@ const SECTIONS: Section[] = [
     ],
   },
 ]
+
+function QueueCountBadge() {
+  const { data } = useQuery({
+    queryKey: ['queue-sidebar'],
+    queryFn: queueApi.list,
+    refetchInterval: 5_000,
+    staleTime: 0,
+  })
+  const count = data?.length ?? 0
+  if (count === 0) return null
+  return <span className="nav-badge">{count}</span>
+}
 
 function ScrapeIndicator() {
   const { data } = useQuery({
@@ -215,6 +228,7 @@ export default function Sidebar() {
                   >
                     <span className="nav-icon">{c.icon}</span>
                     {c.label}
+                    {c.to === '/activity/queue' && <QueueCountBadge />}
                   </NavLink>
                 ))}
             </div>
