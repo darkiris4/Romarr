@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 import { systemApi } from '../../api/system'
 
@@ -63,6 +64,7 @@ export default function SystemStatus() {
   if (!data) return null
 
   const { health, disk, about } = data
+  const navigate = useNavigate()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -77,7 +79,7 @@ export default function SystemStatus() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {health.map((msg, i) => (
+              {health.map((issue, i) => (
                 <div
                   key={i}
                   style={{
@@ -88,7 +90,23 @@ export default function SystemStatus() {
                   }}
                 >
                   <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: 13, lineHeight: 1.5 }}>{msg}</span>
+                  <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+                    {issue.message}{' '}
+                    <button
+                      onClick={() => navigate(issue.path)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent)',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        padding: 0,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Fix
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>

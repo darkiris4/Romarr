@@ -127,6 +127,38 @@ textarea {
   padding-top: 0;
 }
 
+/* ── Health banners ─────────────────────────────────────────────── */
+.health-banner {
+  flex-shrink: 0;
+  background: rgba(245, 166, 35, 0.1);
+  border-bottom: 1px solid rgba(245, 166, 35, 0.3);
+}
+.health-banner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 20px;
+  color: #f5a623;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(245, 166, 35, 0.15);
+}
+.health-banner-row:last-child {
+  border-bottom: none;
+}
+.health-banner-fix {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(245, 166, 35, 0.5);
+  border-radius: 4px;
+  color: #f5a623;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.health-banner-fix:hover {
+  background: rgba(245, 166, 35, 0.15);
+}
+
 /* ── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-width);

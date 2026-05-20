@@ -210,8 +210,13 @@ export interface HistoryItem {
   date: string
 }
 
+export interface HealthIssue {
+  message: string
+  path: string
+}
+
 export interface SystemStatus {
-  health: string[]
+  health: HealthIssue[]
   disk: Array<{ path: string; free: number | null; total: number | null }>
   about: {
     version: string

@@ -22,25 +22,48 @@ def system_status():
     from ...database import SessionLocal
     from ...models.download_client import DownloadClient
     from ...models.indexer import Indexer
+    from ...models.root_folder import RootFolder
     from ...services.igdb_service import _credentials
+    from ...services.library_scanner import _DAT_INDEX
 
     db = SessionLocal()
     try:
         indexer_count = db.query(Indexer).count()
         client_count = db.query(DownloadClient).count()
+        root_folder_count = db.query(RootFolder).count()
     finally:
         db.close()
 
     igdb_client_id, igdb_client_secret = _credentials()
     igdb_configured = bool(igdb_client_id and igdb_client_secret)
+    dat_count = len(_DAT_INDEX)
 
     health_issues = []
+    if not root_folder_count:
+        health_issues.append({
+            "message": "No root folder configured — set one so imported ROMs have a home",
+            "path": "/settings/media-management",
+        })
+    if not dat_count:
+        health_issues.append({
+            "message": "No No-Intro DAT files loaded — upload them to enable CRC32 matching",
+            "path": "/settings/platforms",
+        })
     if not igdb_configured:
-        health_issues.append("IGDB credentials not configured — metadata scraping will not work")
+        health_issues.append({
+            "message": "IGDB credentials not configured — metadata scraping will not work",
+            "path": "/settings/general",
+        })
     if not indexer_count:
-        health_issues.append("No indexers configured — automatic searching will not work")
+        health_issues.append({
+            "message": "No indexers configured — automatic searching will not work",
+            "path": "/settings/indexers",
+        })
     if not client_count:
-        health_issues.append("No download client configured — grabbing releases will not work")
+        health_issues.append({
+            "message": "No download client configured — grabbing releases will not work",
+            "path": "/settings/download-clients",
+        })
 
     data_path = Path(settings.data_dir).resolve()
     library_path = Path(settings.rom_library_path).resolve()
