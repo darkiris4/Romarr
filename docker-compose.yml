@@ -14,11 +14,12 @@ services:
       - ${ROM_LIBRARY_PATH:-./library}:/app/library
     ports:
       - "${ROMARR_PORT:-7878}:8000"
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/system/status"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/system/status')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   romarr-data:
