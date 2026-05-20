@@ -146,8 +146,10 @@ def _backup():
     backup_dir = Path(settings.data_dir) / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
 
+    from ..version import APP_VERSION
+
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    dest = backup_dir / f"romarr_backup_v0.1.0_{stamp}.zip"
+    dest = backup_dir / f"romarr_backup_v{APP_VERSION}_{stamp}.zip"
 
     # Use SQLite's online backup API so the snapshot is consistent even
     # when WAL mode is active (raw file copy misses uncommitted WAL pages).
