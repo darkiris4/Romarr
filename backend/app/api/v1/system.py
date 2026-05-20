@@ -10,7 +10,9 @@ def _reload_db() -> None:
     """Drop the SQLAlchemy connection pool so the next request opens a fresh
     connection to the restored database file. No process restart needed."""
     from ...database import engine
+
     engine.dispose()
+
 
 from ...config import settings
 from ...version import APP_VERSION
@@ -47,30 +49,40 @@ def system_status():
 
     health_issues = []
     if not root_folder_count:
-        health_issues.append({
-            "message": "No root folder configured — set one so imported ROMs have a home",
-            "path": "/settings/mediamanagement",
-        })
+        health_issues.append(
+            {
+                "message": "No root folder configured — set one so imported ROMs have a home",
+                "path": "/settings/mediamanagement",
+            }
+        )
     if not dat_count:
-        health_issues.append({
-            "message": "No No-Intro DAT files loaded — upload them to enable CRC32 matching",
-            "path": "/settings/platforms",
-        })
+        health_issues.append(
+            {
+                "message": "No No-Intro DAT files loaded — upload them to enable CRC32 matching",
+                "path": "/settings/platforms",
+            }
+        )
     if not igdb_configured:
-        health_issues.append({
-            "message": "IGDB credentials not configured — metadata scraping will not work",
-            "path": "/settings/general",
-        })
+        health_issues.append(
+            {
+                "message": "IGDB credentials not configured — metadata scraping will not work",
+                "path": "/settings/general",
+            }
+        )
     if not indexer_count:
-        health_issues.append({
-            "message": "No indexers configured — automatic searching will not work",
-            "path": "/settings/indexers",
-        })
+        health_issues.append(
+            {
+                "message": "No indexers configured — automatic searching will not work",
+                "path": "/settings/indexers",
+            }
+        )
     if not client_count:
-        health_issues.append({
-            "message": "No download client configured — grabbing releases will not work",
-            "path": "/settings/downloadclients",
-        })
+        health_issues.append(
+            {
+                "message": "No download client configured — grabbing releases will not work",
+                "path": "/settings/downloadclients",
+            }
+        )
 
     data_path = Path(settings.data_dir).resolve()
     library_path = Path(settings.rom_library_path).resolve()
