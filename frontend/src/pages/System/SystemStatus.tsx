@@ -49,6 +49,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function SystemStatus() {
+  const navigate = useNavigate()
   const { data, isLoading } = useQuery({
     queryKey: ['system-status'],
     queryFn: systemApi.status,
@@ -64,7 +65,6 @@ export default function SystemStatus() {
   if (!data) return null
 
   const { health, disk, about } = data
-  const navigate = useNavigate()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>

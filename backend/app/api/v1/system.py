@@ -42,7 +42,7 @@ def system_status():
     if not root_folder_count:
         health_issues.append({
             "message": "No root folder configured — set one so imported ROMs have a home",
-            "path": "/settings/media-management",
+            "path": "/settings/mediamanagement",
         })
     if not dat_count:
         health_issues.append({
@@ -62,7 +62,7 @@ def system_status():
     if not client_count:
         health_issues.append({
             "message": "No download client configured — grabbing releases will not work",
-            "path": "/settings/download-clients",
+            "path": "/settings/downloadclients",
         })
 
     data_path = Path(settings.data_dir).resolve()
