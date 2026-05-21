@@ -23,7 +23,8 @@ _start_time = datetime.utcnow()
 
 
 @router.get("/status")
-def system_status():
+async def system_status():
+    import asyncio
     import os
     import shutil
     from pathlib import Path
@@ -32,13 +33,15 @@ def system_status():
     from ...models.download_client import DownloadClient
     from ...models.indexer import Indexer
     from ...models.root_folder import RootFolder
+    from ...services.download_service import get_client
     from ...services.igdb_service import _credentials, _get_token
+    from ...services.indexer_service import test_indexer
     from ...services.library_scanner import _DAT_INDEX
 
     db = SessionLocal()
     try:
-        indexer_count = db.query(Indexer).count()
-        client_count = db.query(DownloadClient).count()
+        enabled_indexers = db.query(Indexer).filter_by(enabled=True).all()
+        enabled_clients = db.query(DownloadClient).filter_by(enabled=True).all()
         root_folder_count = db.query(RootFolder).count()
     finally:
         db.close()
@@ -46,6 +49,25 @@ def system_status():
     igdb_client_id, igdb_client_secret = _credentials()
     igdb_configured = bool(igdb_client_id and igdb_client_secret)
     dat_count = len(_DAT_INDEX)
+
+    # Run all connectivity probes concurrently so the status page stays fast.
+    indexer_results, client_results = await asyncio.gather(
+        asyncio.gather(*[test_indexer(idx) for idx in enabled_indexers], return_exceptions=True),
+        asyncio.gather(
+            *[get_client(c).test() for c in enabled_clients], return_exceptions=True
+        ),
+    )
+
+    failed_indexers = [
+        idx.name
+        for idx, result in zip(enabled_indexers, indexer_results)
+        if isinstance(result, Exception) or not result[0]
+    ]
+    failed_clients = [
+        c.name
+        for c, result in zip(enabled_clients, client_results)
+        if isinstance(result, Exception) or not result[0]
+    ]
 
     health_issues = []
     if not root_folder_count:
@@ -76,17 +98,31 @@ def system_status():
                 "path": "/settings/general",
             }
         )
-    if not indexer_count:
+    if not enabled_indexers:
         health_issues.append(
             {
                 "message": "No indexers configured — automatic searching will not work",
                 "path": "/settings/indexers",
             }
         )
-    if not client_count:
+    elif failed_indexers:
+        health_issues.append(
+            {
+                "message": f"Indexer(s) unreachable: {', '.join(failed_indexers)}",
+                "path": "/settings/indexers",
+            }
+        )
+    if not enabled_clients:
         health_issues.append(
             {
                 "message": "No download client configured — grabbing releases will not work",
+                "path": "/settings/downloadclients",
+            }
+        )
+    elif failed_clients:
+        health_issues.append(
+            {
+                "message": f"Download client(s) unreachable: {', '.join(failed_clients)}",
                 "path": "/settings/downloadclients",
             }
         )
