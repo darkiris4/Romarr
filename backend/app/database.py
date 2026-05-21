@@ -102,6 +102,8 @@ def _migrate():
     _add_column_if_missing("games", "collection_name", "TEXT")
     _add_column_if_missing("queue_items", "torrent_hash", "TEXT")
     _add_column_if_missing("platforms", "short_name", "VARCHAR")
+    _add_column_if_missing("games", "rawg_id", "INTEGER")
+    _add_column_if_missing("games", "metadata_provider", "VARCHAR")
     _seed_platforms()
     _seed_igdb_platform_ids()
     _backfill_short_names()

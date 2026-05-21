@@ -11,6 +11,7 @@ class GameBase(BaseModel):
     platform_id: int
     region: str = "USA"
     igdb_id: int | None = None
+    rawg_id: int | None = None
     cover_url: str | None = None
     release_year: int | None = None
     monitored: bool = True
@@ -52,6 +53,7 @@ class GameOut(GameBase):
     tags: str | None = None
     last_searched_at: datetime | None = None
     release_profile_id: int | None = None
+    metadata_provider: str | None = None
     platform: PlatformOut | None = None
     added_at: datetime
     updated_at: datetime

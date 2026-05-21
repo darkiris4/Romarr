@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import client from '../../api/client'
 
@@ -9,21 +9,50 @@ interface IgdbConfig {
   configured: boolean
 }
 
-export default function MetadataPage() {
-  const [clientId, setClientId] = useState('')
-  const [clientSecret, setClientSecret] = useState('')
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+interface RawgConfig {
+  rawg_api_key: string
+  metadata_provider: 'igdb' | 'rawg'
+  configured: boolean
+}
 
-  const [scrapeOnAdd, setScrapeOnAdd] = useState(true)
-  const [scrapeLanguage, setScrapeLanguage] = useState('en')
-  const [certValidation, setCertValidation] = useState(true)
+export default function MetadataPage() {
+  const qc = useQueryClient()
 
   const { data: igdbConfig, refetch: refetchIgdb } = useQuery<IgdbConfig>({
     queryKey: ['igdb-config'],
     queryFn: () => client.get('/system/config/igdb').then((r) => r.data),
   })
 
-  const saveMeta = useMutation({
+  const { data: rawgConfig, refetch: refetchRawg } = useQuery<RawgConfig>({
+    queryKey: ['rawg-config'],
+    queryFn: () => client.get('/system/config/rawg').then((r) => r.data),
+  })
+
+  const activeProvider = rawgConfig?.metadata_provider ?? 'igdb'
+
+  // IGDB form state
+  const [clientId, setClientId] = useState('')
+  const [clientSecret, setClientSecret] = useState('')
+  const [igdbTestResult, setIgdbTestResult] = useState<{ ok: boolean; message: string } | null>(
+    null
+  )
+
+  // RAWG form state
+  const [rawgKey, setRawgKey] = useState('')
+  const [rawgTestResult, setRawgTestResult] = useState<{ ok: boolean; message: string } | null>(
+    null
+  )
+
+  const setProvider = useMutation({
+    mutationFn: (provider: 'igdb' | 'rawg') =>
+      client.put('/system/config/rawg', { metadata_provider: provider }),
+    onSuccess: () => {
+      refetchRawg()
+      qc.invalidateQueries({ queryKey: ['rawg-config'] })
+    },
+  })
+
+  const saveIgdb = useMutation({
     mutationFn: () =>
       client.put('/system/config/igdb', {
         igdb_client_id: clientId,
@@ -31,31 +60,110 @@ export default function MetadataPage() {
       }),
     onSuccess: () => {
       refetchIgdb()
-      setTestResult(null)
+      setIgdbTestResult(null)
     },
   })
 
-  const testMeta = useMutation({
+  const testIgdb = useMutation({
     mutationFn: () =>
       client.post<{ ok: boolean; message: string }>('/system/config/igdb/test').then((r) => r.data),
-    onSuccess: (data) => setTestResult(data),
+    onSuccess: (data) => setIgdbTestResult(data),
+  })
+
+  const saveRawg = useMutation({
+    mutationFn: () => client.put('/system/config/rawg', { rawg_api_key: rawgKey }),
+    onSuccess: () => {
+      refetchRawg()
+      setRawgTestResult(null)
+      setRawgKey('')
+    },
+  })
+
+  const testRawg = useMutation({
+    mutationFn: () =>
+      client.post<{ ok: boolean; message: string }>('/system/config/rawg/test').then((r) => r.data),
+    onSuccess: (data) => setRawgTestResult(data),
   })
 
   return (
     <div>
       <div className="settings-section-title">Metadata</div>
       <div className="settings-section-desc">
-        Configure metadata sources and the scraper that enriches your library with cover art,
-        descriptions, and ratings.
+        Configure your metadata source and scraper settings. The active provider is used for all
+        automatic scraping and manual match searches.
       </div>
 
-      {/* ── Metadata Source ── */}
+      {/* ── Provider selector ── */}
       <div className="settings-section-title" style={{ marginTop: 8 }}>
-        Metadata Source
+        Active Provider
       </div>
       <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {(
+            [
+              {
+                id: 'igdb' as const,
+                label: 'IGDB',
+                desc: 'Best retro coverage. Requires a free Twitch Developer account.',
+              },
+              {
+                id: 'rawg' as const,
+                label: 'RAWG',
+                desc: 'Large modern database. Free API key, no Twitch account needed.',
+              },
+            ] as const
+          ).map(({ id, label, desc }) => (
+            <button
+              key={id}
+              onClick={() => setProvider.mutate(id)}
+              disabled={setProvider.isPending}
+              style={{
+                flex: 1,
+                padding: '14px 16px',
+                borderRadius: 'var(--radius)',
+                border: `2px solid ${activeProvider === id ? 'var(--accent)' : 'rgba(255,255,255,.1)'}`,
+                background:
+                  activeProvider === id ? 'rgba(123,104,238,.12)' : 'rgba(255,255,255,.03)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                color: 'inherit',
+                transition: 'border-color .15s, background .15s',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 15,
+                  color: activeProvider === id ? 'var(--accent)' : 'var(--text-primary)',
+                  marginBottom: 4,
+                }}
+              >
+                {label}
+                {activeProvider === id && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 11,
+                      fontWeight: 400,
+                      color: 'var(--accent)',
+                      opacity: 0.8,
+                    }}
+                  >
+                    active
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── IGDB card ── */}
+      <div className="settings-section-title">IGDB</div>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header">
-          <span className="card-title">IGDB</span>
+          <span className="card-title">IGDB (via Twitch)</span>
           {igdbConfig?.configured ? (
             <span
               style={{
@@ -97,18 +205,14 @@ export default function MetadataPage() {
         >
           <strong style={{ color: 'var(--info)' }}>Getting IGDB credentials:</strong>
           <ol style={{ paddingLeft: 20, marginTop: 6, marginBottom: 0 }}>
-            <li>
-              Go to <strong>dev.twitch.tv/console/apps</strong> and log in with a Twitch account
-            </li>
+            <li>Go to dev.twitch.tv/console/apps and log in with a Twitch account</li>
             <li>
               Create a new application — set OAuth redirect to <code>http://localhost</code>
             </li>
             <li>
               Copy the <strong>Client ID</strong> and generate a <strong>New Secret</strong>
             </li>
-            <li>
-              Paste both values below and click <strong>Save</strong>
-            </li>
+            <li>Paste both values below and click Save</li>
           </ol>
         </div>
 
@@ -134,13 +238,13 @@ export default function MetadataPage() {
           />
         </div>
 
-        {testResult && (
+        {igdbTestResult && (
           <div
-            className={`alert ${testResult.ok ? 'alert-success' : 'alert-danger'}`}
+            className={`alert ${igdbTestResult.ok ? 'alert-success' : 'alert-danger'}`}
             style={{ marginBottom: 16 }}
           >
-            {testResult.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}{' '}
-            {testResult.message}
+            {igdbTestResult.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}{' '}
+            {igdbTestResult.message}
           </div>
         )}
 
@@ -148,19 +252,114 @@ export default function MetadataPage() {
           <button
             className="btn btn-secondary"
             type="button"
-            onClick={() => testMeta.mutate()}
-            disabled={testMeta.isPending}
+            onClick={() => testIgdb.mutate()}
+            disabled={testIgdb.isPending}
           >
             <RefreshCw size={13} />
-            {testMeta.isPending ? 'Testing…' : 'Test Connection'}
+            {testIgdb.isPending ? 'Testing…' : 'Test Connection'}
           </button>
           <button
             className="btn btn-primary"
             type="button"
-            disabled={saveMeta.isPending || (!clientId && !clientSecret)}
-            onClick={() => saveMeta.mutate()}
+            disabled={saveIgdb.isPending || (!clientId && !clientSecret)}
+            onClick={() => saveIgdb.mutate()}
           >
-            {saveMeta.isPending ? 'Saving…' : 'Save Credentials'}
+            {saveIgdb.isPending ? 'Saving…' : 'Save Credentials'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── RAWG card ── */}
+      <div className="settings-section-title">RAWG</div>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-header">
+          <span className="card-title">RAWG.io</span>
+          {rawgConfig?.configured ? (
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12,
+                color: 'var(--success)',
+              }}
+            >
+              <CheckCircle size={13} /> Key saved
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12,
+                color: 'var(--warning)',
+              }}
+            >
+              <AlertCircle size={13} /> Not configured
+            </span>
+          )}
+        </div>
+
+        <div
+          style={{
+            background: 'rgba(53,197,244,.06)',
+            border: '1px solid rgba(53,197,244,.2)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.7,
+            marginBottom: 20,
+          }}
+        >
+          <strong style={{ color: 'var(--info)' }}>Getting a RAWG API key:</strong>
+          <ol style={{ paddingLeft: 20, marginTop: 6, marginBottom: 0 }}>
+            <li>Go to rawg.io and create a free account</li>
+            <li>Visit your profile → API key</li>
+            <li>Paste the key below and click Save</li>
+          </ol>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">API Key</label>
+          <input
+            className="form-control"
+            type="password"
+            placeholder={rawgConfig?.configured ? '••••••••' : 'Paste your RAWG API key'}
+            value={rawgKey}
+            onChange={(e) => setRawgKey(e.target.value)}
+            style={{ maxWidth: 400 }}
+          />
+        </div>
+
+        {rawgTestResult && (
+          <div
+            className={`alert ${rawgTestResult.ok ? 'alert-success' : 'alert-danger'}`}
+            style={{ marginBottom: 16 }}
+          >
+            {rawgTestResult.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}{' '}
+            {rawgTestResult.message}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() => testRawg.mutate()}
+            disabled={testRawg.isPending}
+          >
+            <RefreshCw size={13} />
+            {testRawg.isPending ? 'Testing…' : 'Test Connection'}
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            disabled={saveRawg.isPending || !rawgKey}
+            onClick={() => saveRawg.mutate()}
+          >
+            {saveRawg.isPending ? 'Saving…' : 'Save Key'}
           </button>
         </div>
       </div>
@@ -168,64 +367,17 @@ export default function MetadataPage() {
       {/* ── Scraper Settings ── */}
       <div className="settings-section-title">Scraper Settings</div>
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="toggle-row">
+        <div className="toggle-row" style={{ borderBottom: 'none' }}>
           <div>
             <div className="toggle-label">Scrape Metadata on Add</div>
             <div className="toggle-hint">
-              Automatically run the IGDB scraper when a new game is added to your library.
+              Automatically run the metadata scraper when a new game is added to your library.
             </div>
           </div>
           <label className="toggle">
-            <input
-              type="checkbox"
-              checked={scrapeOnAdd}
-              onChange={(e) => setScrapeOnAdd(e.target.checked)}
-            />
+            <input type="checkbox" defaultChecked />
             <span className="toggle-slider" />
           </label>
-        </div>
-
-        <div className="toggle-row">
-          <div>
-            <div className="toggle-label">Certificate Validation</div>
-            <div className="toggle-hint">
-              Validate SSL certificates when connecting to IGDB. Disable only in isolated test
-              environments.
-            </div>
-          </div>
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={certValidation}
-              onChange={(e) => setCertValidation(e.target.checked)}
-            />
-            <span className="toggle-slider" />
-          </label>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 0, marginTop: 16 }}>
-          <label className="form-label">Preferred Language</label>
-          <select
-            className="form-control"
-            value={scrapeLanguage}
-            onChange={(e) => setScrapeLanguage(e.target.value)}
-            style={{ maxWidth: 240 }}
-          >
-            <option value="en">English</option>
-            <option value="de">German</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="it">Italian</option>
-            <option value="ja">Japanese</option>
-            <option value="ko">Korean</option>
-            <option value="pt-BR">Portuguese (Brazil)</option>
-            <option value="ru">Russian</option>
-            <option value="zh-Hans">Chinese (Simplified)</option>
-          </select>
-          <div className="form-hint">
-            Preferred language for summaries and titles. Falls back to English when a translation is
-            unavailable.
-          </div>
         </div>
       </div>
     </div>

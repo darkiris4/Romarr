@@ -33,6 +33,7 @@ async def system_status():
     from ...models.download_client import DownloadClient
     from ...models.indexer import Indexer
     from ...models.root_folder import RootFolder
+    from ...services.config_service import get_config
     from ...services.download_service import get_client
     from ...services.igdb_service import _credentials, _get_token
     from ...services.indexer_service import test_indexer
@@ -49,6 +50,7 @@ async def system_status():
     igdb_client_id, igdb_client_secret = _credentials()
     igdb_configured = bool(igdb_client_id and igdb_client_secret)
     dat_count = len(_DAT_INDEX)
+    metadata_provider = get_config("metadata_provider", "igdb")
 
     # Run all connectivity probes concurrently so the status page stays fast.
     indexer_results, client_results = await asyncio.gather(
@@ -82,20 +84,41 @@ async def system_status():
                 "path": "/settings/platforms",
             }
         )
-    if not igdb_configured:
-        health_issues.append(
-            {
-                "message": "IGDB credentials not configured — metadata scraping will not work",
-                "path": "/settings/metadata",
-            }
-        )
-    elif not _get_token():
-        health_issues.append(
-            {
-                "message": "IGDB credentials are invalid — check your Client ID and Secret",
-                "path": "/settings/metadata",
-            }
-        )
+    if metadata_provider == "rawg":
+        from ...services.rawg_service import _api_key
+        from ...services.rawg_service import test_credentials as _test_rawg
+
+        if not _api_key():
+            health_issues.append(
+                {
+                    "message": "RAWG API key not configured — metadata scraping will not work",
+                    "path": "/settings/metadata",
+                }
+            )
+        else:
+            rawg_ok, _ = _test_rawg()
+            if not rawg_ok:
+                health_issues.append(
+                    {
+                        "message": "RAWG API key is invalid — check your key in Settings → Metadata",
+                        "path": "/settings/metadata",
+                    }
+                )
+    else:
+        if not igdb_configured:
+            health_issues.append(
+                {
+                    "message": "IGDB credentials not configured — metadata scraping will not work",
+                    "path": "/settings/metadata",
+                }
+            )
+        elif not _get_token():
+            health_issues.append(
+                {
+                    "message": "IGDB credentials are invalid — check your Client ID and Secret",
+                    "path": "/settings/metadata",
+                }
+            )
     if not enabled_indexers:
         health_issues.append(
             {
@@ -281,6 +304,42 @@ def save_igdb_config(payload: IgdbConfig):
 @router.post("/config/igdb/test")
 def test_igdb():
     from ...services.igdb_service import test_credentials
+
+    ok, message = test_credentials()
+    return {"ok": ok, "message": message}
+
+
+class RawgConfig(BaseModel):
+    rawg_api_key: str = ""
+    metadata_provider: str = ""
+
+
+@router.get("/config/rawg")
+def get_rawg_config():
+    from ...services.config_service import get_many
+
+    cfg = get_many(["rawg_api_key", "metadata_provider"])
+    return {
+        "rawg_api_key": "•" * 8 if cfg["rawg_api_key"] else "",
+        "metadata_provider": cfg["metadata_provider"] or "igdb",
+        "configured": bool(cfg["rawg_api_key"]),
+    }
+
+
+@router.put("/config/rawg")
+def save_rawg_config(payload: RawgConfig):
+    from ...services.config_service import set_config
+
+    if payload.rawg_api_key and not payload.rawg_api_key.startswith("•"):
+        set_config("rawg_api_key", payload.rawg_api_key)
+    if payload.metadata_provider in ("igdb", "rawg"):
+        set_config("metadata_provider", payload.metadata_provider)
+    return {"message": "Saved"}
+
+
+@router.post("/config/rawg/test")
+def test_rawg():
+    from ...services.rawg_service import test_credentials
 
     ok, message = test_credentials()
     return {"ok": ok, "message": message}

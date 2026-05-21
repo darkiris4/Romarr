@@ -25,6 +25,7 @@ import {
 import { gamesApi } from '../../api/games'
 import { historyApi } from '../../api/history'
 import { igdbApi } from '../../api/igdb'
+import { rawgApi } from '../../api/rawg'
 import { platformsApi } from '../../api/platforms'
 import { releaseProfilesApi } from '../../api/profiles'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -32,7 +33,7 @@ import LoadingScreen from '../../components/LoadingScreen'
 import ManualSearchModal from './ManualSearchModal'
 import QuickAddModal from './QuickAddModal'
 import RenamePreviewModal from './RenamePreviewModal'
-import type { Game, IgdbSearchResult, ReleaseProfile } from '../../types'
+import type { Game, IgdbSearchResult, RawgSearchResult, ReleaseProfile } from '../../types'
 
 const STATUS_COLORS: Record<string, string> = {
   imported: 'var(--success)',
@@ -108,6 +109,16 @@ export default function GameDetailPage() {
     queryKey: ['games'],
     queryFn: () => gamesApi.list({}),
   })
+
+  const { data: metadataConfig } = useQuery<{ metadata_provider: string }>({
+    queryKey: ['rawg-config'],
+    queryFn: () =>
+      fetch('/api/v1/system/config/rawg')
+        .then((r) => r.json())
+        .then((d) => ({ metadata_provider: d.metadata_provider ?? 'igdb' })),
+    staleTime: 5 * 60 * 1000,
+  })
+  const activeProvider = metadataConfig?.metadata_provider ?? 'igdb'
 
   const { data: collectionGames = [] } = useQuery<IgdbSearchResult[]>({
     queryKey: ['igdb-collection', game?.collection_id],
@@ -215,10 +226,10 @@ export default function GameDetailPage() {
         <button
           className="toolbar-icon-btn"
           onClick={() => setShowIgdbRelink(true)}
-          title="Manually pick a different IGDB match for this game"
+          title={`Manually pick a different ${activeProvider.toUpperCase()} match for this game`}
         >
           <Link2 size={18} />
-          <span>Fix IGDB Match</span>
+          <span>Fix {activeProvider.toUpperCase()} Match</span>
         </button>
         <button
           className="toolbar-icon-btn"
@@ -604,10 +615,12 @@ export default function GameDetailPage() {
       {quickAddGame && <QuickAddModal game={quickAddGame} onClose={() => setQuickAddGame(null)} />}
 
       {showIgdbRelink && (
-        <IgdbRelinkModal
+        <MetadataRelinkModal
           gameId={Number(id)}
           gameTitle={game.title}
+          provider={activeProvider}
           currentIgdbId={game.igdb_id}
+          currentRawgId={game.rawg_id}
           onClose={() => setShowIgdbRelink(false)}
           onLinked={() => {
             qc.invalidateQueries({ queryKey: ['game', Number(id)] })
@@ -1222,31 +1235,45 @@ function GameHistoryModal({
   )
 }
 
-function IgdbRelinkModal({
+type MetadataResult = (IgdbSearchResult & { rawg_id?: undefined }) | RawgSearchResult
+
+function MetadataRelinkModal({
   gameId,
   gameTitle,
+  provider,
   currentIgdbId,
+  currentRawgId,
   onClose,
   onLinked,
 }: {
   gameId: number
   gameTitle: string
+  provider: string
   currentIgdbId?: number
+  currentRawgId?: number
   onClose: () => void
   onLinked: () => void
 }) {
   const [query, setQuery] = useState(gameTitle)
-  const [results, setResults] = useState<IgdbSearchResult[]>([])
+  const [results, setResults] = useState<MetadataResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [selected, setSelected] = useState<IgdbSearchResult | null>(null)
+  const [selected, setSelected] = useState<MetadataResult | null>(null)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const providerLabel = provider.toUpperCase()
+  const currentExternalId = provider === 'igdb' ? currentIgdbId : currentRawgId
+
+  function externalId(r: MetadataResult): number {
+    return provider === 'igdb' ? (r as IgdbSearchResult).igdb_id : (r as RawgSearchResult).rawg_id
+  }
+
   const linkMutation = useMutation({
-    mutationFn: (igdb_id: number) => gamesApi.relinkIgdb(gameId, igdb_id),
+    mutationFn: (result: MetadataResult) =>
+      gamesApi.linkMetadata(gameId, provider, externalId(result)),
     onSuccess: onLinked,
-    onError: () => setError('Failed to link — check IGDB credentials and try again.'),
+    onError: () => setError(`Failed to link — check ${providerLabel} credentials and try again.`),
   })
 
   async function handleSearch() {
@@ -1257,8 +1284,9 @@ function IgdbRelinkModal({
     setSelected(null)
     setError('')
     try {
-      const data = await igdbApi.search(trimmed)
-      setResults(data)
+      const data =
+        provider === 'igdb' ? await igdbApi.search(trimmed) : await rawgApi.search(trimmed)
+      setResults(data as MetadataResult[])
     } catch {
       setResults([])
     } finally {
@@ -1275,13 +1303,15 @@ function IgdbRelinkModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Fix IGDB Match — {gameTitle}</span>
+          <span className="modal-title">
+            Fix {providerLabel} Match — {gameTitle}
+          </span>
           <button className="modal-close" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <div className="modal-body" style={{ padding: '16px 20px' }}>
-          {currentIgdbId && !selected && (
+          {currentExternalId && !selected && (
             <div
               style={{
                 fontSize: 12,
@@ -1292,11 +1322,11 @@ function IgdbRelinkModal({
                 borderRadius: 5,
               }}
             >
-              Currently linked to IGDB #{currentIgdbId}. Search below to pick a different match.
+              Currently linked to {providerLabel} #{currentExternalId}. Search below to pick a
+              different match.
             </div>
           )}
 
-          {/* Search bar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             <input
               ref={inputRef}
@@ -1304,7 +1334,7 @@ function IgdbRelinkModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search IGDB…"
+              placeholder={`Search ${providerLabel}…`}
               style={{ flex: 1 }}
             />
             <button
@@ -1317,7 +1347,6 @@ function IgdbRelinkModal({
             </button>
           </div>
 
-          {/* Confirmation row */}
           {selected && (
             <div
               style={{
@@ -1344,7 +1373,8 @@ function IgdbRelinkModal({
                   {[selected.release_year, selected.platforms.slice(0, 3).join(', ')]
                     .filter(Boolean)
                     .join(' · ')}
-                  {' · '}IGDB #{selected.igdb_id}
+                  {' · '}
+                  {providerLabel} #{externalId(selected)}
                 </div>
               </div>
               <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>
@@ -1352,7 +1382,7 @@ function IgdbRelinkModal({
               </button>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => linkMutation.mutate(selected.igdb_id)}
+                onClick={() => linkMutation.mutate(selected)}
                 disabled={linkMutation.isPending}
               >
                 {linkMutation.isPending ? 'Linking…' : 'Confirm Link'}
@@ -1376,7 +1406,6 @@ function IgdbRelinkModal({
             </div>
           )}
 
-          {/* Results list */}
           {searched && !loading && results.length === 0 && (
             <div
               style={{
@@ -1400,11 +1429,12 @@ function IgdbRelinkModal({
               }}
             >
               {results.map((r, i) => {
-                const isCurrent = r.igdb_id === currentIgdbId
-                const isSelected = r.igdb_id === selected?.igdb_id
+                const eid = externalId(r)
+                const isCurrent = eid === currentExternalId
+                const isSelected = selected !== null && eid === externalId(selected)
                 return (
                   <button
-                    key={r.igdb_id}
+                    key={eid}
                     onClick={() => setSelected(r)}
                     style={{
                       display: 'flex',

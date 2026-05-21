@@ -59,6 +59,8 @@ export interface Game {
   platform?: Platform
   status: GameStatus
   igdb_id?: number
+  rawg_id?: number
+  metadata_provider?: string
   cover_url?: string
   release_year?: number
   region: string
@@ -92,6 +94,17 @@ export interface IgdbSearchResult {
   platforms: string[]
   platform_ids: number[]
   regions?: number[]
+  rating?: number
+}
+
+export interface RawgSearchResult {
+  rawg_id: number
+  name: string
+  cover_url?: string
+  release_year?: number
+  summary?: string
+  platforms: string[]
+  platform_ids: number[]
   rating?: number
 }
 

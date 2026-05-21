@@ -30,6 +30,8 @@ from .igdb_service import (
     fetch_game_metadata,
     fetch_game_metadata_debug,
 )
+from .rawg_service import fetch_enrichment_by_id as rawg_fetch_by_id
+from .rawg_service import fetch_game_metadata as rawg_fetch_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -113,10 +115,14 @@ def _log_entry(entry: dict) -> None:
 
 def scrape_pending(force: bool = False) -> dict:
     """
-    Worker: fetch IGDB metadata for unmatched games, then enrich matched games.
-    force=True re-enriches all IGDB-matched games regardless of existing fields.
+    Worker: fetch metadata for unmatched games, then enrich matched games.
+    Dispatches to IGDB or RAWG depending on the metadata_provider setting.
+    force=True re-enriches all matched games regardless of existing fields.
     Safe to call directly (scheduler) or via scrape_start() (API).
     """
+    from .config_service import get_config
+
+    provider = get_config("metadata_provider", "igdb")
     db = SessionLocal()
     updated = failed = 0
 
@@ -129,9 +135,11 @@ def scrape_pending(force: bool = False) -> dict:
 
     try:
         cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=_RETRY_AFTER_DAYS)
-        # Skip games already matched (igdb_id set) — they've been found.
-        # force=True bypasses the 30-day cooldown so Update All retries all unmatched games.
-        unmatched_filter = [Game.cover_url.is_(None), Game.igdb_id.is_(None)]
+
+        # Which ID column indicates "already matched" for this provider
+        matched_col = Game.igdb_id if provider == "igdb" else Game.rawg_id
+
+        unmatched_filter = [Game.cover_url.is_(None), matched_col.is_(None)]
         if not force:
             unmatched_filter.append(
                 or_(Game.igdb_searched_at.is_(None), Game.igdb_searched_at < cutoff)
@@ -143,7 +151,6 @@ def scrape_pending(force: bool = False) -> dict:
 
         if not games:
             _log_entry({"event": "no_unmatched"})
-            # fall through to enrichment pass
 
         for game in games:
             igdb_platform_id = getattr(game.platform, "igdb_platform_id", None)
@@ -152,16 +159,27 @@ def scrape_pending(force: bool = False) -> dict:
                 "game_id": game.id,
                 "title": game.title,
                 "platform": platform_name,
-                "igdb_platform_id": igdb_platform_id,
+                "provider": provider,
             }
             try:
-                meta, detail = fetch_game_metadata_debug(game.title, igdb_platform_id)
-                entry["queries"] = detail
+                if provider == "igdb":
+                    meta, detail = fetch_game_metadata_debug(game.title, igdb_platform_id)
+                    entry["queries"] = detail
+                    if meta:
+                        entry["external_id"] = meta["igdb_id"]
+                        game.igdb_id = meta["igdb_id"]
+                else:
+                    meta = rawg_fetch_metadata(game.title)
+                    if meta:
+                        entry["external_id"] = meta["rawg_id"]
+                        game.rawg_id = meta["rawg_id"]
+
                 game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
+
                 if meta:
-                    game.igdb_id = meta["igdb_id"]
+                    game.metadata_provider = provider
                     game.cover_url = meta["cover_url"]
-                    if meta["release_year"]:
+                    if meta.get("release_year"):
                         game.release_year = meta["release_year"]
                     if meta.get("summary"):
                         game.summary = meta["summary"]
@@ -178,14 +196,13 @@ def scrape_pending(force: bool = False) -> dict:
                     if meta.get("collection_name"):
                         game.collection_name = meta["collection_name"]
                     entry["result"] = "matched"
-                    entry["igdb_id"] = meta["igdb_id"]
                     entry["cover_url"] = meta["cover_url"]
                     updated += 1
                 else:
                     entry["result"] = "not_found"
                     failed += 1
             except Exception as exc:
-                logger.warning("IGDB lookup failed for %r: %s", game.title, exc)
+                logger.warning("%s lookup failed for %r: %s", provider.upper(), game.title, exc)
                 entry["result"] = "error"
                 entry["error"] = str(exc)
                 failed += 1
@@ -201,9 +218,7 @@ def scrape_pending(force: bool = False) -> dict:
         db.commit()
 
         # ── Enrichment pass ──────────────────────────────────────────────────────
-        # force=True  → re-enrich every IGDB-matched game (full refresh)
-        # force=False → only games still missing summary / rating / collection
-        enrich_query = db.query(Game).filter(Game.igdb_id.isnot(None))
+        enrich_query = db.query(Game).filter(matched_col.isnot(None))
         if not force:
             enrich_query = enrich_query.filter(
                 or_(
@@ -217,37 +232,57 @@ def scrape_pending(force: bool = False) -> dict:
         _state["phase"] = "enriching"
         _state["total"] = len(to_enrich)
         _state["processed"] = 0
-        _log_entry({"event": "enrich_start", "total": len(to_enrich)})
+        _log_entry({"event": "enrich_start", "total": len(to_enrich), "provider": provider})
 
-        _BATCH = 50
-        for i in range(0, len(to_enrich), _BATCH):
-            chunk = to_enrich[i : i + _BATCH]
-            ids = [g.igdb_id for g in chunk]
-            try:
-                batch_meta = fetch_enrichment_batch(ids)
-                for game in chunk:
-                    meta = batch_meta.get(game.igdb_id)
+        if provider == "igdb":
+            # IGDB supports batching up to 50 IDs per request
+            _BATCH = 50
+            for i in range(0, len(to_enrich), _BATCH):
+                chunk = to_enrich[i : i + _BATCH]
+                ids = [g.igdb_id for g in chunk]
+                try:
+                    batch_meta = fetch_enrichment_batch(ids)
+                    for game in chunk:
+                        meta = batch_meta.get(game.igdb_id)
+                        if meta:
+                            if meta.get("summary"):
+                                game.summary = meta["summary"]
+                            if meta.get("rating") is not None:
+                                game.rating = meta["rating"]
+                            if meta.get("game_modes"):
+                                game.game_modes = meta["game_modes"]
+                            if meta.get("themes"):
+                                game.themes = meta["themes"]
+                            if meta.get("similar_games"):
+                                game.similar_games = meta["similar_games"]
+                            if meta.get("collection_id") is not None:
+                                game.collection_id = meta["collection_id"]
+                            if meta.get("collection_name"):
+                                game.collection_name = meta["collection_name"]
+                            enriched += 1
+                except Exception as exc:
+                    logger.warning("IGDB enrich batch failed for ids=%s: %s", ids, exc)
+                _state["processed"] += len(chunk)
+                if (i // _BATCH) % 10 == 0:
+                    db.commit()
+        else:
+            # RAWG has no batch endpoint — enrich one at a time
+            for game in to_enrich:
+                try:
+                    meta = rawg_fetch_by_id(game.rawg_id)
                     if meta:
+                        if meta.get("cover_url"):
+                            game.cover_url = meta["cover_url"]
                         if meta.get("summary"):
                             game.summary = meta["summary"]
                         if meta.get("rating") is not None:
                             game.rating = meta["rating"]
-                        if meta.get("game_modes"):
-                            game.game_modes = meta["game_modes"]
                         if meta.get("themes"):
                             game.themes = meta["themes"]
-                        if meta.get("similar_games"):
-                            game.similar_games = meta["similar_games"]
-                        if meta.get("collection_id") is not None:
-                            game.collection_id = meta["collection_id"]
-                        if meta.get("collection_name"):
-                            game.collection_name = meta["collection_name"]
                         enriched += 1
-            except Exception as exc:
-                logger.warning("Enrich batch failed for ids=%s: %s", ids, exc)
-            _state["processed"] += len(chunk)
-            if (i // _BATCH) % 10 == 0:
-                db.commit()
+                except Exception as exc:
+                    logger.warning("RAWG enrich failed for rawg_id=%s: %s", game.rawg_id, exc)
+                _state["processed"] += 1
 
         db.commit()
         _log_entry({"event": "enrich_end", "enriched": enriched})
@@ -286,14 +321,17 @@ def scrape_pending(force: bool = False) -> dict:
 
 
 def refresh_single_game(game_id: int) -> dict:
-    """Re-run IGDB metadata and verify ROM file for a single game (Refresh & Scan)."""
+    """Re-run metadata fetch and verify ROM file for a single game (Refresh & Scan)."""
+    from .config_service import get_config
+
+    provider = get_config("metadata_provider", "igdb")
+
     db = SessionLocal()
     try:
         game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
         if not game:
             return {"ok": False, "error": "not found"}
 
-        # Scan: verify ROM file still exists on disk
         if game.rom_path and not os.path.exists(game.rom_path):
             game.rom_path = None
             game.checksum_crc32 = None
@@ -304,49 +342,50 @@ def refresh_single_game(game_id: int) -> dict:
 
         igdb_platform_id = getattr(game.platform, "igdb_platform_id", None)
 
-        if game.igdb_id:
-            # Already matched — refresh enrichment fields only
-            meta = fetch_enrichment_by_id(game.igdb_id)
-            if meta:
-                if meta.get("cover_url"):
-                    game.cover_url = meta["cover_url"]
-                if meta.get("summary"):
-                    game.summary = meta["summary"]
-                if meta.get("rating") is not None:
-                    game.rating = meta["rating"]
-                if meta.get("game_modes"):
-                    game.game_modes = meta["game_modes"]
-                if meta.get("themes"):
-                    game.themes = meta["themes"]
-                if meta.get("similar_games"):
-                    game.similar_games = meta["similar_games"]
-                if meta.get("collection_id") is not None:
-                    game.collection_id = meta["collection_id"]
-                if meta.get("collection_name"):
-                    game.collection_name = meta["collection_name"]
-        else:
-            # No IGDB match yet — attempt full title search
-            meta = fetch_game_metadata(game.title, igdb_platform_id)
-            game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
-            if meta:
-                game.igdb_id = meta["igdb_id"]
+        def _write_meta(meta: dict) -> None:
+            if meta.get("cover_url"):
                 game.cover_url = meta["cover_url"]
-                if meta.get("release_year"):
-                    game.release_year = meta["release_year"]
-                if meta.get("summary"):
-                    game.summary = meta["summary"]
-                if meta.get("rating") is not None:
-                    game.rating = meta["rating"]
-                if meta.get("game_modes"):
-                    game.game_modes = meta["game_modes"]
-                if meta.get("themes"):
-                    game.themes = meta["themes"]
-                if meta.get("similar_games"):
-                    game.similar_games = meta["similar_games"]
-                if meta.get("collection_id") is not None:
-                    game.collection_id = meta["collection_id"]
-                if meta.get("collection_name"):
-                    game.collection_name = meta["collection_name"]
+            if meta.get("release_year"):
+                game.release_year = meta["release_year"]
+            if meta.get("summary"):
+                game.summary = meta["summary"]
+            if meta.get("rating") is not None:
+                game.rating = meta["rating"]
+            if meta.get("game_modes"):
+                game.game_modes = meta["game_modes"]
+            if meta.get("themes"):
+                game.themes = meta["themes"]
+            if meta.get("similar_games"):
+                game.similar_games = meta["similar_games"]
+            if meta.get("collection_id") is not None:
+                game.collection_id = meta["collection_id"]
+            if meta.get("collection_name"):
+                game.collection_name = meta["collection_name"]
+
+        if provider == "igdb":
+            if game.igdb_id:
+                meta = fetch_enrichment_by_id(game.igdb_id)
+                if meta:
+                    _write_meta(meta)
+            else:
+                meta = fetch_game_metadata(game.title, igdb_platform_id)
+                game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
+                if meta:
+                    game.igdb_id = meta["igdb_id"]
+                    game.metadata_provider = "igdb"
+                    _write_meta(meta)
+        else:  # rawg
+            if game.rawg_id:
+                meta = rawg_fetch_by_id(game.rawg_id)
+                if meta:
+                    _write_meta(meta)
+            else:
+                meta = rawg_fetch_metadata(game.title)
+                game.igdb_searched_at = datetime.now(UTC).replace(tzinfo=None)
+                if meta:
+                    game.rawg_id = meta["rawg_id"]
+                    game.metadata_provider = "rawg"
+                    _write_meta(meta)
 
         db.commit()
         return {"ok": True}

@@ -72,5 +72,8 @@ export const gamesApi = {
   relinkIgdb: (id: number, igdb_id: number) =>
     client.post<Game>(`/games/${id}/igdb-link`, { igdb_id }).then((r) => r.data),
 
+  linkMetadata: (id: number, provider: string, external_id: number) =>
+    client.post<Game>(`/games/${id}/metadata-link`, { provider, external_id }).then((r) => r.data),
+
   deleteFile: (id: number) => client.delete(`/games/${id}/file`).then((r) => r.data),
 }

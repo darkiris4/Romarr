@@ -391,24 +391,20 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}
 
 
-class IgdbRelinkPayload(BaseModel):
-    igdb_id: int
+class MetadataLinkPayload(BaseModel):
+    provider: str  # "igdb" | "rawg"
+    external_id: int
 
 
-@router.post("/{game_id}/igdb-link", response_model=GameOut)
-def relink_igdb(game_id: int, payload: IgdbRelinkPayload, db: Session = Depends(get_db)):
-    """Manually set a game's IGDB match and pull all metadata for that ID."""
-    game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-
-    from ...services.igdb_service import fetch_enrichment_by_id
-
-    meta = fetch_enrichment_by_id(payload.igdb_id)
-    if not meta:
-        raise HTTPException(status_code=404, detail="IGDB ID not found or credentials missing")
-
-    game.igdb_id = payload.igdb_id
+def _apply_metadata(game: Game, meta: dict, provider: str, external_id: int) -> None:
+    """Write fetched metadata onto a Game ORM object (does not commit)."""
+    if provider == "igdb":
+        game.igdb_id = external_id
+        game.rawg_id = None
+    else:
+        game.rawg_id = external_id
+        game.igdb_id = None
+    game.metadata_provider = provider
     game.cover_url = meta.get("cover_url")
     if meta.get("release_year"):
         game.release_year = meta["release_year"]
@@ -423,9 +419,48 @@ def relink_igdb(game_id: int, payload: IgdbRelinkPayload, db: Session = Depends(
         game.collection_name = meta["collection_name"]
     game.igdb_searched_at = None  # allow future auto-scrapes to re-enrich
 
+
+@router.post("/{game_id}/metadata-link", response_model=GameOut)
+def link_metadata(game_id: int, payload: MetadataLinkPayload, db: Session = Depends(get_db)):
+    """Manually link a game to a specific metadata provider entry."""
+    game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    if payload.provider == "igdb":
+        from ...services.igdb_service import fetch_enrichment_by_id
+
+        meta = fetch_enrichment_by_id(payload.external_id)
+        if not meta:
+            raise HTTPException(status_code=404, detail="IGDB ID not found or credentials missing")
+    elif payload.provider == "rawg":
+        from ...services.rawg_service import fetch_enrichment_by_id as rawg_fetch
+
+        meta = rawg_fetch(payload.external_id)
+        if not meta:
+            raise HTTPException(status_code=404, detail="RAWG ID not found or API key missing")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {payload.provider}")
+
+    _apply_metadata(game, meta, payload.provider, payload.external_id)
     db.commit()
-    log_event("Library", f'Re-linked "{game.title}" to IGDB #{payload.igdb_id}')
+    log_event(
+        "Library",
+        f'Linked "{game.title}" to {payload.provider.upper()} #{payload.external_id}',
+    )
     return db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).one()
+
+
+class IgdbRelinkPayload(BaseModel):
+    igdb_id: int
+
+
+@router.post("/{game_id}/igdb-link", response_model=GameOut)
+def relink_igdb(game_id: int, payload: IgdbRelinkPayload, db: Session = Depends(get_db)):
+    """Backward-compat alias — delegates to /metadata-link with provider=igdb."""
+    return link_metadata(
+        game_id, MetadataLinkPayload(provider="igdb", external_id=payload.igdb_id), db
+    )
 
 
 @router.post("/{game_id}/refresh")

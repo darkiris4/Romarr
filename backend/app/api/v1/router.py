@@ -15,6 +15,7 @@ from . import (
     platforms,
     profiles,
     queue,
+    rawg,
     settings,
     system,
     wanted,
@@ -25,6 +26,7 @@ router = APIRouter()
 router.include_router(games.router, prefix="/games", tags=["Games"])
 router.include_router(blocklist.router, prefix="/blocklist", tags=["Blocklist"])
 router.include_router(igdb.router, prefix="/igdb", tags=["IGDB"])
+router.include_router(rawg.router, prefix="/rawg", tags=["RAWG"])
 router.include_router(platforms.router, prefix="/platforms", tags=["Platforms"])
 router.include_router(indexers.router, prefix="/indexers", tags=["Indexers"])
 router.include_router(download_clients.router, prefix="/downloadclients", tags=["Download Clients"])

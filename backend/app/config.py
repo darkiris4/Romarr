@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     igdb_client_id: str = ""
     igdb_client_secret: str = ""
+    rawg_api_key: str = ""
 
     @property
     def dat_dir(self) -> Path:
