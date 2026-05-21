@@ -23,6 +23,8 @@ class Game(Base):
     platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id"), nullable=False)
     status: Mapped[GameStatus] = mapped_column(Enum(GameStatus), default=GameStatus.WANTED)
     igdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rawg_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    metadata_provider: Mapped[str | None] = mapped_column(String, nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String, nullable=True)
     release_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     region: Mapped[str] = mapped_column(String, default="USA")
