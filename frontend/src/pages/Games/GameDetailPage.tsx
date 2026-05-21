@@ -20,6 +20,7 @@ import {
   Info,
   CheckCircle,
   X,
+  Link2,
 } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { historyApi } from '../../api/history'
@@ -76,6 +77,7 @@ export default function GameDetailPage() {
   const [showRename, setShowRename] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showManageFiles, setShowManageFiles] = useState(false)
+  const [showIgdbRelink, setShowIgdbRelink] = useState(false)
   const [searchGameDone, setSearchGameDone] = useState(false)
   const [quickAddGame, setQuickAddGame] = useState<IgdbSearchResult | null>(null)
 
@@ -209,6 +211,14 @@ export default function GameDetailPage() {
                 ? 'Refreshed!'
                 : 'Refresh & Scan'}
           </span>
+        </button>
+        <button
+          className="toolbar-icon-btn"
+          onClick={() => setShowIgdbRelink(true)}
+          title="Manually pick a different IGDB match for this game"
+        >
+          <Link2 size={18} />
+          <span>Fix IGDB Match</span>
         </button>
         <button
           className="toolbar-icon-btn"
@@ -592,6 +602,20 @@ export default function GameDetailPage() {
         />
       )}
       {quickAddGame && <QuickAddModal game={quickAddGame} onClose={() => setQuickAddGame(null)} />}
+
+      {showIgdbRelink && (
+        <IgdbRelinkModal
+          gameId={Number(id)}
+          gameTitle={game.title}
+          currentIgdbId={game.igdb_id}
+          onClose={() => setShowIgdbRelink(false)}
+          onLinked={() => {
+            qc.invalidateQueries({ queryKey: ['game', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['games'] })
+            setShowIgdbRelink(false)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1191,6 +1215,278 @@ function GameHistoryModal({
           <div className="spacer" />
           <button className="btn btn-secondary" onClick={onClose}>
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function IgdbRelinkModal({
+  gameId,
+  gameTitle,
+  currentIgdbId,
+  onClose,
+  onLinked,
+}: {
+  gameId: number
+  gameTitle: string
+  currentIgdbId?: number
+  onClose: () => void
+  onLinked: () => void
+}) {
+  const [query, setQuery] = useState(gameTitle)
+  const [results, setResults] = useState<IgdbSearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searched, setSearched] = useState(false)
+  const [selected, setSelected] = useState<IgdbSearchResult | null>(null)
+  const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const linkMutation = useMutation({
+    mutationFn: (igdb_id: number) => gamesApi.relinkIgdb(gameId, igdb_id),
+    onSuccess: onLinked,
+    onError: () => setError('Failed to link — check IGDB credentials and try again.'),
+  })
+
+  async function handleSearch() {
+    const trimmed = query.trim()
+    if (!trimmed) return
+    setLoading(true)
+    setSearched(true)
+    setSelected(null)
+    setError('')
+    try {
+      const data = await igdbApi.search(trimmed)
+      setResults(data)
+    } catch {
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">Fix IGDB Match — {gameTitle}</span>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body" style={{ padding: '16px 20px' }}>
+          {currentIgdbId && !selected && (
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                marginBottom: 12,
+                padding: '7px 10px',
+                background: 'rgba(255,255,255,.04)',
+                borderRadius: 5,
+              }}
+            >
+              Currently linked to IGDB #{currentIgdbId}. Search below to pick a different match.
+            </div>
+          )}
+
+          {/* Search bar */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <input
+              ref={inputRef}
+              className="form-control"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Search IGDB…"
+              style={{ flex: 1 }}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={handleSearch}
+              disabled={loading || !query.trim()}
+            >
+              <Search size={14} />
+              {loading ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+
+          {/* Confirmation row */}
+          {selected && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 12px',
+                background: 'rgba(123,104,238,.12)',
+                border: '1px solid rgba(123,104,238,.35)',
+                borderRadius: 6,
+                marginBottom: 14,
+              }}
+            >
+              {selected.cover_url && (
+                <img
+                  src={selected.cover_url}
+                  alt={selected.name}
+                  style={{ width: 36, height: 48, objectFit: 'cover', borderRadius: 3 }}
+                />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{selected.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {[selected.release_year, selected.platforms.slice(0, 3).join(', ')]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  {' · '}IGDB #{selected.igdb_id}
+                </div>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>
+                Change
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => linkMutation.mutate(selected.igdb_id)}
+                disabled={linkMutation.isPending}
+              >
+                {linkMutation.isPending ? 'Linking…' : 'Confirm Link'}
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--danger)',
+                marginBottom: 10,
+                padding: '7px 10px',
+                background: 'rgba(220,53,69,.08)',
+                border: '1px solid rgba(220,53,69,.25)',
+                borderRadius: 5,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Results list */}
+          {searched && !loading && results.length === 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                padding: '24px 0',
+                fontSize: 14,
+              }}
+            >
+              No results found.
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <div
+              style={{
+                maxHeight: 360,
+                overflowY: 'auto',
+                border: '1px solid rgba(255,255,255,.08)',
+                borderRadius: 6,
+              }}
+            >
+              {results.map((r, i) => {
+                const isCurrent = r.igdb_id === currentIgdbId
+                const isSelected = r.igdb_id === selected?.igdb_id
+                return (
+                  <button
+                    key={r.igdb_id}
+                    onClick={() => setSelected(r)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: isSelected
+                        ? 'rgba(123,104,238,.15)'
+                        : i % 2 === 0
+                          ? 'rgba(255,255,255,.02)'
+                          : 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid rgba(255,255,255,.06)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      color: 'inherit',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 36,
+                        height: 48,
+                        flexShrink: 0,
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        background: 'rgba(255,255,255,.07)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {r.cover_url ? (
+                        <img
+                          src={r.cover_url}
+                          alt={r.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <ImageOff size={16} style={{ opacity: 0.3 }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 2 }}>
+                        {r.name}
+                        {isCurrent && (
+                          <span
+                            style={{
+                              marginLeft: 8,
+                              fontSize: 11,
+                              color: 'var(--accent)',
+                              fontWeight: 400,
+                            }}
+                          >
+                            current
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {[r.release_year, r.platforms.slice(0, 4).join(', ')]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    </div>
+                    {r.rating != null && (
+                      <span
+                        className={`detail-rating-badge ${ratingClass(r.rating)}`}
+                        style={{ fontSize: 12, padding: '3px 8px' }}
+                      >
+                        {r.rating}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <div className="spacer" />
+          <button className="btn btn-secondary" onClick={onClose}>
+            Cancel
           </button>
         </div>
       </div>

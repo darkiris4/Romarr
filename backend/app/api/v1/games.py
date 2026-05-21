@@ -391,6 +391,43 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     return {"success": True, "download_id": download_id, "queue_item_id": item.id}
 
 
+class IgdbRelinkPayload(BaseModel):
+    igdb_id: int
+
+
+@router.post("/{game_id}/igdb-link", response_model=GameOut)
+def relink_igdb(game_id: int, payload: IgdbRelinkPayload, db: Session = Depends(get_db)):
+    """Manually set a game's IGDB match and pull all metadata for that ID."""
+    game = db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    from ...services.igdb_service import fetch_enrichment_by_id
+
+    meta = fetch_enrichment_by_id(payload.igdb_id)
+    if not meta:
+        raise HTTPException(status_code=404, detail="IGDB ID not found or credentials missing")
+
+    game.igdb_id = payload.igdb_id
+    game.cover_url = meta.get("cover_url")
+    if meta.get("release_year"):
+        game.release_year = meta["release_year"]
+    game.summary = meta.get("summary")
+    game.rating = meta.get("rating")
+    game.game_modes = meta.get("game_modes")
+    game.themes = meta.get("themes")
+    game.similar_games = meta.get("similar_games")
+    if meta.get("collection_id") is not None:
+        game.collection_id = meta["collection_id"]
+    if meta.get("collection_name"):
+        game.collection_name = meta["collection_name"]
+    game.igdb_searched_at = None  # allow future auto-scrapes to re-enrich
+
+    db.commit()
+    log_event("Library", f'Re-linked "{game.title}" to IGDB #{payload.igdb_id}')
+    return db.query(Game).options(joinedload(Game.platform)).filter_by(id=game_id).one()
+
+
 @router.post("/{game_id}/refresh")
 def refresh_game(game_id: int, db: Session = Depends(get_db)):
     """Force IGDB re-scrape and file verification for a single game."""

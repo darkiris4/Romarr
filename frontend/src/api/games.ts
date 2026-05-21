@@ -69,5 +69,8 @@ export const gamesApi = {
 
   refresh: (id: number) => client.post(`/games/${id}/refresh`).then((r) => r.data),
 
+  relinkIgdb: (id: number, igdb_id: number) =>
+    client.post<Game>(`/games/${id}/igdb-link`, { igdb_id }).then((r) => r.data),
+
   deleteFile: (id: number) => client.delete(`/games/${id}/file`).then((r) => r.data),
 }
