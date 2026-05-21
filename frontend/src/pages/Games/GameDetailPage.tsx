@@ -1379,7 +1379,12 @@ function IgdbRelinkModal({
           {/* Results list */}
           {searched && !loading && results.length === 0 && (
             <div
-              style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 14 }}
+              style={{
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                padding: '24px 0',
+                fontSize: 14,
+              }}
             >
               No results found.
             </div>
@@ -1459,7 +1464,9 @@ function IgdbRelinkModal({
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {[r.release_year, r.platforms.slice(0, 4).join(', ')].filter(Boolean).join(' · ')}
+                        {[r.release_year, r.platforms.slice(0, 4).join(', ')]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </div>
                     </div>
                     {r.rating != null && (

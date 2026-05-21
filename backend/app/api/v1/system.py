@@ -53,9 +53,7 @@ async def system_status():
     # Run all connectivity probes concurrently so the status page stays fast.
     indexer_results, client_results = await asyncio.gather(
         asyncio.gather(*[test_indexer(idx) for idx in enabled_indexers], return_exceptions=True),
-        asyncio.gather(
-            *[get_client(c).test() for c in enabled_clients], return_exceptions=True
-        ),
+        asyncio.gather(*[get_client(c).test() for c in enabled_clients], return_exceptions=True),
     )
 
     failed_indexers = [
