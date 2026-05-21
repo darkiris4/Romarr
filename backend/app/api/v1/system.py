@@ -32,7 +32,7 @@ def system_status():
     from ...models.download_client import DownloadClient
     from ...models.indexer import Indexer
     from ...models.root_folder import RootFolder
-    from ...services.igdb_service import _credentials
+    from ...services.igdb_service import _credentials, _get_token
     from ...services.library_scanner import _DAT_INDEX
 
     db = SessionLocal()
@@ -66,6 +66,13 @@ def system_status():
         health_issues.append(
             {
                 "message": "IGDB credentials not configured — metadata scraping will not work",
+                "path": "/settings/general",
+            }
+        )
+    elif not _get_token():
+        health_issues.append(
+            {
+                "message": "IGDB credentials are invalid — check your Client ID and Secret",
                 "path": "/settings/general",
             }
         )
