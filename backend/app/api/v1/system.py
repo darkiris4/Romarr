@@ -88,14 +88,14 @@ async def system_status():
         health_issues.append(
             {
                 "message": "IGDB credentials not configured — metadata scraping will not work",
-                "path": "/settings/general",
+                "path": "/settings/metadata",
             }
         )
     elif not _get_token():
         health_issues.append(
             {
                 "message": "IGDB credentials are invalid — check your Client ID and Secret",
-                "path": "/settings/general",
+                "path": "/settings/metadata",
             }
         )
     if not enabled_indexers:
