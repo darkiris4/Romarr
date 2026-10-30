@@ -3503,3 +3503,124 @@ a.detail-similar-card:hover .detail-similar-cover,
   cursor: pointer;
   user-select: none;
 }
+
+/* ===== Login and setup screens =====
+   Intentionally light with a blue accent, independent of the dark app theme.
+   All rules are scoped to the login-* classes. */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 16px;
+  background: #f5f7fa;
+  color: #3a3f51;
+  font-family: inherit;
+}
+.login-card {
+  width: 325px;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+.login-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 20px;
+  background: #494f58;
+}
+.login-logo {
+  height: 60px;
+  width: auto;
+}
+.login-card-body {
+  padding: 20px 25px 25px;
+}
+.login-heading {
+  margin: 0 0 20px;
+  font-size: 16px;
+  font-weight: 400;
+  text-align: center;
+  text-transform: uppercase;
+  color: #3a3f51;
+}
+.login-input {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #555;
+  background: #fff;
+  border: 1px solid #dde6e9;
+  border-radius: 4px;
+  box-sizing: border-box;
+  outline: none;
+}
+.login-input::placeholder {
+  color: #a0a8b0;
+}
+.login-input:focus {
+  border-color: #5d9cec;
+  box-shadow: 0 0 0 3px rgba(93, 156, 236, 0.25);
+}
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #909fa7;
+}
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.login-forgot {
+  color: #909fa7;
+  text-decoration: none;
+}
+.login-forgot:hover {
+  color: #5d9cec;
+  text-decoration: underline;
+}
+.login-button {
+  display: block;
+  width: 100%;
+  height: 40px;
+  font-size: 14px;
+  color: #fff;
+  background: #5d9cec;
+  border: 1px solid #5d9cec;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.login-button:hover:not(:disabled) {
+  background: #4a89dc;
+  border-color: #4a89dc;
+}
+.login-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.login-error {
+  margin-top: 14px;
+  font-size: 13px;
+  text-align: center;
+  color: #d9534f;
+}
+.login-footer {
+  font-size: 12px;
+  color: #909fa7;
+  text-align: center;
+}
