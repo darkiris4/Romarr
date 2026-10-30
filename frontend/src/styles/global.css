@@ -3624,3 +3624,19 @@ a.detail-similar-card:hover .detail-similar-cover,
   color: #909fa7;
   text-align: center;
 }
+
+/* ── Topbar logout ── */
+.topbar-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-radius: var(--radius-btn);
+}
+.topbar-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-white);
+}
