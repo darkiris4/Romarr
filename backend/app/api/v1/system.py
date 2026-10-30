@@ -1,21 +1,23 @@
+import logging
+import os
 import platform
+import re
+import sqlite3
 import sys
+import tempfile
+import zipfile
+import zlib
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
-
-
-def _reload_db() -> None:
-    """Drop the SQLAlchemy connection pool so the next request opens a fresh
-    connection to the restored database file. No process restart needed."""
-    from ...database import engine
-
-    engine.dispose()
-
 
 from ...config import settings
 from ...version import APP_VERSION
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -417,37 +419,113 @@ def create_backup():
     return {"message": "Backup created"}
 
 
-@router.post("/backup/restore")
-async def restore_from_upload(file: UploadFile):
-    import io
-    import zipfile
-    from pathlib import Path
+_BACKUP_NAME = re.compile(r"^romarr_backup_[A-Za-z0-9._-]+\.zip$")
+_UPLOAD_MAX_BYTES = 512 * 1024 * 1024
+_DB_MAX_BYTES = 2 * 1024 * 1024 * 1024
+_CHUNK = 1024 * 1024
 
-    from fastapi import HTTPException
 
-    from ...config import settings
-    from ...services.event_service import log_event
+def _check_backup_name(filename: str) -> str:
+    if not _BACKUP_NAME.fullmatch(filename) or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    return filename
 
-    content = await file.read()
-    db_path = Path(settings.data_dir) / "romarr.db"
 
+def _validate_sqlite(path: Path) -> None:
+    """Raise HTTP 400 unless ``path`` is an intact SQLite database holding the Romarr tables."""
     try:
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-            if "romarr.db" not in zf.namelist():
-                raise HTTPException(status_code=400, detail="ZIP does not contain romarr.db")
-            db_path.write_bytes(zf.read("romarr.db"))
-    except zipfile.BadZipFile:
+        conn = sqlite3.connect(f"file:{quote(str(path))}?mode=ro", uri=True)
+        try:
+            result = conn.execute("PRAGMA integrity_check").fetchall()
+            if result != [("ok",)]:
+                raise HTTPException(
+                    status_code=400, detail="Backup database failed integrity check"
+                )
+            tables = {
+                row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        raise HTTPException(status_code=400, detail="Backup does not contain a valid database")
+    if not {"platforms", "games"} <= tables:
+        raise HTTPException(status_code=400, detail="Backup database is missing required tables")
+
+
+def _extract_db(zip_path: Path, dest: Path) -> None:
+    """Stream the single ``romarr.db`` member of ``zip_path`` into ``dest`` under a size cap."""
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            infos = zf.infolist()
+            if [i.filename for i in infos] != ["romarr.db"]:
+                raise HTTPException(
+                    status_code=400, detail="Backup must contain exactly one file, romarr.db"
+                )
+            if infos[0].file_size > _DB_MAX_BYTES:
+                raise HTTPException(status_code=400, detail="Backup database is too large")
+            written = 0
+            with zf.open(infos[0]) as src, open(dest, "wb") as out:
+                while chunk := src.read(_CHUNK):
+                    written += len(chunk)
+                    if written > _DB_MAX_BYTES:
+                        raise HTTPException(status_code=400, detail="Backup database is too large")
+                    out.write(chunk)
+    except (zipfile.BadZipFile, KeyError, OSError, zlib.error, EOFError, NotImplementedError):
         raise HTTPException(status_code=400, detail="Invalid backup file")
 
-    # Remove stale WAL/SHM sidecars so SQLite doesn't replay old transactions
-    # against the restored DB on next open.
+
+def _restore_from_zip(zip_path: Path) -> None:
+    """Validate the database inside ``zip_path`` and swap it in for the live database."""
+    from ...database import SessionLocal, engine
+    from ...services.dat_manager import scan_dat_dir
+    from ...services.scheduler import _backup
+
+    db_path = Path(settings.data_dir) / "romarr.db"
+    fd, tmp_name = tempfile.mkstemp(dir=db_path.parent, prefix=".restore_", suffix=".db")
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        _extract_db(zip_path, tmp_path)
+        _validate_sqlite(tmp_path)
+        _backup()
+        os.replace(tmp_path, db_path)
+    finally:
+        # Opening the extracted copy can leave journal sidecars next to it.
+        for suffix in ("", "-wal", "-shm"):
+            Path(f"{tmp_path}{suffix}").unlink(missing_ok=True)
+
+    # Stale WAL/SHM sidecars would be replayed against the restored database.
     for ext in ("-wal", "-shm"):
-        sidecar = db_path.parent / (db_path.name + ext)
-        sidecar.unlink(missing_ok=True)
+        (db_path.parent / (db_path.name + ext)).unlink(missing_ok=True)
+
+    engine.dispose()
+    try:
+        with SessionLocal() as db:
+            scan_dat_dir(db)
+    except Exception:
+        logger.warning("DAT index reload after restore failed", exc_info=True)
+
+
+@router.post("/backup/restore")
+async def restore_from_upload(file: UploadFile):
+    from ...services.event_service import log_event
+
+    fd, tmp_name = tempfile.mkstemp(dir=Path(settings.data_dir), prefix=".upload_", suffix=".zip")
+    tmp_path = Path(tmp_name)
+    try:
+        size = 0
+        with os.fdopen(fd, "wb") as out:
+            while chunk := await file.read(_CHUNK):
+                size += len(chunk)
+                if size > _UPLOAD_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="Backup exceeds 512 MiB limit")
+                out.write(chunk)
+        _restore_from_zip(tmp_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
     log_event("Backup", f"Database restored from uploaded file ({file.filename})")
-    _reload_db()
-    return {"message": "Restored successfully."}
+    return {"message": "Database restored and reloaded."}
 
 
 @router.get("/backup/{filename}")
@@ -459,8 +537,7 @@ def download_backup(filename: str):
 
     from ...config import settings
 
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
+    _check_backup_name(filename)
 
     path = Path(settings.data_dir) / "backups" / filename
     if not path.exists():
@@ -482,8 +559,7 @@ def delete_backup(filename: str):
 
     from ...config import settings
 
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
+    _check_backup_name(filename)
 
     path = Path(settings.data_dir) / "backups" / filename
     if not path.exists():
@@ -494,34 +570,17 @@ def delete_backup(filename: str):
 
 @router.post("/backup/{filename}/restore")
 def restore_backup(filename: str):
-    import zipfile
-    from pathlib import Path
-
-    from fastapi import HTTPException
-
-    from ...config import settings
     from ...services.event_service import log_event
 
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
-
+    _check_backup_name(filename)
     backup_path = Path(settings.data_dir) / "backups" / filename
-    if not backup_path.exists():
+    if not backup_path.is_file():
         raise HTTPException(status_code=404, detail="Backup not found")
 
-    db_path = Path(settings.data_dir) / "romarr.db"
-    with zipfile.ZipFile(backup_path) as zf:
-        db_path.write_bytes(zf.read("romarr.db"))
-
-    # Remove stale WAL/SHM sidecars so SQLite doesn't replay old transactions
-    # against the restored DB on next open.
-    for ext in ("-wal", "-shm"):
-        sidecar = db_path.parent / (db_path.name + ext)
-        sidecar.unlink(missing_ok=True)
+    _restore_from_zip(backup_path)
 
     log_event("Backup", f"Database restored from {filename}")
-    _reload_db()
-    return {"message": "Restored successfully."}
+    return {"message": "Database restored and reloaded."}
 
 
 def _sqlite_version() -> str:

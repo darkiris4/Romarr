@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
     rom_library_path: str = "./library"
     log_level: str = "INFO"
+    allowed_origins: str = ""
 
     igdb_client_id: str = ""
     igdb_client_secret: str = ""

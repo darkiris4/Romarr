@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 from ..models.download_client import DownloadClient, DownloadClientType
 from ..models.queue_item import QueueStatus
+from .redact import redact
 
 
 @dataclass
@@ -70,7 +72,9 @@ class QBittorrentClient(BaseDownloadClient):
         import json
         import re
 
-        logger.info("qBittorrent add: url=%s info_hash=%s", url, info_hash)
+        logger.info(
+            "qBittorrent add: host=%s info_hash=%s", urlsplit(url).hostname or "magnet", info_hash
+        )
 
         torrent_bytes: bytes | None = None
         send_url: str = url
@@ -129,13 +133,13 @@ class QBittorrentClient(BaseDownloadClient):
             logger.info("qBittorrent add response: %r", body)
 
             if body == "Fails.":
-                raise ValueError(f"qBittorrent rejected the torrent: {url}")
+                raise ValueError("qBittorrent rejected the torrent")
 
             # qBittorrent v5 returns JSON with the assigned hash.
             try:
                 parsed = json.loads(body)
                 if parsed.get("failure_count", 0) > 0:
-                    raise ValueError(f"qBittorrent reported failure adding torrent: {url}")
+                    raise ValueError("qBittorrent reported failure adding torrent")
                 ids = parsed.get("added_torrent_ids") or []
                 if ids:
                     logger.info("qBittorrent hash from response: %s", ids[0])
@@ -241,7 +245,7 @@ class QBittorrentClient(BaseDownloadClient):
                 resp = await http.get(f"{self.base_url}/api/v2/app/version")
                 return True, f"qBittorrent {resp.text.strip()}"
         except Exception as exc:
-            return False, str(exc)
+            return False, redact(exc)
 
 
 class SABnzbdClient(BaseDownloadClient):
@@ -264,7 +268,7 @@ class SABnzbdClient(BaseDownloadClient):
             data = resp.json()
         nzo_ids = data.get("nzo_ids") or []
         if not nzo_ids:
-            raise ValueError(f"SABnzbd did not return an nzo_id (response: {data})")
+            raise ValueError(f"SABnzbd did not return an nzo_id (response: {redact(data)})")
         return nzo_ids[0]
 
     # Full queue status map sourced from Radarr's Sabnzbd.cs (develop branch)
@@ -398,7 +402,7 @@ class SABnzbdClient(BaseDownloadClient):
                 data = resp.json()
             return True, f"SABnzbd {data.get('version', '')}"
         except Exception as exc:
-            return False, str(exc)
+            return False, redact(exc)
 
 
 class TransmissionClient(BaseDownloadClient):
@@ -497,7 +501,7 @@ class TransmissionClient(BaseDownloadClient):
             version = result.get("arguments", {}).get("version", "unknown")
             return True, f"Transmission {version}"
         except Exception as exc:
-            return False, str(exc)
+            return False, redact(exc)
 
 
 def get_client(model: DownloadClient) -> BaseDownloadClient:

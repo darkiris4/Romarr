@@ -15,6 +15,7 @@ from datetime import datetime
 import httpx
 
 from ..models.indexer import Indexer, IndexerProtocol
+from .redact import redact
 
 logger = logging.getLogger(__name__)
 
@@ -97,14 +98,16 @@ async def search_indexer(
         params["cat"] = ",".join(str(c) for c in categories)
 
     url = f"{indexer.url.rstrip('/')}/api"
-    logger.info("Searching indexer '%s': GET %s params=%s", indexer.name, url, params)
+    logger.info("Searching indexer '%s': GET %s", indexer.name, url)
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
 
-    logger.info("Indexer '%s' response (%d): %s", indexer.name, resp.status_code, resp.text[:800])
     results = _parse_newznab_xml(resp.text, indexer.name, indexer.protocol)
     before = len(results)
+    logger.info(
+        "Indexer '%s' responded %d with %d result(s)", indexer.name, resp.status_code, before
+    )
     results = [
         r for r in results if not _looks_like_video(r.title) and not _looks_like_audio(r.title)
     ]
@@ -124,7 +127,7 @@ async def test_indexer(indexer: Indexer) -> tuple[bool, str]:
     except httpx.HTTPStatusError as exc:
         return False, f"HTTP {exc.response.status_code}"
     except Exception as exc:
-        return False, str(exc)
+        return False, redact(exc)
 
 
 def _parse_newznab_xml(
@@ -137,7 +140,7 @@ def _parse_newznab_xml(
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
-        logger.warning("Failed to parse XML response: %s", xml_text[:300])
+        logger.warning("Failed to parse XML response from indexer '%s'", indexer_name)
         return []
 
     # Newznab/Torznab error element — surface as exception so callers can report it
@@ -145,7 +148,7 @@ def _parse_newznab_xml(
     if error_el is not None:
         code = error_el.get("code", "?")
         desc = error_el.get("description", "unknown error")
-        raise ValueError(f"Indexer returned error {code}: {desc}")
+        raise ValueError(redact(f"Indexer returned error {code}: {desc}"))
 
     results: list[SearchResult] = []
     for item in root.findall(".//item"):

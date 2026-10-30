@@ -1,11 +1,13 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...models.list_source import ListSource
+from ...services.redact import redact
+from ...services.secret_mask import mask_json_config, merge_json_config
 
 router = APIRouter()
 
@@ -27,6 +29,11 @@ class ListSourceOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_validator("config", mode="before")
+    @classmethod
+    def _mask_config(cls, value):
+        return mask_json_config(value)
+
 
 @router.get("", response_model=list[ListSourceOut])
 def list_sources(db: Session = Depends(get_db)):
@@ -47,7 +54,9 @@ def update_source(source_id: int, payload: ListSourceIn, db: Session = Depends(g
     source = db.query(ListSource).filter_by(id=source_id).first()
     if not source:
         raise HTTPException(status_code=404, detail="List source not found")
-    for k, v in payload.model_dump().items():
+    values = payload.model_dump()
+    values["config"] = merge_json_config(values["config"], source.config)
+    for k, v in values.items():
         setattr(source, k, v)
     db.commit()
     db.refresh(source)
@@ -76,4 +85,4 @@ async def sync_source(source_id: int, db: Session = Depends(get_db)):
         db.commit()
         return {"added": added}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=redact(str(exc))) from exc

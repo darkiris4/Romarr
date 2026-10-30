@@ -16,7 +16,7 @@ function IndexerModal({
   const [name, setName] = useState(initial?.name ?? '')
   const [protocol, setProtocol] = useState<'newznab' | 'torznab'>(initial?.protocol ?? 'torznab')
   const [url, setUrl] = useState(initial?.url ?? '')
-  const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
+  const [apiKey, setApiKey] = useState('')
   const [categories, setCategories] = useState(initial?.categories ?? '')
   const [priority, setPriority] = useState(initial?.priority ?? 25)
   const [tags, setTags] = useState(initial?.tags ?? '')
@@ -33,7 +33,7 @@ function IndexerModal({
             name,
             protocol,
             url,
-            api_key: apiKey,
+            ...(apiKey ? { api_key: apiKey } : {}),
             categories,
             priority,
             enabled,
@@ -58,7 +58,7 @@ function IndexerModal({
   async function handleTest() {
     setTesting(true)
     try {
-      const result = await indexersApi.testConnection(url, apiKey)
+      const result = await indexersApi.testConnection(url, apiKey, initial?.id)
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -133,6 +133,7 @@ function IndexerModal({
               className="form-control"
               type="password"
               value={apiKey}
+              placeholder={initial?.has_api_key ? 'Unchanged' : undefined}
               onChange={(e) => setApiKey(e.target.value)}
             />
           </div>

@@ -150,6 +150,11 @@ def _backup():
 
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dest = backup_dir / f"romarr_backup_v{APP_VERSION}_{stamp}.zip"
+    # Backups taken within one second must not replace each other.
+    counter = 1
+    while dest.exists():
+        dest = backup_dir / f"romarr_backup_v{APP_VERSION}_{stamp}_{counter}.zip"
+        counter += 1
 
     # Use SQLite's online backup API so the snapshot is consistent even
     # when WAL mode is active (raw file copy misses uncommitted WAL pages).

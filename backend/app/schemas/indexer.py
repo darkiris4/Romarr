@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field, field_serializer
 
 from ..models.indexer import IndexerProtocol
+from ..services.secret_mask import mask
 
 
 class IndexerBase(BaseModel):
@@ -39,6 +40,15 @@ class IndexerOut(IndexerBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("api_key")
+    def _mask_secret(self, value: str) -> str:
+        return mask(value)
+
+    @computed_field
+    @property
+    def has_api_key(self) -> bool:
+        return bool(self.api_key)
 
 
 class IndexerTestResult(BaseModel):

@@ -22,6 +22,8 @@ from ...services.download_service import get_client
 from ...services.event_service import log_event
 from ...services.indexer_service import search_indexer
 from ...services.notification_service import notify_event
+from ...services.paths import is_managed_path
+from ...services.redact import redact
 from ...services.search_utils import (
     normalize_title,
     other_platform_re,
@@ -270,8 +272,9 @@ async def manual_search(
                 ]
             )
         except Exception as exc:
-            logger.warning("Search failed for indexer '%s': %s", indexer.name, exc)
-            indexer_errors.append({"indexer": indexer.name, "error": str(exc)})
+            error_text = redact(exc)
+            logger.warning("Search failed for indexer '%s': %s", indexer.name, error_text)
+            indexer_errors.append({"indexer": indexer.name, "error": error_text})
 
     # Cross-platform filter: drop results that name a different console.
     # Only applied when using the auto-generated query (not a manual override).
@@ -341,7 +344,7 @@ async def grab_release(game_id: int, payload: GrabPayload, db: Session = Depends
     try:
         download_id = await client.add(payload.link, payload.title, info_hash=payload.info_hash)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Download client error: {exc}")
+        raise HTTPException(status_code=502, detail=f"Download client error: {redact(exc)}")
 
     item = QueueItem(
         game_id=game_id,
@@ -481,6 +484,11 @@ def delete_game_file(game_id: int, db: Session = Depends(get_db)):
     game = db.query(Game).filter_by(id=game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    if game.rom_path and not is_managed_path(db, game.rom_path):
+        raise HTTPException(
+            status_code=409,
+            detail="ROM file is outside the managed folders and was not deleted",
+        )
     if game.rom_path and os.path.exists(game.rom_path):
         os.remove(game.rom_path)
     game.rom_path = None

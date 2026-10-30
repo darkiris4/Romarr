@@ -21,6 +21,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from ..config import settings
+from .redact import RedactingFilter
 
 # Custom TRACE level (below DEBUG=10)
 TRACE_LEVEL = 5
@@ -78,6 +79,7 @@ def setup_logging(log_level: str = "info") -> None:
             h.namer = _make_namer(log_dir, stem)
             h.setLevel(min_level)
             h.setFormatter(fmt)
+            h.addFilter(RedactingFilter())
             root.addHandler(h)
             _handlers.append(h)
 

@@ -44,7 +44,7 @@ function ConfirmRestoreModal({
             <strong style={{ color: 'var(--text-white)' }}>{name}</strong>?
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-            The current database will be overwritten and the application will restart automatically.
+            The current database will be replaced, and Romarr will reload the restored database.
           </p>
         </div>
         <div className="modal-footer">
@@ -60,11 +60,19 @@ function ConfirmRestoreModal({
   )
 }
 
+function errorDetail(err: unknown): string {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  return err instanceof Error ? err.message : 'Unknown error'
+}
+
 export default function BackupPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
 
   const { data: backups = [], isLoading } = useQuery({
     queryKey: ['backups'],
@@ -92,20 +100,37 @@ export default function BackupPage() {
       setConfirmRestore(null)
       onRestoreSuccess()
     },
+    onError: (err) => {
+      setConfirmRestore(null)
+      setRestoreError(errorDetail(err))
+    },
   })
 
   const uploadRestoreMutation = useMutation({
     mutationFn: systemApi.restoreFromUpload,
-    onSuccess: onRestoreSuccess,
+    onSuccess: () => {
+      setPendingFile(null)
+      onRestoreSuccess()
+    },
+    onError: (err) => {
+      setPendingFile(null)
+      setRestoreError(errorDetail(err))
+    },
   })
 
   function handleFileRestore(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
-    const formData = new FormData()
-    formData.append('file', file)
-    uploadRestoreMutation.mutate(formData)
     e.target.value = ''
+    if (!file) return
+    setRestoreError(null)
+    setPendingFile(file)
+  }
+
+  function confirmFileRestore() {
+    if (!pendingFile) return
+    const formData = new FormData()
+    formData.append('file', pendingFile)
+    uploadRestoreMutation.mutate(formData)
   }
 
   if (isLoading)
@@ -142,6 +167,12 @@ export default function BackupPage() {
           onChange={handleFileRestore}
         />
       </div>
+
+      {restoreError && (
+        <div className="card" style={{ color: 'var(--danger)', marginBottom: 12 }}>
+          Restore failed: {restoreError}
+        </div>
+      )}
 
       {backups.length === 0 ? (
         <div className="empty-state">
@@ -211,6 +242,14 @@ export default function BackupPage() {
           name={confirmRestore}
           onConfirm={() => restoreMutation.mutate(confirmRestore)}
           onClose={() => setConfirmRestore(null)}
+        />
+      )}
+
+      {pendingFile && (
+        <ConfirmRestoreModal
+          name={pendingFile.name}
+          onConfirm={confirmFileRestore}
+          onClose={() => setPendingFile(null)}
         />
       )}
     </div>
