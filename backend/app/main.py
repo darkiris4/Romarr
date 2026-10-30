@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -66,8 +67,15 @@ async def lifespan(app: FastAPI):
 
     setup_logging(get_config("log_level", settings.log_level.lower()))
     _load_dats()
-    start_scheduler()
     from .services.event_service import log_event
+
+    if os.environ.get("ROMARR_RESET_AUTH") == "1":
+        from .services.auth_service import reset_credentials
+
+        reset_credentials()
+        log_event("Authentication", "Credentials cleared by ROMARR_RESET_AUTH; setup required")
+        logger.warning("ROMARR_RESET_AUTH is set: credentials cleared, setup required")
+    start_scheduler()
 
     log_event("Application", f"Started — {settings.app_name}")
     yield
