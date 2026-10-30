@@ -85,6 +85,29 @@ The image is pulled automatically from GHCR (`ghcr.io/darkiris4/romarr:latest`).
 | `IGDB_CLIENT_SECRET` | _(empty)_ | Twitch app Client Secret |
 | `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
 
+### Container user and volume ownership
+
+The image runs as an unprivileged user, `romarr`, with uid/gid `1000:1000`. Folders mounted at `/app/data` and `/app/library` must be writable by that user.
+
+For a bind-mounted data or library folder, set the owner on the host:
+
+```bash
+chown -R 1000:1000 <data dir>
+chown -R 1000:1000 <library dir>
+```
+
+Existing installs whose data directory was created by an earlier root-based image need this one-time `chown` before upgrading. Named Docker volumes created fresh from the image are already owned correctly.
+
+To run as a different user (for example, to match the owner of an existing library), set `PUID` and `PGID` in `.env`; `docker-compose.yml` passes them to the container as `user: "${PUID:-1000}:${PGID:-1000}"`. The folders must then be owned by that uid/gid instead.
+
+If the data directory is not writable, the container exits at startup with:
+
+```
+PermissionError: [Errno 13] Permission denied: '/app/data/logs'
+```
+
+Fix it by changing the ownership of the host folder to the container's uid/gid (`chown -R 1000:1000 <data dir>`, or the `PUID`/`PGID` values in use) and restarting the container.
+
 ---
 
 ## Development Setup
