@@ -1,3 +1,5 @@
+import ipaddress
+
 """Authentication service and /auth endpoints against a temporary database."""
 
 import base64
@@ -472,3 +474,26 @@ def test_api_key_reset_endpoint(client, session_local):
 def test_event_service_is_shared(session_local):
     event_service.log_event("Authentication", "probe")
     assert "probe" in _events(session_local)
+
+
+def test_secure_cookie_follows_forwarded_proto_only_from_trusted_proxy(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.api.v1 import auth as auth_api
+    from app.services import auth_middleware
+
+    def make(peer: str, proto: str):
+        return SimpleNamespace(
+            url=SimpleNamespace(scheme="http"),
+            client=SimpleNamespace(host=peer),
+            headers={"x-forwarded-proto": proto},
+        )
+
+    monkeypatch.setattr(
+        auth_middleware,
+        "_trusted_proxies",
+        lambda: [ipaddress.ip_network("10.0.0.0/8")],
+    )
+    assert auth_api._is_secure(make("10.1.2.3", "https")) is True
+    assert auth_api._is_secure(make("10.1.2.3", "http")) is False
+    assert auth_api._is_secure(make("8.8.8.8", "https")) is False

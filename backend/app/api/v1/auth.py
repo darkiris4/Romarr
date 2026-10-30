@@ -62,7 +62,15 @@ def _status(request: Request, authenticated: bool | None = None) -> dict:
 
 
 def _is_secure(request: Request) -> bool:
-    return request.url.scheme == "https"
+    """Report whether the client connection is HTTPS, honouring X-Forwarded-Proto from trusted proxies."""
+    if request.url.scheme == "https":
+        return True
+    from ...services.auth_middleware import _trusted_proxies, peer_is_trusted_proxy
+
+    if peer_is_trusted_proxy(request, _trusted_proxies()):
+        forwarded = request.headers.get("x-forwarded-proto", "")
+        return forwarded.split(",")[0].strip().lower() == "https"
+    return False
 
 
 def _issue_session(request: Request, response: Response, username: str, remember: bool) -> None:
