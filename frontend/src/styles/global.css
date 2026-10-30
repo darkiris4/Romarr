@@ -3505,7 +3505,7 @@ a.detail-similar-card:hover .detail-similar-cover,
 }
 
 /* ===== Login and setup screens =====
-   Intentionally light with a blue accent, independent of the dark app theme.
+   Dark surfaces from the app palette with a blue action colour.
    All rules are scoped to the login-* classes. */
 .login-page {
   min-height: 100vh;
@@ -3515,17 +3515,17 @@ a.detail-similar-card:hover .detail-similar-cover,
   justify-content: center;
   gap: 16px;
   padding: 24px 16px;
-  background: #f5f7fa;
-  color: #3a3f51;
+  background: var(--bg-body);
+  color: var(--text-primary);
   font-family: inherit;
 }
 .login-card {
   width: 325px;
   max-width: 100%;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
 .login-card-header {
@@ -3533,7 +3533,8 @@ a.detail-similar-card:hover .detail-similar-cover,
   align-items: center;
   justify-content: center;
   padding: 14px 20px;
-  background: #494f58;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
 }
 .login-logo {
   height: 60px;
@@ -3548,7 +3549,7 @@ a.detail-similar-card:hover .detail-similar-cover,
   font-weight: 400;
   text-align: center;
   text-transform: uppercase;
-  color: #3a3f51;
+  color: var(--text-primary);
 }
 .login-input {
   display: block;
@@ -3557,15 +3558,15 @@ a.detail-similar-card:hover .detail-similar-cover,
   margin-bottom: 14px;
   padding: 6px 12px;
   font-size: 14px;
-  color: #555;
-  background: #fff;
-  border: 1px solid #dde6e9;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
   border-radius: 4px;
   box-sizing: border-box;
   outline: none;
 }
 .login-input::placeholder {
-  color: #a0a8b0;
+  color: var(--text-muted);
 }
 .login-input:focus {
   border-color: #5d9cec;
@@ -3577,7 +3578,7 @@ a.detail-similar-card:hover .detail-similar-cover,
   justify-content: space-between;
   margin-bottom: 16px;
   font-size: 12px;
-  color: #909fa7;
+  color: var(--text-secondary);
 }
 .login-remember {
   display: flex;
@@ -3587,7 +3588,7 @@ a.detail-similar-card:hover .detail-similar-cover,
   user-select: none;
 }
 .login-forgot {
-  color: #909fa7;
+  color: var(--text-secondary);
   text-decoration: none;
 }
 .login-forgot:hover {
@@ -3621,7 +3622,7 @@ a.detail-similar-card:hover .detail-similar-cover,
 }
 .login-footer {
   font-size: 12px;
-  color: #909fa7;
+  color: var(--text-secondary);
   text-align: center;
 }
 
