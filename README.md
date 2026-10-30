@@ -84,6 +84,7 @@ The image is pulled automatically from GHCR (`ghcr.io/darkiris4/romarr:latest`).
 | `IGDB_CLIENT_ID` | _(empty)_ | Twitch app Client ID |
 | `IGDB_CLIENT_SECRET` | _(empty)_ | Twitch app Client Secret |
 | `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `ROMARR_RESET_AUTH` | _(unset)_ | Set to `1` to clear the stored credentials on startup. See [Forgot your password?](#forgot-your-password) |
 
 ### Container user and volume ownership
 
@@ -137,6 +138,19 @@ npm run dev                       # Vite dev server on http://localhost:5173
 ```
 
 The frontend proxies `/api` requests to `http://localhost:8000` via the Vite config.
+
+---
+
+## Forgot your password?
+
+Set `ROMARR_RESET_AUTH=1` in the container environment and restart Romarr. On startup the stored username and password are cleared, every existing session is invalidated, and the setup page asks for a new administrator account. The API key and all other settings are kept.
+
+```yaml
+environment:
+  - ROMARR_RESET_AUTH=1
+```
+
+Remove the variable after the account has been recreated; while it is set, every restart clears the credentials again.
 
 ---
 

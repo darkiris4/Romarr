@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from . import (
+    auth,
     blocklist,
     calendar,
     connect,
@@ -23,6 +24,7 @@ from . import (
 
 router = APIRouter()
 
+router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 router.include_router(games.router, prefix="/games", tags=["Games"])
 router.include_router(blocklist.router, prefix="/blocklist", tags=["Blocklist"])
 router.include_router(igdb.router, prefix="/igdb", tags=["IGDB"])
