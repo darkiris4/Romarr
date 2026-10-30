@@ -32,6 +32,7 @@ from .igdb_service import (
 )
 from .rawg_service import fetch_enrichment_by_id as rawg_fetch_by_id
 from .rawg_service import fetch_game_metadata as rawg_fetch_metadata
+from .redact import redact
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,7 @@ def scrape_pending(force: bool = False) -> dict:
             except Exception as exc:
                 logger.warning("%s lookup failed for %r: %s", provider.upper(), game.title, exc)
                 entry["result"] = "error"
-                entry["error"] = str(exc)
+                entry["error"] = redact(exc)
                 failed += 1
 
             _log_entry(entry)
@@ -307,13 +308,14 @@ def scrape_pending(force: bool = False) -> dict:
         return {"updated": updated, "failed": failed}
 
     except Exception as exc:
-        _state["error"] = str(exc)
-        _log_entry({"event": "run_error", "error": str(exc)})
-        logger.error("Scrape error: %s", exc)
+        error_text = redact(exc)
+        _state["error"] = error_text
+        _log_entry({"event": "run_error", "error": error_text})
+        logger.error("Scrape error: %s", error_text)
         from .event_service import log_event
 
-        log_event("MetadataScraper", f"Scrape failed: {exc}")
-        return {"updated": updated, "failed": failed, "error": str(exc)}
+        log_event("MetadataScraper", f"Scrape failed: {error_text}")
+        return {"updated": updated, "failed": failed, "error": error_text}
     finally:
         db.close()
         _state["running"] = False

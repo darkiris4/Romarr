@@ -15,6 +15,7 @@ from datetime import UTC
 import httpx
 
 from ..config import settings
+from .redact import redact
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def _get_token() -> str | None:
     try:
         resp = httpx.post(
             "https://id.twitch.tv/oauth2/token",
-            params={
+            data={
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "grant_type": "client_credentials",
@@ -55,7 +56,7 @@ def _get_token() -> str | None:
         )
         resp.raise_for_status()
     except httpx.HTTPError as exc:
-        logger.error("IGDB auth failed: %s", exc)
+        logger.error("IGDB auth failed: %s", redact(exc))
         return None
     data = resp.json()
     _token_cache["token"] = data["access_token"]
@@ -196,7 +197,7 @@ def _igdb_query(client_id: str, token: str, body: str) -> list:
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as exc:
-            logger.warning("IGDB request error: %s", exc)
+            logger.warning("IGDB request error: %s", redact(exc))
             return []
     logger.warning("IGDB rate limit not resolved after 3 attempts — skipping query")
     return []

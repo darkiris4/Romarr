@@ -1,5 +1,7 @@
 import logging
 
+from .redact import redact
+
 logger = logging.getLogger(__name__)
 
 _MAX_EVENTS = 1000
@@ -11,7 +13,7 @@ def log_event(component: str, message: str) -> None:
 
     db = SessionLocal()
     try:
-        db.add(AppEvent(component=component, message=message))
+        db.add(AppEvent(component=component, message=redact(message)))
         db.flush()
         count = db.query(AppEvent).count()
         if count > _MAX_EVENTS:
