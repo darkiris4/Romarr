@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, ImageOff, X, Plus, AlertCircle } from 'lucide-react'
+import { Search, ImageOff, X, Plus, AlertCircle, LogOut } from 'lucide-react'
 import { gamesApi } from '../../api/games'
 import { systemApi } from '../../api/system'
+import { getAuthStatus, logout } from '../../api/auth'
 
 export default function Header() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [inputValue, setInputValue] = useState('')
   const [focused, setFocused] = useState(false)
   const [dropdownCoords, setDropdownCoords] = useState({ top: 0, left: 0, width: 380 })
@@ -20,6 +22,22 @@ export default function Header() {
     staleTime: 6 * 3600 * 1000,
     retry: false,
   })
+
+  const { data: authStatus } = useQuery({
+    queryKey: ['auth', 'status'],
+    queryFn: getAuthStatus,
+    staleTime: 60_000,
+  })
+  const showLogout = authStatus?.mode === 'forms' && authStatus.authenticated
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      qc.clear()
+      navigate('/login')
+    }
+  }
 
   const [updateDismissed, setUpdateDismissed] = useState(false)
   const showUpdateBanner =
@@ -115,6 +133,11 @@ export default function Header() {
             </button>
           )}
         </div>
+        {showLogout && (
+          <button className="topbar-logout" onClick={handleLogout} title="Log out">
+            <LogOut size={13} /> Logout
+          </button>
+        )}
       </header>
 
       {showDropdown &&
