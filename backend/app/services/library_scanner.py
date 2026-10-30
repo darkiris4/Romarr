@@ -27,6 +27,8 @@ from typing import Any, Literal
 
 from sqlalchemy.orm import Session
 
+from .paths import safe_filename
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,8 +51,10 @@ def _try_rename_to_canonical(file_path: str, crc32: str | None) -> str:
     if not dat_rom or not dat_rom.full_title:
         return file_path
     src = Path(file_path)
-    canonical = f"{dat_rom.full_title}{src.suffix}"
+    canonical = f"{safe_filename(dat_rom.full_title, src.stem)}{src.suffix}"
     dest = src.parent / canonical
+    if dest.parent != src.parent:
+        return file_path
     if dest == src:
         return file_path
     if dest.exists():

@@ -1,7 +1,9 @@
 import asyncio
 import io
 import json
+import os
 import re
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -22,11 +24,15 @@ from ...services.event_service import log_event
 from ...services.library_scanner import import_start as _import_start
 from ...services.library_scanner import import_status as _import_status
 from ...services.library_scanner import scan_start, scan_status
+from ...services.paths import is_managed_path, is_within, safe_filename
 
 router = APIRouter()
 
 _RECENT_FOLDERS_KEY = "recent_scan_folders"
 _RECENT_FOLDERS_MAX = 10
+
+_DAT_MAX_BYTES = 64 * 1024 * 1024
+_DAT_CHUNK = 1024 * 1024
 
 # Characters RetroArch replaces with underscores when resolving thumbnail paths.
 _RETROARCH_UNSAFE = re.compile(r'[&*/:"<>?\\|]')
@@ -119,19 +125,57 @@ def get_dat_status(db: Session = Depends(get_db)):
     }
 
 
+def _validated_dat_name(filename: str | None) -> str:
+    """Return ``filename`` when it is a plain ``.dat`` file name, otherwise raise 422."""
+    if not filename or not filename.lower().endswith(".dat"):
+        raise HTTPException(status_code=422, detail="Only .dat files are accepted")
+    if "/" in filename or "\\" in filename or "\x00" in filename or filename != Path(filename).name:
+        raise HTTPException(status_code=422, detail="Invalid filename")
+    if filename in (".", ".."):
+        raise HTTPException(status_code=422, detail="Invalid filename")
+    return filename
+
+
+def _looks_like_xml(head: bytes) -> bool:
+    if head.startswith(b"\xef\xbb\xbf"):
+        head = head[3:]
+    return head.lstrip().startswith(b"<")
+
+
 @router.post("/dat/upload")
 async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Save an uploaded DAT file to data/dats/, auto-create the platform if needed, then reload."""
-    if not file.filename or not file.filename.lower().endswith(".dat"):
-        raise HTTPException(status_code=422, detail="Only .dat files are accepted")
+    filename = _validated_dat_name(file.filename)
     settings.dat_dir.mkdir(parents=True, exist_ok=True)
-    dest = settings.dat_dir / file.filename
-    contents = await file.read()
-    dest.write_bytes(contents)
+    dest = settings.dat_dir / filename
+    if not is_within(dest, [settings.dat_dir]):
+        raise HTTPException(status_code=422, detail="Invalid filename")
+
+    fd, tmp_name = tempfile.mkstemp(dir=settings.dat_dir, prefix=".upload_", suffix=".tmp")
+    tmp_path = Path(tmp_name)
+    size = 0
+    try:
+        with os.fdopen(fd, "wb") as out:
+            first = True
+            while chunk := await file.read(_DAT_CHUNK):
+                if first:
+                    if not _looks_like_xml(chunk):
+                        raise HTTPException(status_code=422, detail="DAT file must be XML")
+                    first = False
+                size += len(chunk)
+                if size > _DAT_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="DAT file exceeds 64 MiB limit")
+                out.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=422, detail="DAT file must be XML")
+        os.replace(tmp_path, dest)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    contents_size = size
 
     # First reload attempt
     results = scan_dat_dir(db)
-    matched = next((r for r in results if r.get("file") == file.filename), None)
+    matched = next((r for r in results if r.get("file") == filename), None)
 
     # If unmatched, auto-create a platform from the DAT header
     platform_created = False
@@ -169,20 +213,20 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
 
         # Reload now that the platform exists
         results = scan_dat_dir(db)
-        matched = next((r for r in results if r.get("file") == file.filename), None)
+        matched = next((r for r in results if r.get("file") == filename), None)
 
     platform_name = (
         matched.get("platform_name") if matched and matched.get("status") == "loaded" else None
     )
     log_event(
         "DAT",
-        f'Uploaded "{file.filename}"'
+        f'Uploaded "{filename}"'
         + (f" → {platform_name}" if platform_name else " (unmatched)")
         + (" — platform created" if platform_created else ""),
     )
     return {
-        "filename": file.filename,
-        "size": len(contents),
+        "filename": filename,
+        "size": contents_size,
         "matched_platform": platform_name,
         "status": matched.get("status", "unmatched") if matched else "unmatched",
         "platform_created": platform_created,
@@ -192,9 +236,10 @@ async def upload_dat(file: UploadFile = File(...), db: Session = Depends(get_db)
 @router.delete("/dat/{filename}", status_code=204)
 def delete_dat(filename: str, db: Session = Depends(get_db)):
     """Remove a DAT file from data/dats/ and evict it from the CRC32 index."""
-    if not filename.lower().endswith(".dat"):
-        raise HTTPException(status_code=422, detail="Invalid filename")
+    filename = _validated_dat_name(filename)
     target = settings.dat_dir / filename
+    if not is_within(target, [settings.dat_dir]):
+        raise HTTPException(status_code=422, detail="Invalid filename")
     if not target.exists():
         raise HTTPException(status_code=404, detail="DAT file not found")
 
@@ -436,7 +481,19 @@ def _rename_preview_rows(game_ids: list[int], db: Session) -> list[dict]:
             )
             continue
         src = Path(game.rom_path)
-        proposed = str(src.parent / f"{dat_rom.full_title}{src.suffix}")
+        new_name = f"{safe_filename(dat_rom.full_title, src.stem)}{src.suffix}"
+        dest_path = src.parent / new_name
+        if dest_path.parent != src.parent:
+            rows.append(
+                {
+                    "game_id": gid,
+                    "title": game.title,
+                    "eligible": False,
+                    "reason": "Invalid target name",
+                }
+            )
+            continue
+        proposed = str(dest_path)
         rows.append(
             {
                 "game_id": gid,
@@ -445,7 +502,7 @@ def _rename_preview_rows(game_ids: list[int], db: Session) -> list[dict]:
                 "current_path": game.rom_path,
                 "proposed_path": proposed,
                 "current_filename": src.name,
-                "proposed_filename": f"{dat_rom.full_title}{src.suffix}",
+                "proposed_filename": new_name,
             }
         )
     return rows
@@ -467,7 +524,12 @@ def rename_files(payload: RenamePreviewRequest, db: Session = Depends(get_db)):
         dest = Path(row["proposed_path"])
         if dest == src:
             continue
-        if dest.exists():
+        if (
+            dest.parent != src.parent
+            or not is_managed_path(db, src)
+            or not is_managed_path(db, dest)
+            or dest.exists()
+        ):
             errors += 1
             continue
         try:
