@@ -82,4 +82,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/darkiris4/romarr:latest
-            ghcr.io/darkiris4/romarr:1.0.1-alpha
+            ghcr.io/darkiris4/romarr:1.1.0-alpha

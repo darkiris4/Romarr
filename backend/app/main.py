@@ -1,15 +1,18 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from .api.v1.router import router as api_router
 from .config import settings
-from .database import init_db
+from .database import engine, init_db
+from .services.auth_middleware import add_authentication
 from .services.dat_manager import scan_dat_dir
 from .services.redact import RedactingFilter
 from .services.scheduler import start as start_scheduler
@@ -66,8 +69,15 @@ async def lifespan(app: FastAPI):
 
     setup_logging(get_config("log_level", settings.log_level.lower()))
     _load_dats()
-    start_scheduler()
     from .services.event_service import log_event
+
+    if os.environ.get("ROMARR_RESET_AUTH") == "1":
+        from .services.auth_service import reset_credentials
+
+        reset_credentials()
+        log_event("Authentication", "Credentials cleared by ROMARR_RESET_AUTH; setup required")
+        logger.warning("ROMARR_RESET_AUTH is set: credentials cleared, setup required")
+    start_scheduler()
 
     log_event("Application", f"Started — {settings.app_name}")
     yield
@@ -117,6 +127,20 @@ def add_security_headers(app: FastAPI, api_prefix: str) -> None:
         return response
 
 
+def register_health(app: FastAPI, api_prefix: str) -> None:
+    """Expose an unauthenticated liveness probe that also verifies database access."""
+
+    @app.get(api_prefix.rstrip("/") + "/health", include_in_schema=False)
+    def health():
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except Exception:
+            logger.exception("Health check failed")
+            return JSONResponse({"status": "error"}, status_code=503)
+        return {"status": "ok"}
+
+
 def register_spa(app: FastAPI, dist: Path) -> None:
     """Serve the built frontend from dist, falling back to index.html for client routes."""
     root = dist.resolve()
@@ -130,9 +154,13 @@ def register_spa(app: FastAPI, dist: Path) -> None:
         return FileResponse(root / "index.html")
 
 
+# Middleware added later wraps earlier ones: security headers apply to every response,
+# including authentication rejections.
+add_authentication(app, settings.api_v1_prefix)
 configure_cors(app, parse_origins(settings.allowed_origins))
 add_security_headers(app, settings.api_v1_prefix)
 
+register_health(app, settings.api_v1_prefix)
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 # Serve built frontend in production
