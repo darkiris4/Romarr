@@ -9,6 +9,7 @@ from ...database import get_db
 from ...models.connection import Connection
 from ...services.event_service import log_event
 from ...services.notification_service import test_connection
+from ...services.secret_mask import mask_config, merge_config
 
 router = APIRouter()
 
@@ -41,7 +42,7 @@ class ConnectionOut(ConnectionBase):
             "id": obj.id,
             "name": obj.name,
             "type": obj.type,
-            "config": json.loads(obj.config_json or "{}"),
+            "config": mask_config(json.loads(obj.config_json or "{}"), obj.type),
             "tags": obj.tags or "",
             "on_grab": obj.on_grab,
             "on_import": obj.on_import,
@@ -89,7 +90,14 @@ def update_connection(conn_id: int, payload: ConnectionBase, db: Session = Depen
     conn = db.query(Connection).filter_by(id=conn_id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    for key, value in _to_orm(payload).items():
+    values = _to_orm(payload)
+    merged = merge_config(
+        json.loads(values["config_json"]),
+        json.loads(conn.config_json or "{}"),
+        values["type"],
+    )
+    values["config_json"] = json.dumps(merged)
+    for key, value in values.items():
         setattr(conn, key, value)
     db.commit()
     db.refresh(conn)

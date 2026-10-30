@@ -7,19 +7,26 @@ from ...models.indexer import Indexer
 from ...schemas.indexer import IndexerCreate, IndexerOut, IndexerTestResult, IndexerUpdate
 from ...services.event_service import log_event
 from ...services.indexer_service import test_indexer
+from ...services.secret_mask import is_masked
 
 router = APIRouter()
 
 
 class IndexerTestPayload(BaseModel):
+    id: int | None = None
     url: str
     api_key: str = ""
 
 
 @router.post("/test", response_model=IndexerTestResult)
-async def test_indexer_inline(payload: IndexerTestPayload):
+async def test_indexer_inline(payload: IndexerTestPayload, db: Session = Depends(get_db)):
     """Test connectivity using URL + API key without requiring a saved indexer."""
-    dummy = Indexer(name="", url=payload.url, api_key=payload.api_key)
+    api_key = payload.api_key
+    if payload.id is not None and (not api_key or is_masked(api_key)):
+        stored = db.query(Indexer).filter_by(id=payload.id).first()
+        if stored:
+            api_key = stored.api_key
+    dummy = Indexer(name="", url=payload.url, api_key=api_key)
     success, message = await test_indexer(dummy)
     return IndexerTestResult(success=success, message=message)
 
@@ -45,6 +52,8 @@ def update_indexer(indexer_id: int, payload: IndexerUpdate, db: Session = Depend
     if not indexer:
         raise HTTPException(status_code=404, detail="Indexer not found")
     for key, value in payload.model_dump(exclude_none=True).items():
+        if key == "api_key" and is_masked(value):
+            continue
         setattr(indexer, key, value)
     db.commit()
     db.refresh(indexer)

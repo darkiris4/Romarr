@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field, field_serializer
 
 from ..models.download_client import DownloadClientType
+from ..services.secret_mask import mask
 
 
 class DownloadClientBase(BaseModel):
@@ -50,6 +51,20 @@ class DownloadClientOut(DownloadClientBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("password", "api_key")
+    def _mask_secret(self, value: str) -> str:
+        return mask(value)
+
+    @computed_field
+    @property
+    def has_password(self) -> bool:
+        return bool(self.password)
+
+    @computed_field
+    @property
+    def has_api_key(self) -> bool:
+        return bool(self.api_key)
 
 
 class DownloadClientTestResult(BaseModel):
