@@ -12,11 +12,13 @@ from ...schemas.download_client import (
 )
 from ...services.download_service import get_client
 from ...services.event_service import log_event
+from ...services.secret_mask import is_masked
 
 router = APIRouter()
 
 
 class DownloadClientTestPayload(BaseModel):
+    id: int | None = None
     implementation: str
     host: str
     port: int
@@ -28,8 +30,17 @@ class DownloadClientTestPayload(BaseModel):
 
 
 @router.post("/test", response_model=DownloadClientTestResult)
-async def test_client_inline(payload: DownloadClientTestPayload):
+async def test_client_inline(payload: DownloadClientTestPayload, db: Session = Depends(get_db)):
     """Test connectivity using form values without requiring a saved client."""
+    password = payload.password
+    api_key = payload.api_key
+    if payload.id is not None:
+        stored = db.query(DownloadClient).filter_by(id=payload.id).first()
+        if stored:
+            if not password or is_masked(password):
+                password = stored.password
+            if not api_key or is_masked(api_key):
+                api_key = stored.api_key
     dummy = DownloadClient(
         name="",
         implementation=payload.implementation,
@@ -38,8 +49,8 @@ async def test_client_inline(payload: DownloadClientTestPayload):
         use_ssl=payload.use_ssl,
         url_base=payload.url_base,
         username=payload.username,
-        password=payload.password,
-        api_key=payload.api_key,
+        password=password,
+        api_key=api_key,
     )
     try:
         client = get_client(dummy)
@@ -70,6 +81,8 @@ def update_client(client_id: int, payload: DownloadClientUpdate, db: Session = D
     if not client:
         raise HTTPException(status_code=404, detail="Download client not found")
     for key, value in payload.model_dump(exclude_none=True).items():
+        if key in ("password", "api_key") and is_masked(value):
+            continue
         setattr(client, key, value)
     db.commit()
     db.refresh(client)

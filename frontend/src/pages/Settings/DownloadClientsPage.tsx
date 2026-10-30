@@ -28,8 +28,8 @@ function ClientModal({
   const [urlBase, setUrlBase] = useState(initial?.url_base ?? '')
   const [useSsl, setUseSsl] = useState(initial?.use_ssl ?? false)
   const [username, setUsername] = useState(initial?.username ?? '')
-  const [password, setPassword] = useState(initial?.password ?? '')
-  const [apiKey, setApiKey] = useState(initial?.api_key ?? '')
+  const [password, setPassword] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const [category, setCategory] = useState(initial?.category ?? 'romarr')
   const [removeCompleted, setRemoveCompleted] = useState(initial?.remove_completed ?? false)
   const [removeFailed, setRemoveFailed] = useState(initial?.remove_failed ?? true)
@@ -52,8 +52,8 @@ function ClientModal({
             url_base: urlBase,
             use_ssl: useSsl,
             username,
-            password,
-            api_key: apiKey,
+            ...(password ? { password } : {}),
+            ...(apiKey ? { api_key: apiKey } : {}),
             category,
             enabled: true,
             priority: 0,
@@ -88,18 +88,17 @@ function ClientModal({
     setTesting(true)
     setTestResult(null)
     try {
-      const result = initial
-        ? await downloadClientsApi.test(initial.id)
-        : await downloadClientsApi.testInline({
-            implementation: impl,
-            host,
-            port,
-            use_ssl: useSsl,
-            url_base: urlBase,
-            username,
-            password,
-            api_key: apiKey,
-          })
+      const result = await downloadClientsApi.testInline({
+        id: initial?.id,
+        implementation: impl,
+        host,
+        port,
+        use_ssl: useSsl,
+        url_base: urlBase,
+        username,
+        password,
+        api_key: apiKey,
+      })
       setTestResult(result)
     } finally {
       setTesting(false)
@@ -207,6 +206,7 @@ function ClientModal({
                 className="form-control"
                 type="password"
                 value={apiKey}
+                placeholder={initial?.has_api_key ? 'Unchanged' : undefined}
                 onChange={(e) => setApiKey(e.target.value)}
               />
               <div className="form-hint">Found in the download client's settings or web UI.</div>
@@ -228,6 +228,7 @@ function ClientModal({
                   className="form-control"
                   type="password"
                   value={password}
+                  placeholder={initial?.has_password ? 'Unchanged' : undefined}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>

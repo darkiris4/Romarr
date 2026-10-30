@@ -142,6 +142,7 @@ export interface Indexer {
   protocol: IndexerProtocol
   url: string
   api_key: string
+  has_api_key: boolean
   categories: string
   priority: number
   enabled: boolean
@@ -164,6 +165,8 @@ export interface DownloadClient {
   username: string
   password: string
   api_key: string
+  has_password: boolean
+  has_api_key: boolean
   category: string
   priority: number
   enabled: boolean
