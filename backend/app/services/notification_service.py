@@ -10,6 +10,8 @@ from email.mime.text import MIMEText
 
 import httpx
 
+from .redact import redact
+
 logger = logging.getLogger(__name__)
 
 _EVENT_LABELS: dict[str, str] = {
@@ -146,7 +148,7 @@ def _dispatch_one(conn_type: str, config_json: str, event: str, title: str, body
             fn(cfg, event, title, body)
             logger.debug("Notification sent via %s for event %s", conn_type, event)
     except Exception as exc:
-        logger.warning("Notification failed (%s, %s): %s", conn_type, event, exc)
+        logger.warning("Notification failed (%s, %s): %s", conn_type, event, redact(exc))
 
 
 def notify_event(
@@ -198,4 +200,4 @@ def test_connection(conn_type: str, config_json: str) -> tuple[bool, str]:
         )
         return True, "Test notification sent successfully."
     except Exception as exc:
-        return False, str(exc)
+        return False, redact(exc)

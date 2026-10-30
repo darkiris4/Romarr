@@ -14,6 +14,7 @@ import time
 import httpx
 
 from ..config import settings
+from .redact import redact
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def test_credentials() -> tuple[bool, str]:
         resp.raise_for_status()
         return True, "Connected to RAWG successfully."
     except httpx.HTTPError as exc:
-        return False, str(exc)
+        return False, redact(exc)
 
 
 def _get(path: str, params: dict) -> dict | None:
@@ -64,7 +65,7 @@ def _get(path: str, params: dict) -> dict | None:
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPError as exc:
-        logger.warning("RAWG request error (%s): %s", path, exc)
+        logger.warning("RAWG request error (%s): %s", path, redact(exc))
         return None
 
 
