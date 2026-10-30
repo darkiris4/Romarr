@@ -490,7 +490,9 @@ def _restore_from_zip(zip_path: Path) -> None:
         _backup()
         os.replace(tmp_path, db_path)
     finally:
-        tmp_path.unlink(missing_ok=True)
+        # Opening the extracted copy can leave journal sidecars next to it.
+        for suffix in ("", "-wal", "-shm"):
+            Path(f"{tmp_path}{suffix}").unlink(missing_ok=True)
 
     # Stale WAL/SHM sidecars would be replayed against the restored database.
     for ext in ("-wal", "-shm"):

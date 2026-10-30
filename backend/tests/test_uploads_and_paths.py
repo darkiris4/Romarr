@@ -354,3 +354,57 @@ def test_named_restore_validates_and_restores(env, tmp_path):
     )
     assert client.post("/system/backup/romarr_backup_good.zip/restore").status_code == 200
     assert _platform_names(data_dir) == ["FromNamed"]
+
+
+def _wal_db_bytes(tmp_path: Path, platform_name: str = "WalRestored") -> bytes:
+    path = tmp_path / "wal-source.db"
+    _make_db(path, platform_name)
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.commit()
+    conn.close()
+    return path.read_bytes()
+
+
+def test_restore_leaves_no_temporary_files_for_wal_backup(env, tmp_path):
+    client, data_dir, _, _ = env
+    resp = _restore(client, _zip_bytes({"romarr.db": _wal_db_bytes(tmp_path)}))
+    assert resp.status_code == 200
+    assert _platform_names(data_dir) == ["WalRestored"]
+    assert [p.name for p in data_dir.glob(".*")] == []
+
+
+class _FixedClock:
+    """Stand-in for the datetime class used by the scheduler, frozen at one instant."""
+
+    @staticmethod
+    def now(tz=None):
+        from datetime import datetime
+
+        return datetime(2026, 1, 2, 3, 4, 5, tzinfo=tz)
+
+
+def test_backups_in_the_same_second_get_distinct_names(env, monkeypatch):
+    from app.services import scheduler
+
+    _, data_dir, _, _ = env
+    monkeypatch.setattr(scheduler, "datetime", _FixedClock)
+    scheduler._backup()
+    scheduler._backup()
+    scheduler._backup()
+    names = sorted(p.name for p in (data_dir / "backups").glob("romarr_backup_*.zip"))
+    assert len(names) == 3 and len(set(names)) == 3
+
+
+def test_safety_backup_never_replaces_the_backup_being_restored(env, tmp_path, monkeypatch):
+    from app.services import scheduler
+
+    client, data_dir, _, _ = env
+    monkeypatch.setattr(scheduler, "datetime", _FixedClock)
+    scheduler._backup()
+    backups = data_dir / "backups"
+    original = next(backups.glob("romarr_backup_*.zip"))
+    before = original.read_bytes()
+    assert client.post(f"/system/backup/{original.name}/restore").status_code == 200
+    assert original.read_bytes() == before
+    assert len(list(backups.glob("romarr_backup_*.zip"))) == 2
